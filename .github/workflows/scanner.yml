@@ -2,18 +2,16 @@ name: AI Crypto Scanner
 
 on:
   schedule:
-    - cron: '0 */4 * * *'
+    - cron: '0 */12 * * *'
 
   workflow_dispatch:
 
 jobs:
   run-bot:
-
     runs-on: ubuntu-latest
 
     steps:
-
-      - name: Checkout Repo
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -21,13 +19,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install Packages
-        run: |
-          pip install -r requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
       - name: Run Scanner
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
-        run: |
-          python scanner.py
+        run: python scanner.py
