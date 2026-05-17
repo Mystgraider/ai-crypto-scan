@@ -2,7 +2,7 @@ name: AI Crypto Scanner
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '0 */4 * * *'
 
   workflow_dispatch:
 
