@@ -10,8 +10,104 @@ from datetime import datetime
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-SYMBOL = "BTC"
-TIMEFRAME = "minute"
+SYMBOLS = [
+    "BTC",
+    "ETH",
+    "BNB",
+    "SOL",
+    "XRP",
+    "ADA",
+    "DOGE",
+    "AVAX",
+    "DOT",
+    "LINK",
+    "MATIC",
+    "LTC",
+    "BCH",
+    "ATOM",
+    "ETC",
+    "XLM",
+    "UNI",
+    "FIL",
+    "APT",
+    "ARB",
+    "OP",
+    "INJ",
+    "RNDR",
+    "AAVE",
+    "NEAR",
+    "FTM",
+    "ALGO",
+    "SAND",
+    "MANA",
+    "GRT",
+    "EGLD",
+    "FLOW",
+    "ICP",
+    "XTZ",
+    "SHIB",
+    "PEPE",
+    "FLOKI",
+    "BONK",
+    "WIF",
+    "BOME",
+    "MEME",
+    "TURBO",
+    "DOG",
+    "BRETT",
+    "MOG",
+    "POPCAT",
+    "TAO",
+    "FET",
+    "AGIX",
+    "OCEAN",
+    "WLD",
+    "ARKM",
+    "NMR",
+    "PHB",
+    "RLC",
+    "IMX",
+    "BEAM",
+    "GALA",
+    "AXS",
+    "ENJ",
+    "ILV",
+    "YGG",
+    "MKR",
+    "SNX",
+    "DYDX",
+    "CRV",
+    "LDO",
+    "SUSHI",
+    "COMP",
+    "1INCH",
+    "SUI",
+    "SEI",
+    "TIA",
+    "JUP",
+    "PYTH",
+    "STRK",
+    "BLUR",
+    "ZRO",
+    "AEVO",
+    "ALT",
+    "PORTAL",
+    "MANTA",
+    "DYM",
+    "OMNI",
+    "PIXEL",
+    "ETHFI",
+    "REZ",
+    "NOT",
+    "TON",
+    "ONDO",
+    "TRB",
+    "HOOK",
+    "ORDI",
+    "SATS",
+    "1000PEPE",
+    "1000BONK",
+]
 
 # =====================================
 # TELEGRAM
@@ -32,7 +128,7 @@ def send_telegram(message):
 # GET MARKET DATA
 # =====================================
 
-def get_price_data():
+def get_price_data(symbol):
 
     headers = {
         "User-Agent": "Mozilla/5.0"
@@ -40,7 +136,7 @@ def get_price_data():
 
     url = (
         "https://min-api.cryptocompare.com/data/v2/histominute"
-        "?fsym=BTC"
+        f"?fsym={symbol}"
         "&tsym=USDT"
         "&limit=100"
     )
@@ -138,6 +234,9 @@ def liquidity_alignment(volumes):
     avg_volume = statistics.mean(volumes[-20:])
     current_volume = volumes[-1]
 
+    if avg_volume == 0:
+        return 0
+
     ratio = current_volume / avg_volume
 
     score = min(ratio * 50, 100)
@@ -191,20 +290,6 @@ def consensus_engine(
     return round(score, 2)
 
 # =====================================
-# RISK ENGINE
-# =====================================
-
-def risk_engine(volatility):
-
-    if volatility >= 5:
-        return "HIGH ⚠️"
-
-    elif volatility >= 3:
-        return "MODERATE"
-
-    return "LOW ✅"
-
-# =====================================
 # SIGNAL CONFLICT
 # =====================================
 
@@ -221,23 +306,6 @@ def signal_conflict(
         return "MODERATE"
 
     return "LOW"
-
-# =====================================
-# EXECUTION QUALITY
-# =====================================
-
-def execution_quality(consensus):
-
-    if consensus >= 85:
-        return "ELITE ✅"
-
-    elif consensus >= 70:
-        return "STRONG ⚡"
-
-    elif consensus >= 55:
-        return "MODERATE ⚠️"
-
-    return "LOW ❌"
 
 # =====================================
 # NO TRADE FILTER
@@ -379,97 +447,129 @@ def execution_zones(
 
 def analyze():
 
-    closes, volumes = get_price_data()
+    best_setup = None
 
-    price = closes[-1]
+    for symbol in SYMBOLS:
 
-    regime = market_regime(closes)
+        try:
 
-    volatility = volatility_score(closes)
+            closes, volumes = get_price_data(symbol)
 
-    momentum = momentum_score(closes)
+            price = closes[-1]
 
-    trend_score = trend_alignment(closes)
+            regime = market_regime(closes)
 
-    liquidity_score = liquidity_alignment(volumes)
+            volatility = volatility_score(closes)
 
-    momentum_score_value = momentum_alignment(momentum)
+            momentum = momentum_score(closes)
 
-    risk_score = risk_stability(volatility)
+            trend_score = trend_alignment(closes)
 
-    consensus = consensus_engine(
-        trend_score,
-        liquidity_score,
-        momentum_score_value,
-        risk_score
-    )
+            liquidity_score = liquidity_alignment(volumes)
 
-    risk = risk_engine(volatility)
+            momentum_score_value = momentum_alignment(
+                momentum
+            )
 
-    conflict = signal_conflict(
-        trend_score,
-        momentum_score_value,
-        risk_score
-    )
+            risk_score = risk_stability(
+                volatility
+            )
 
-    quality = execution_quality(consensus)
+            consensus = consensus_engine(
+                trend_score,
+                liquidity_score,
+                momentum_score_value,
+                risk_score
+            )
 
-    blocked = no_trade_filter(
-        volatility,
-        consensus,
-        conflict
-    )
+            conflict = signal_conflict(
+                trend_score,
+                momentum_score_value,
+                risk_score
+            )
 
-    signal = signal_engine(
-        regime,
-        momentum,
-        consensus
-    )
+            signal = signal_engine(
+                regime,
+                momentum,
+                consensus
+            )
 
-    if blocked:
-        signal = "NO TRADE ⚠️"
+            blocked = no_trade_filter(
+                volatility,
+                consensus,
+                conflict
+            )
 
+            if blocked:
+                continue
+
+            if (
+                best_setup is None
+                or
+                consensus > best_setup["consensus"]
+            ):
+
+                best_setup = {
+                    "symbol": symbol,
+                    "price": price,
+                    "signal": signal,
+                    "consensus": consensus,
+                    "momentum": momentum,
+                    "volatility": volatility,
+                    "regime": regime
+                }
+
+        except Exception as e:
+
+            print(
+                f"ERROR {symbol}: {e}"
+            )
+
+    # NO SETUP
+    if not best_setup:
+
+        report = """
+━━━━━━━━━━━━━━━━━━
+⚠️ MARKET STATUS
+━━━━━━━━━━━━━━━━━━
+
+No high-quality setup found.
+
+Trade Permission:
+DENIED ❌
+
+Reason:
+Weak market conditions
+━━━━━━━━━━━━━━━━━━
+"""
+
+        print(report)
+
+        send_telegram(report)
+
+        return
+
+    # EXECUTION
     zones = execution_zones(
-        price,
-        volatility,
-        signal
+        best_setup["price"],
+        best_setup["volatility"],
+        best_setup["signal"]
     )
 
-    avg_volume = round(
-        statistics.mean(volumes[-20:]),
-        2
-    )
+    report = f"""
+━━━━━━━━━━━━━━━━━━
+🏆 TOP MARKET OPPORTUNITY
+━━━━━━━━━━━━━━━━━━
 
-    current_volume = round(
-        volumes[-1],
-        2
-    )
+🪙 Symbol:
+{best_setup['symbol']}USDT
 
-    market_stability = round(
-        (
-            risk_score +
-            trend_score
-        ) / 2,
-        2
-    )
+💰 Current Price:
+{best_setup['price']}
 
-    trade_status = (
-        "APPROVED ✅"
-        if "NO TRADE" not in signal
-        else "DENIED ❌"
-    )
+📢 Signal:
+{best_setup['signal']}
 
-    volume_state = (
-        "STRONG BUY PRESSURE 🐋"
-        if current_volume > avg_volume
-        else "WEAK PARTICIPATION ⚠️"
-    )
-
-    trade_section = ""
-
-    if zones:
-
-        trade_section = f"""
 ━━━━━━━━━━━━━━━━━━
 🎯 Trade Execution
 ━━━━━━━━━━━━━━━━━━
@@ -489,93 +589,21 @@ Take Profit 2:
 Risk : Reward
 1 : {zones['rr']}
 
-Trade Status:
-{trade_status}
-"""
-
-    report = f"""
 ━━━━━━━━━━━━━━━━━━
-🤖 V27 OMEGA STABLE CORE
-━━━━━━━━━━━━━━━━━━
-
-🪙 Symbol:
-BTCUSDT
-
-💰 Current Price:
-{price}
-
-📢 Signal:
-{signal}
-
-{trade_section}
-
-━━━━━━━━━━━━━━━━━━
-🌍 Market State
+📊 Market Analysis
 ━━━━━━━━━━━━━━━━━━
 
 Regime:
-{regime}
-
-Market Stability:
-{market_stability}%
-
-Volatility:
-{volatility}%
-
-Momentum:
-{momentum}%
-
-━━━━━━━━━━━━━━━━━━
-🧠 Consensus Matrix
-━━━━━━━━━━━━━━━━━━
-
-Trend Alignment:
-{trend_score}%
-
-Liquidity Alignment:
-{liquidity_score}%
-
-Momentum Alignment:
-{momentum_score_value}%
-
-Risk Stability:
-{risk_score}%
+{best_setup['regime']}
 
 Consensus Score:
-{consensus}%
+{best_setup['consensus']}%
 
-━━━━━━━━━━━━━━━━━━
-🛡 Risk Engine
-━━━━━━━━━━━━━━━━━━
+Momentum:
+{best_setup['momentum']}%
 
-Risk Level:
-{risk}
-
-Signal Conflict:
-{conflict}
-
-━━━━━━━━━━━━━━━━━━
-⚔️ Execution Engine
-━━━━━━━━━━━━━━━━━━
-
-Execution Quality:
-{quality}
-
-Trade Permission:
-{trade_status}
-
-━━━━━━━━━━━━━━━━━━
-📈 Volume Intelligence
-━━━━━━━━━━━━━━━━━━
-
-Current Volume:
-{current_volume}
-
-Average Volume:
-{avg_volume}
-
-Volume State:
-{volume_state}
+Volatility:
+{best_setup['volatility']}%
 
 ━━━━━━━━━━━━━━━━━━
 🕒 Time
