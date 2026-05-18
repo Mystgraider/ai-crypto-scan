@@ -1,718 +1,566 @@
-import ccxt
-import pandas as pd
-import ta
 import requests
+import statistics
 import os
+from datetime import datetime
+
+# =====================================
+# CONFIG
+# =====================================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-exchange = ccxt.okx()
+SYMBOL = "BTCUSDT"
 
-markets = exchange.load_markets()
-
-coins = []
-
-for symbol in markets:
-
-    if '/USDT' in symbol:
-        coins.append(symbol)
-
-coins = coins[:30]
-
-heat_ranking = []
-
+# =====================================
+# TELEGRAM
+# =====================================
 
 def send_telegram(message):
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
-    data = {
+    payload = {
         "chat_id": CHAT_ID,
         "text": message
     }
 
-    requests.post(url, data=data)
+    requests.post(url, data=payload)
 
+# =====================================
+# MARKET DATA
+# =====================================
 
-def social_sentiment(symbol, bullish_score):
+def get_price_data():
 
-    if bullish_score >= 7:
-        return "VERY POSITIVE 🟢"
+    url = (
+        "https://api.binance.com/api/v3/klines"
+        f"?symbol={SYMBOL}&interval=15m&limit=100"
+    )
 
-    elif bullish_score >= 5:
-        return "POSITIVE 🟢"
+    data = requests.get(url).json()
 
-    elif bullish_score >= 3:
-        return "NEUTRAL ⚖️"
+    closes = [float(x[4]) for x in data]
+    volumes = [float(x[5]) for x in data]
 
-    return "NEGATIVE 🔴"
+    return closes, volumes
 
+# =====================================
+# MARKET REGIME
+# =====================================
 
-def smart_money_logic(breakout, whale):
+def market_regime(closes):
 
-    if breakout == "ACTIVE 🚨" and "ACCUMULATION" in whale:
-        return "TREND CONTINUATION"
+    sma20 = statistics.mean(closes[-20:])
+    sma50 = statistics.mean(closes[-50:])
 
-    elif breakout == "NONE":
-        return "RANGING MARKET"
+    if sma20 > sma50:
+        return "TRENDING 🚀"
 
-    return "VOLATILE CONDITIONS"
+    elif sma20 < sma50:
+        return "BEARISH 🩸"
 
+    return "RANGING ⚖️"
 
-def volatility_engine(df):
+# =====================================
+# VOLATILITY
+# =====================================
 
-    volatility = (
-        (df['high'] - df['low']) / df['close']
-    ).tail(20).mean()
+def volatility_score(closes):
 
-    if volatility > 0.03:
-        return "EXPANDING ⚡", 2
+    recent = closes[-20:]
 
-    elif volatility > 0.015:
-        return "NORMAL", 1
+    high = max(recent)
+    low = min(recent)
 
-    return "LOW VOLATILITY", 0
+    volatility = ((high - low) / low) * 100
 
+    return round(volatility, 2)
 
-def market_regime(bullish_score):
+# =====================================
+# MOMENTUM
+# =====================================
 
-    if bullish_score >= 7:
-        return "BULL MARKET 🚀"
+def momentum_score(closes):
 
-    elif bullish_score <= 2:
-        return "BEAR MARKET 📉"
+    latest = closes[-1]
+    old = closes[-10]
 
-    return "RANGING MARKET ⚖️"
+    momentum = ((latest - old) / old) * 100
 
+    return round(momentum, 2)
 
-def breakout_probability(
-    bullish,
-    breakout,
-    whale
-):
+# =====================================
+# TREND ALIGNMENT
+# =====================================
 
-    score = bullish * 10
+def trend_alignment(closes):
 
-    if breakout == "ACTIVE 🚨":
-        score += 20
+    sma20 = statistics.mean(closes[-20:])
+    sma50 = statistics.mean(closes[-50:])
 
-    if "ACCUMULATION" in whale:
-        score += 15
+    diff = abs(sma20 - sma50)
 
-    return min(score, 99)
+    score = min(diff * 2, 100)
 
+    return round(score, 2)
 
-def fear_greed_engine(bullish):
+# =====================================
+# LIQUIDITY ALIGNMENT
+# =====================================
 
-    if bullish >= 7:
-        return "GREED 🟢"
+def liquidity_alignment(volumes):
 
-    elif bullish <= 2:
-        return "FEAR 🔴"
+    avg_volume = statistics.mean(volumes[-20:])
+    current_volume = volumes[-1]
 
-    return "NEUTRAL ⚖️"
+    ratio = current_volume / avg_volume
 
+    score = min(ratio * 50, 100)
 
-def news_bias_engine(bullish, breakout):
+    return round(score, 2)
 
-    if bullish >= 6 and breakout == "ACTIVE 🚨":
-        return "BULLISH"
+# =====================================
+# MOMENTUM ALIGNMENT
+# =====================================
 
-    elif bullish <= 2:
-        return "BEARISH"
+def momentum_alignment(momentum):
 
-    return "MIXED"
+    score = min(abs(momentum) * 30, 100)
 
+    return round(score, 2)
 
-def liquidation_engine(
-    volatility_status,
-    breakout
-):
+# =====================================
+# RISK STABILITY
+# =====================================
 
-    if (
-        volatility_status == "EXPANDING ⚡"
-        and breakout == "ACTIVE 🚨"
-    ):
-        return "SHORT SQUEEZE ⚡"
+def risk_stability(volatility):
 
-    return "NORMAL"
+    score = max(100 - (volatility * 10), 1)
 
+    return round(score, 2)
 
-def momentum_strength(
-    bullish,
-    breakout_chance
-):
+# =====================================
+# CONSENSUS ENGINE
+# =====================================
 
-    if bullish >= 7 and breakout_chance >= 90:
-        return "EXPLOSIVE ⚡"
-
-    elif bullish >= 5:
-        return "STRONG 🚀"
-
-    return "WEAK ⚖️"
-
-
-def fusion_score(
-    bullish,
-    breakout_chance,
-    confidence
+def consensus_engine(
+    trend,
+    liquidity,
+    momentum,
+    risk
 ):
 
     score = (
-        bullish * 5
-        + breakout_chance * 0.4
-        + confidence * 0.3
+        trend * 0.30 +
+        liquidity * 0.20 +
+        momentum * 0.20 +
+        risk * 0.30
     )
 
-    return min(round(score), 100)
+    return round(score, 2)
 
+# =====================================
+# RISK ENGINE
+# =====================================
 
-def trade_grade(score):
+def risk_engine(volatility):
 
-    if score >= 95:
-        return "A+ ⭐"
-
-    elif score >= 85:
-        return "A 🚀"
-
-    elif score >= 70:
-        return "B 👍"
-
-    elif score >= 55:
-        return "C ⚖️"
-
-    return "D ❌"
-
-
-def market_phase(
-    breakout_chance,
-    volatility_status
-):
-
-    if (
-        breakout_chance >= 90
-        and volatility_status == "EXPANDING ⚡"
-    ):
-        return "EXPANSION 🌊"
-
-    elif volatility_status == "LOW VOLATILITY":
-        return "COMPRESSION ⚖️"
-
-    return "TRANSITION"
-
-
-def fake_breakout_risk(
-    breakout_chance,
-    volume,
-    avg_volume
-):
-
-    if (
-        breakout_chance >= 85
-        and volume < avg_volume
-    ):
+    if volatility >= 5:
         return "HIGH ⚠️"
 
-    elif breakout_chance >= 90:
-        return "LOW ✅"
+    elif volatility >= 3:
+        return "MODERATE"
 
-    return "MEDIUM ⚖️"
+    return "LOW ✅"
 
+# =====================================
+# SIGNAL CONFLICT
+# =====================================
 
-def momentum_persistence(
-    bullish,
-    confidence
+def signal_conflict(
+    trend,
+    momentum,
+    risk
 ):
 
-    if bullish >= 7 and confidence >= 90:
-        return "PERSISTENT ⚡"
+    if risk < 40:
+        return "HIGH"
 
-    elif bullish >= 5:
-        return "STABLE 🚀"
+    elif trend < 50 or momentum < 50:
+        return "MODERATE"
 
-    return "WEAK"
+    return "LOW"
 
+# =====================================
+# EXECUTION QUALITY
+# =====================================
 
-def smart_money_v2(
-    bullish,
-    breakout_chance
+def execution_quality(consensus):
+
+    if consensus >= 85:
+        return "ELITE ✅"
+
+    elif consensus >= 70:
+        return "STRONG ⚡"
+
+    elif consensus >= 55:
+        return "MODERATE ⚠️"
+
+    return "LOW ❌"
+
+# =====================================
+# NO TRADE FILTER
+# =====================================
+
+def no_trade_filter(
+    volatility,
+    consensus,
+    conflict
 ):
 
-    if bullish >= 7 and breakout_chance >= 90:
-        return "AGGRESSIVE ACCUMULATION 🐋"
+    if volatility > 6:
+        return True
 
-    elif bullish <= 2:
-        return "DISTRIBUTION 📉"
+    if consensus < 60:
+        return True
 
-    return "NEUTRAL ⚖️"
+    if conflict == "HIGH":
+        return True
 
+    return False
 
-def market_state_engine(
-    breakout_chance,
-    volatility_status,
-    bullish
+# =====================================
+# SIGNAL ENGINE
+# =====================================
+
+def signal_engine(
+    regime,
+    momentum,
+    consensus
 ):
 
     if (
-        breakout_chance >= 95
-        and bullish >= 7
+        "TRENDING" in regime
+        and momentum > 0
+        and consensus >= 70
     ):
-        return "EXPANSION ⚡"
+        return "BUY 🚀"
 
-    elif volatility_status == "LOW VOLATILITY":
-        return "COMPRESSION ⚖️"
+    elif (
+        "BEARISH" in regime
+        and momentum < 0
+        and consensus >= 70
+    ):
+        return "SELL 🩸"
 
-    elif bullish <= 2:
-        return "EXHAUSTION 📉"
+    return "NO TRADE ⚠️"
 
-    return "TRANSITION 🌊"
+# =====================================
+# EXECUTION ZONES
+# =====================================
 
-
-def fusion_matrix(
-    bullish,
-    breakout_chance,
-    confidence
+def execution_zones(
+    current_price,
+    volatility,
+    signal
 ):
 
-    trend_strength = min(
-        bullish * 12,
-        100
+    move = current_price * (
+        volatility / 100
     )
 
-    momentum_quality = min(
-        confidence,
-        100
-    )
+    if "BUY" in signal:
 
-    volatility_quality = min(
-        breakout_chance,
-        100
-    )
+        entry_low = round(
+            current_price * 0.998,
+            2
+        )
 
-    smart_money_pressure = min(
-        bullish * 13,
-        100
+        entry_high = round(
+            current_price * 1.001,
+            2
+        )
+
+        stop_loss = round(
+            current_price - (move * 0.8),
+            2
+        )
+
+        tp1 = round(
+            current_price + (move * 1.5),
+            2
+        )
+
+        tp2 = round(
+            current_price + (move * 3),
+            2
+        )
+
+    elif "SELL" in signal:
+
+        entry_low = round(
+            current_price * 0.999,
+            2
+        )
+
+        entry_high = round(
+            current_price * 1.002,
+            2
+        )
+
+        stop_loss = round(
+            current_price + (move * 0.8),
+            2
+        )
+
+        tp1 = round(
+            current_price - (move * 1.5),
+            2
+        )
+
+        tp2 = round(
+            current_price - (move * 3),
+            2
+        )
+
+    else:
+        return None
+
+    rr = round(
+        abs(tp2 - current_price) /
+        abs(current_price - stop_loss),
+        2
     )
 
     return {
-        "trend": trend_strength,
-        "momentum": momentum_quality,
-        "volatility": volatility_quality,
-        "smart_money": smart_money_pressure
+        "entry_low": entry_low,
+        "entry_high": entry_high,
+        "sl": stop_loss,
+        "tp1": tp1,
+        "tp2": tp2,
+        "rr": rr
     }
 
+# =====================================
+# MAIN ANALYSIS
+# =====================================
 
-def elite_trade_grade(
-    fusion,
-    breakout_chance
-):
+def analyze():
 
-    avg_score = (
-        fusion['trend']
-        + fusion['momentum']
-        + fusion['volatility']
-        + fusion['smart_money']
-    ) / 4
+    closes, volumes = get_price_data()
 
-    if avg_score >= 95 and breakout_chance >= 95:
-        return "A+ ELITE SETUP ⭐"
+    price = closes[-1]
 
-    elif avg_score >= 85:
-        return "A STRONG SETUP 🚀"
+    regime = market_regime(closes)
 
-    elif avg_score >= 70:
-        return "B GOOD SETUP 👍"
+    volatility = volatility_score(closes)
 
-    return "C WEAK SETUP ⚖️"
+    momentum = momentum_score(closes)
 
+    trend_score = trend_alignment(closes)
 
-def timeframe_analysis(symbol, timeframe):
+    liquidity_score = liquidity_alignment(volumes)
 
-    ohlcv = exchange.fetch_ohlcv(
-        symbol,
-        timeframe=timeframe,
-        limit=150
+    momentum_score_value = momentum_alignment(momentum)
+
+    risk_score = risk_stability(volatility)
+
+    consensus = consensus_engine(
+        trend_score,
+        liquidity_score,
+        momentum_score_value,
+        risk_score
     )
 
-    df = pd.DataFrame(
-        ohlcv,
-        columns=[
-            'time',
-            'open',
-            'high',
-            'low',
-            'close',
-            'volume'
-        ]
+    risk = risk_engine(volatility)
+
+    conflict = signal_conflict(
+        trend_score,
+        momentum_score_value,
+        risk_score
     )
 
-    df['rsi'] = ta.momentum.RSIIndicator(
-        df['close']
-    ).rsi()
-
-    df['ema20'] = ta.trend.EMAIndicator(
-        df['close'],
-        window=20
-    ).ema_indicator()
-
-    df['ema50'] = ta.trend.EMAIndicator(
-        df['close'],
-        window=50
-    ).ema_indicator()
-
-    macd = ta.trend.MACD(df['close'])
-
-    df['macd'] = macd.macd()
-    df['signal'] = macd.macd_signal()
-
-    latest = df.iloc[-1]
-
-    bullish = 0
-
-    if latest['ema20'] > latest['ema50']:
-        bullish += 1
-
-    if latest['rsi'] > 50:
-        bullish += 1
-
-    if latest['macd'] > latest['signal']:
-        bullish += 1
-
-    if bullish >= 2:
-        return "Bullish 🚀"
-
-    return "Bearish 📉"
-
-
-def analyze(symbol):
-
-    try:
-
-        ohlcv = exchange.fetch_ohlcv(
-            symbol,
-            timeframe='1h',
-            limit=200
-        )
-
-        df = pd.DataFrame(
-            ohlcv,
-            columns=[
-                'time',
-                'open',
-                'high',
-                'low',
-                'close',
-                'volume'
-            ]
-        )
-
-        df['ema20'] = ta.trend.EMAIndicator(
-            df['close'],
-            window=20
-        ).ema_indicator()
-
-        df['ema50'] = ta.trend.EMAIndicator(
-            df['close'],
-            window=50
-        ).ema_indicator()
-
-        df['rsi'] = ta.momentum.RSIIndicator(
-            df['close']
-        ).rsi()
-
-        macd = ta.trend.MACD(df['close'])
-
-        df['macd'] = macd.macd()
-        df['signal'] = macd.macd_signal()
-
-        latest = df.iloc[-1]
-
-        price = latest['close']
-
-        trend = "SIDEWAYS ⚖️"
-
-        bullish = 0
-
-        if latest['ema20'] > latest['ema50']:
-            trend = "BULLISH 🚀"
-            bullish += 1
-
-        if latest['rsi'] > 50:
-            bullish += 1
-
-        if latest['macd'] > latest['signal']:
-            bullish += 1
-
-        volume = latest['volume']
-        avg_volume = df['volume'].tail(20).mean()
-
-        whale = "NORMAL"
-
-        if volume > avg_volume * 2:
-            whale = "ACCUMULATION 🐋"
-            bullish += 1
-
-        recent_high = df['high'].tail(20).max()
-
-        breakout = "NONE"
-
-        if price >= recent_high * 0.995:
-            breakout = "ACTIVE 🚨"
-            bullish += 1
-
-        tf15 = timeframe_analysis(symbol, '15m')
-        tf1h = timeframe_analysis(symbol, '1h')
-        tf4h = timeframe_analysis(symbol, '4h')
-
-        tf_bullish = 0
-
-        for tf in [tf15, tf1h, tf4h]:
-            if "Bullish" in tf:
-                tf_bullish += 1
-
-        bullish += tf_bullish
-
-        volatility_status, vol_score = volatility_engine(df)
-
-        bullish += vol_score
-
-        if bullish >= 7:
-            confidence = 95
-            signal = "STRONG BUY 🚀"
-
-        elif bullish >= 5:
-            confidence = 85
-            signal = "BUY 🚀"
-
-        elif bullish >= 3:
-            confidence = 60
-            signal = "HOLD ⚖️"
-
-        else:
-            confidence = 40
-            signal = "SELL 📉"
-
-        social = social_sentiment(symbol, bullish)
-
-        regime = market_regime(bullish)
-
-        breakout_chance = breakout_probability(
-            bullish,
-            breakout,
-            whale
-        )
-
-        fear_greed = fear_greed_engine(bullish)
-
-        news_bias = news_bias_engine(
-            bullish,
-            breakout
-        )
-
-        liquidation_risk = liquidation_engine(
-            volatility_status,
-            breakout
-        )
-
-        momentum = momentum_strength(
-            bullish,
-            breakout_chance
-        )
-
-        fusion = fusion_score(
-            bullish,
-            breakout_chance,
-            confidence
-        )
-
-        grade = trade_grade(fusion)
-
-        phase = market_phase(
-            breakout_chance,
-            volatility_status
-        )
-
-        fake_risk = fake_breakout_risk(
-            breakout_chance,
-            volume,
-            avg_volume
-        )
-
-        persistence = momentum_persistence(
-            bullish,
-            confidence
-        )
-
-        smart_money = smart_money_v2(
-            bullish,
-            breakout_chance
-        )
-
-        state = market_state_engine(
-            breakout_chance,
-            volatility_status,
-            bullish
-        )
-
-        fusion_data = fusion_matrix(
-            bullish,
-            breakout_chance,
-            confidence
-        )
-
-        elite_grade = elite_trade_grade(
-            fusion_data,
-            breakout_chance
-        )
-
-        if volatility_status == "EXPANDING ⚡":
-
-            tp1 = round(price * 1.04, 2)
-            tp2 = round(price * 1.08, 2)
-            tp3 = round(price * 1.12, 2)
-            sl = round(price * 0.975, 2)
-
-        else:
-
-            tp1 = round(price * 1.03, 2)
-            tp2 = round(price * 1.06, 2)
-            tp3 = round(price * 1.12, 2)
-            sl = round(price * 0.98, 2)
-
-        heat_score = bullish + breakout_chance
-
-        heat_ranking.append(
-            (symbol, heat_score)
-        )
-
-        message = f'''
+    quality = execution_quality(consensus)
+
+    blocked = no_trade_filter(
+        volatility,
+        consensus,
+        conflict
+    )
+
+    signal = signal_engine(
+        regime,
+        momentum,
+        consensus
+    )
+
+    if blocked:
+        signal = "NO TRADE ⚠️"
+
+    zones = execution_zones(
+        price,
+        volatility,
+        signal
+    )
+
+    avg_volume = round(
+        statistics.mean(volumes[-20:]),
+        2
+    )
+
+    current_volume = round(
+        volumes[-1],
+        2
+    )
+
+    market_stability = round(
+        (
+            risk_score +
+            trend_score
+        ) / 2,
+        2
+    )
+
+    trade_status = (
+        "APPROVED ✅"
+        if "NO TRADE" not in signal
+        else "DENIED ❌"
+    )
+
+    volume_state = (
+        "STRONG BUY PRESSURE 🐋"
+        if current_volume > avg_volume
+        else "WEAK PARTICIPATION ⚠️"
+    )
+
+    trade_section = ""
+
+    if zones:
+
+        trade_section = f"""
 ━━━━━━━━━━━━━━━━━━
-🤖 QUANT AI COMMAND CENTER
+🎯 Trade Execution
 ━━━━━━━━━━━━━━━━━━
 
-🪙 {symbol}
+Entry Zone:
+{zones['entry_low']} - {zones['entry_high']}
 
-💰 Price:
-{round(price,2)}
+Stop Loss:
+{zones['sl']}
 
-🌍 Market Regime:
+Take Profit 1:
+{zones['tp1']}
+
+Take Profit 2:
+{zones['tp2']}
+
+Risk : Reward
+1 : {zones['rr']}
+
+Trade Status:
+{trade_status}
+"""
+
+    report = f"""
+━━━━━━━━━━━━━━━━━━
+🤖 V27 OMEGA STABLE CORE
+━━━━━━━━━━━━━━━━━━
+
+🪙 Symbol:
+{SYMBOL}
+
+💰 Current Price:
+{price}
+
+📢 Signal:
+{signal}
+
+{trade_section}
+
+━━━━━━━━━━━━━━━━━━
+🌍 Market State
+━━━━━━━━━━━━━━━━━━
+
+Regime:
 {regime}
 
-🌊 Market State:
-{state}
+Market Stability:
+{market_stability}%
 
-📈 Momentum Persistence:
-{persistence}
+Volatility:
+{volatility}%
 
-🌍 Social Sentiment:
-{social}
-
-😨 Fear & Greed:
-{fear_greed}
-
-📰 News Bias:
-{news_bias}
-
-🐋 Smart Money:
-{smart_money}
-
-📊 Breakout Probability:
-{breakout_chance}%
-
-⚠️ Fake Breakout Risk:
-{fake_risk}
-
-📉 Liquidation Risk:
-{liquidation_risk}
+Momentum:
+{momentum}%
 
 ━━━━━━━━━━━━━━━━━━
-📈 Multi-Timeframe
+🧠 Consensus Matrix
 ━━━━━━━━━━━━━━━━━━
 
-15m → {tf15}
-1h  → {tf1h}
-4h  → {tf4h}
-1D  → Bullish 🚀
+Trend Alignment:
+{trend_score}%
+
+Liquidity Alignment:
+{liquidity_score}%
+
+Momentum Alignment:
+{momentum_score_value}%
+
+Risk Stability:
+{risk_score}%
+
+Consensus Score:
+{consensus}%
 
 ━━━━━━━━━━━━━━━━━━
-🧠 AI Fusion Matrix
+🛡 Risk Engine
 ━━━━━━━━━━━━━━━━━━
 
-Trend Strength:
-{fusion_data['trend']}%
+Risk Level:
+{risk}
 
-Momentum Quality:
-{fusion_data['momentum']}%
-
-Volatility Quality:
-{fusion_data['volatility']}%
-
-Smart Money Pressure:
-{fusion_data['smart_money']}%
+Signal Conflict:
+{conflict}
 
 ━━━━━━━━━━━━━━━━━━
-🏆 Trade Grade
+⚔️ Execution Engine
 ━━━━━━━━━━━━━━━━━━
 
-{elite_grade}
+Execution Quality:
+{quality}
+
+Trade Permission:
+{trade_status}
 
 ━━━━━━━━━━━━━━━━━━
-🎯 Adaptive Trade Setup
+📈 Volume Intelligence
 ━━━━━━━━━━━━━━━━━━
 
-TP1:
-{tp1}
+Current Volume:
+{current_volume}
 
-TP2:
-{tp2}
+Average Volume:
+{avg_volume}
 
-TP3:
-{tp3}
+Volume State:
+{volume_state}
 
-SL:
-{sl}
 ━━━━━━━━━━━━━━━━━━
-'''
-
-        return message
-
-    except Exception as e:
-        return f"ERROR scanning {symbol}: {e}"
-
-
-for coin in coins:
-
-    result = analyze(coin)
-
-    print(result)
-
-    send_telegram(result)
-
-
-heat_ranking = sorted(
-    heat_ranking,
-    key=lambda x: x[1],
-    reverse=True
-)
-
-top_coins = heat_ranking[:5]
-
-ranking_text = ""
-
-for idx, coin in enumerate(top_coins, start=1):
-
-    ranking_text += (
-        f"#{idx} {coin[0]} 🚀\n"
-    )
-
-summary = f'''
-━━━━━━━━━━━━━━━━━━
-🏆 MARKET HEAT RANKING
+🕒 Time
 ━━━━━━━━━━━━━━━━━━
 
-{ranking_text}
+{datetime.utcnow()} UTC
 ━━━━━━━━━━━━━━━━━━
-'''
+"""
 
-send_telegram(summary)
+    print(report)
+
+    send_telegram(report)
+
+# =====================================
+# START
+# =====================================
+
+if __name__ == "__main__":
+    analyze()
