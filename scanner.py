@@ -11,6 +11,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
 SYMBOL = "BTCUSDT"
+INTERVAL = "15"
 
 # =====================================
 # TELEGRAM
@@ -28,20 +29,34 @@ def send_telegram(message):
     requests.post(url, data=payload)
 
 # =====================================
-# MARKET DATA
+# GET MARKET DATA (BYBIT)
 # =====================================
 
 def get_price_data():
 
     url = (
-        "https://api.binance.com/api/v3/klines"
-        f"?symbol={SYMBOL}&interval=15m&limit=100"
+        "https://api.bybit.com/v5/market/kline"
+        f"?category=linear&symbol={SYMBOL}&interval={INTERVAL}&limit=100"
     )
 
-    data = requests.get(url).json()
+    response = requests.get(url)
 
-    closes = [float(x[4]) for x in data]
-    volumes = [float(x[5]) for x in data]
+    data = response.json()
+
+    candles = data["result"]["list"]
+
+    closes = [
+        float(x[4])
+        for x in candles
+    ]
+
+    volumes = [
+        float(x[5])
+        for x in candles
+    ]
+
+    closes.reverse()
+    volumes.reverse()
 
     return closes, volumes
 
