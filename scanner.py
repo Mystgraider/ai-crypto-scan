@@ -276,7 +276,7 @@ def no_trade_filter(
     if volatility > 6:
         return True
 
-    if consensus < 60:
+    if consensus < 50:
         return True
 
     if conflict == "HIGH":
@@ -297,14 +297,14 @@ def signal_engine(
     if (
         "TRENDING" in regime
         and momentum > 0
-        and consensus >= 70
+        and consensus >= 55
     ):
         return "BUY 🚀"
 
     elif (
         "BEARISH" in regime
         and momentum < 0
-        and consensus >= 70
+        and consensus >= 55
     ):
         return "SELL 🩸"
 
