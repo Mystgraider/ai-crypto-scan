@@ -20,7 +20,7 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 # EXCHANGE
 # =========================
 
-exchange = ccxt.bybit({
+exchange = ccxt.okx({
     "enableRateLimit": True
 })
 
