@@ -41,76 +41,64 @@ SCAN_INTERVAL = 300
 SIGNAL_COOLDOWN_HOURS = 12
 
 # =====================================
-# TOP COINS
+# FAST ROTATING COIN GROUPS
 # =====================================
 
-SYMBOLS = [
+SYMBOL_GROUPS = [
 
-    # MAJOR COINS
-    "BTC/USDT:USDT",
-    "ETH/USDT:USDT",
-    "BNB/USDT:USDT",
-    "SOL/USDT:USDT",
-    "XRP/USDT:USDT",
-    "ADA/USDT:USDT",
-    "AVAX/USDT:USDT",
-    "DOT/USDT:USDT",
-    "LINK/USDT:USDT",
-    "MATIC/USDT:USDT",
+    # GROUP 1 - MAJORS
+    [
+        "BTC/USDT:USDT",
+        "ETH/USDT:USDT",
+        "SOL/USDT:USDT",
+        "XRP/USDT:USDT",
+        "BNB/USDT:USDT"
+    ],
 
-    # AI COINS
-    "FET/USDT:USDT",
-    "AGIX/USDT:USDT",
-    "OCEAN/USDT:USDT",
-    "RNDR/USDT:USDT",
-    "TAO/USDT:USDT",
-    "WLD/USDT:USDT",
-    "ARKM/USDT:USDT",
-    "AI/USDT:USDT",
+    # GROUP 2 - MEME
+    [
+        "DOGE/USDT:USDT",
+        "PEPE/USDT:USDT",
+        "SHIB/USDT:USDT",
+        "WIF/USDT:USDT",
+        "BONK/USDT:USDT"
+    ],
 
-    # MEME COINS
-    "DOGE/USDT:USDT",
-    "SHIB/USDT:USDT",
-    "PEPE/USDT:USDT",
-    "BONK/USDT:USDT",
-    "WIF/USDT:USDT",
-    "FLOKI/USDT:USDT",
-    "MEME/USDT:USDT",
+    # GROUP 3 - AI
+    [
+        "FET/USDT:USDT",
+        "RNDR/USDT:USDT",
+        "TAO/USDT:USDT",
+        "WLD/USDT:USDT",
+        "ARKM/USDT:USDT"
+    ],
 
-    # MID / TRENDING
-    "ONDO/USDT:USDT",
-    "SEI/USDT:USDT",
-    "SUI/USDT:USDT",
-    "APT/USDT:USDT",
-    "ARB/USDT:USDT",
-    "OP/USDT:USDT",
-    "INJ/USDT:USDT",
-    "TIA/USDT:USDT",
-    "NEAR/USDT:USDT",
-    "ATOM/USDT:USDT",
-    "FIL/USDT:USDT",
-    "ETC/USDT:USDT",
-    "ICP/USDT:USDT",
-    "GRT/USDT:USDT",
-    "AAVE/USDT:USDT",
-    "SAND/USDT:USDT",
-    "MANA/USDT:USDT",
-    "APE/USDT:USDT",
-    "LDO/USDT:USDT",
-    "DYDX/USDT:USDT",
-    "JUP/USDT:USDT",
-    "PYTH/USDT:USDT",
-    "STRK/USDT:USDT",
-    "ALT/USDT:USDT",
-    "ENA/USDT:USDT"
+    # GROUP 4 - TRENDING
+    [
+        "ONDO/USDT:USDT",
+        "SEI/USDT:USDT",
+        "SUI/USDT:USDT",
+        "INJ/USDT:USDT",
+        "TIA/USDT:USDT"
+    ],
 
+    # GROUP 5 - MIDCAP
+    [
+        "AVAX/USDT:USDT",
+        "ARB/USDT:USDT",
+        "OP/USDT:USDT",
+        "LINK/USDT:USDT",
+        "APT/USDT:USDT"
+    ]
 ]
 
 # =====================================
-# SIGNAL MEMORY
+# MEMORY
 # =====================================
 
 last_signal_times = {}
+
+current_group = 0
 
 # =====================================
 # LOAD DATA
@@ -182,7 +170,7 @@ def apply_indicators(df):
     return df
 
 # =====================================
-# REGIME
+# MARKET REGIME
 # =====================================
 
 def detect_market_regime(df):
@@ -312,7 +300,7 @@ def should_skip_trade(
     return False, "Valid"
 
 # =====================================
-# RISK
+# RISK MANAGER
 # =====================================
 
 def calculate_trade_levels(
@@ -355,7 +343,7 @@ def calculate_trade_levels(
     }
 
 # =====================================
-# TELEGRAM
+# TELEGRAM ALERT
 # =====================================
 
 def send_telegram_alert(message):
@@ -376,14 +364,19 @@ def send_telegram_alert(message):
     requests.post(url, json=payload)
 
 # =====================================
-# MAIN SCAN
+# MARKET SCAN
 # =====================================
 
 def scan_market():
 
+    global current_group
     global last_signal_times
 
-    for symbol in SYMBOLS:
+    symbols = SYMBOL_GROUPS[current_group]
+
+    print(f"\nScanning Group {current_group + 1}")
+
+    for symbol in symbols:
 
         try:
 
@@ -428,7 +421,6 @@ def scan_market():
                 if elapsed < timedelta(
                     hours=SIGNAL_COOLDOWN_HOURS
                 ):
-
                     continue
 
             price = df["close"].iloc[-1]
@@ -499,9 +491,12 @@ No guaranteed outcome.
 
         except Exception as e:
 
-            print(
-                f"ERROR {symbol}: {e}"
-            )
+            print(f"ERROR {symbol}: {e}")
+
+    current_group += 1
+
+    if current_group >= len(SYMBOL_GROUPS):
+        current_group = 0
 
 # =====================================
 # LOOP
@@ -519,7 +514,7 @@ if __name__ == "__main__":
         scan_market()
 
         print(
-            f"Sleeping {SCAN_INTERVAL} seconds..."
+            f"\nSleeping {SCAN_INTERVAL} seconds..."
         )
 
         time.sleep(SCAN_INTERVAL)
