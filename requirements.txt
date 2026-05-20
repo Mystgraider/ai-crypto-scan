@@ -1,5 +1,7 @@
-ccxt
 pandas
-ta
-requests
 numpy
+ta
+ccxt
+python-dotenv
+requests
+scikit-learn
