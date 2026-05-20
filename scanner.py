@@ -6,71 +6,121 @@ import pandas as pd
 import ta
 
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
-# =========================
+# =====================================
 # LOAD ENV
-# =========================
+# =====================================
 
 load_dotenv()
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-# =========================
+# =====================================
 # EXCHANGE
-# =========================
+# =====================================
 
 exchange = ccxt.okx({
-    "enableRateLimit": True
+    "enableRateLimit": True,
+    "options": {
+        "defaultType": "swap"
+    }
 })
 
-# =========================
+# =====================================
 # SETTINGS
-# =========================
+# =====================================
 
 TIMEFRAME = "15m"
 
 MIN_RR = 2.0
 
-SCAN_INTERVAL = 60
+SCAN_INTERVAL = 300
+
+SIGNAL_COOLDOWN_HOURS = 12
+
+# =====================================
+# TOP COINS
+# =====================================
 
 SYMBOLS = [
 
-    # MAJORS
-    "BTC/USDT",
-    "ETH/USDT",
-    "BNB/USDT",
-    "SOL/USDT",
-    "XRP/USDT",
+    # MAJOR COINS
+    "BTC/USDT:USDT",
+    "ETH/USDT:USDT",
+    "BNB/USDT:USDT",
+    "SOL/USDT:USDT",
+    "XRP/USDT:USDT",
+    "ADA/USDT:USDT",
+    "AVAX/USDT:USDT",
+    "DOT/USDT:USDT",
+    "LINK/USDT:USDT",
+    "MATIC/USDT:USDT",
 
-    # MID CAPS
-    "ONDO/USDT",
-    "LINK/USDT",
-    "AVAX/USDT",
-    "ARB/USDT",
-    "OP/USDT",
+    # AI COINS
+    "FET/USDT:USDT",
+    "AGIX/USDT:USDT",
+    "OCEAN/USDT:USDT",
+    "RNDR/USDT:USDT",
+    "TAO/USDT:USDT",
+    "WLD/USDT:USDT",
+    "ARKM/USDT:USDT",
+    "AI/USDT:USDT",
 
     # MEME COINS
-    "DOGE/USDT",
-    "SHIB/USDT",
-    "PEPE/USDT",
-    "WIF/USDT",
-    "BONK/USDT",
-    "FLOKI/USDT",
+    "DOGE/USDT:USDT",
+    "SHIB/USDT:USDT",
+    "PEPE/USDT:USDT",
+    "BONK/USDT:USDT",
+    "WIF/USDT:USDT",
+    "FLOKI/USDT:USDT",
+    "MEME/USDT:USDT",
 
-    # VOLATILE
-    "SUI/USDT",
-    "SEI/USDT",
-    "APT/USDT",
-    "INJ/USDT",
-    "TIA/USDT"
+    # MID / TRENDING
+    "ONDO/USDT:USDT",
+    "SEI/USDT:USDT",
+    "SUI/USDT:USDT",
+    "APT/USDT:USDT",
+    "ARB/USDT:USDT",
+    "OP/USDT:USDT",
+    "INJ/USDT:USDT",
+    "TIA/USDT:USDT",
+    "NEAR/USDT:USDT",
+    "ATOM/USDT:USDT",
+    "FIL/USDT:USDT",
+    "ETC/USDT:USDT",
+    "ICP/USDT:USDT",
+    "GRT/USDT:USDT",
+    "AAVE/USDT:USDT",
+    "SAND/USDT:USDT",
+    "MANA/USDT:USDT",
+    "APE/USDT:USDT",
+    "LDO/USDT:USDT",
+    "DYDX/USDT:USDT",
+    "JUP/USDT:USDT",
+    "PYTH/USDT:USDT",
+    "STRK/USDT:USDT",
+    "ALT/USDT:USDT",
+    "ENA/USDT:USDT"
+
 ]
 
-# =========================
-# LOAD MARKET DATA
-# =========================
+# =====================================
+# SIGNAL MEMORY
+# =====================================
 
-def load_ohlcv(symbol, timeframe="15m", limit=300):
+last_signal_times = {}
+
+# =====================================
+# LOAD DATA
+# =====================================
+
+def load_ohlcv(
+    symbol,
+    timeframe="15m",
+    limit=50
+):
 
     ohlcv = exchange.fetch_ohlcv(
         symbol,
@@ -97,9 +147,9 @@ def load_ohlcv(symbol, timeframe="15m", limit=300):
 
     return df
 
-# =========================
+# =====================================
 # INDICATORS
-# =========================
+# =====================================
 
 def apply_indicators(df):
 
@@ -111,12 +161,6 @@ def apply_indicators(df):
     df["ema_50"] = ta.trend.ema_indicator(
         df["close"],
         window=50
-    )
-
-    df["adx"] = ta.trend.adx(
-        df["high"],
-        df["low"],
-        df["close"]
     )
 
     df["rsi"] = ta.momentum.rsi(
@@ -137,9 +181,9 @@ def apply_indicators(df):
 
     return df
 
-# =========================
-# MARKET REGIME
-# =========================
+# =====================================
+# REGIME
+# =====================================
 
 def detect_market_regime(df):
 
@@ -153,10 +197,10 @@ def detect_market_regime(df):
 
     ema50 = df["ema_50"].iloc[-1]
 
-    if atr_percent < 1:
+    if atr_percent < 0.5:
         return "dead_market"
 
-    if abs(ema20 - ema50) < price * 0.002:
+    if abs(ema20 - ema50) < price * 0.001:
         return "ranging"
 
     if atr_percent > 3:
@@ -164,9 +208,9 @@ def detect_market_regime(df):
 
     return "trending"
 
-# =========================
-# TREND ANALYSIS
-# =========================
+# =====================================
+# TREND
+# =====================================
 
 def analyze_trend(df):
 
@@ -174,31 +218,18 @@ def analyze_trend(df):
 
     ema50 = df["ema_50"].iloc[-1]
 
-    adx = df["adx"].iloc[-1]
-
     if ema20 > ema50:
         direction = "bullish"
     else:
         direction = "bearish"
 
-    if adx > 30:
-        strength = "strong"
-
-    elif adx > 20:
-        strength = "moderate"
-
-    else:
-        strength = "weak"
-
     return {
-        "direction": direction,
-        "strength": strength,
-        "adx": round(adx, 2)
+        "direction": direction
     }
 
-# =========================
+# =====================================
 # MOMENTUM
-# =========================
+# =====================================
 
 def analyze_momentum(df):
 
@@ -206,7 +237,7 @@ def analyze_momentum(df):
 
     rsi = df["rsi"].iloc[-1]
 
-    strong = abs(roc) > 2
+    strong = abs(roc) > 0.5
 
     return {
         "roc": round(roc, 2),
@@ -214,9 +245,9 @@ def analyze_momentum(df):
         "strong": strong
     }
 
-# =========================
+# =====================================
 # VOLATILITY
-# =========================
+# =====================================
 
 def analyze_volatility(df):
 
@@ -228,12 +259,12 @@ def analyze_volatility(df):
 
     return {
         "volatility_percent": round(volatility, 2),
-        "active": volatility >= 1.5
+        "active": volatility >= 0.5
     }
 
-# =========================
+# =====================================
 # VOLUME
-# =========================
+# =====================================
 
 def analyze_volume(df):
 
@@ -252,35 +283,12 @@ def analyze_volume(df):
 
     return {
         "relative_volume": round(relative_volume, 2),
-        "strong_volume": relative_volume >= 1.5
+        "strong_volume": relative_volume >= 1.0
     }
 
-# =========================
-# LIQUIDITY SWEEP
-# =========================
-
-def detect_liquidity_sweep(df):
-
-    last = df.iloc[-1]
-
-    body = abs(
-        last["close"] - last["open"]
-    )
-
-    wick = last["high"] - max(
-        last["close"],
-        last["open"]
-    )
-
-    sweep = wick > body * 2
-
-    return {
-        "liquidity_sweep": sweep
-    }
-
-# =========================
-# NO TRADE FILTER
-# =========================
+# =====================================
+# FILTER
+# =====================================
 
 def should_skip_trade(
     momentum,
@@ -301,11 +309,11 @@ def should_skip_trade(
     if regime == "dead_market":
         return True, "Dead market"
 
-    return False, "Valid setup"
+    return False, "Valid"
 
-# =========================
-# RISK MANAGER
-# =========================
+# =====================================
+# RISK
+# =====================================
 
 def calculate_trade_levels(
     price,
@@ -346,11 +354,14 @@ def calculate_trade_levels(
         "rr": MIN_RR
     }
 
-# =========================
-# TELEGRAM ALERT
-# =========================
+# =====================================
+# TELEGRAM
+# =====================================
 
 def send_telegram_alert(message):
+
+    if not TELEGRAM_TOKEN:
+        return
 
     url = (
         f"https://api.telegram.org/bot"
@@ -364,22 +375,25 @@ def send_telegram_alert(message):
 
     requests.post(url, json=payload)
 
-# =========================
-# MAIN SCANNER
-# =========================
+# =====================================
+# MAIN SCAN
+# =====================================
 
 def scan_market():
+
+    global last_signal_times
 
     for symbol in SYMBOLS:
 
         try:
 
-            print(f"Scanning {symbol}")
-
             df = load_ohlcv(
                 symbol,
                 TIMEFRAME
             )
+
+            if len(df) < 50:
+                continue
 
             df = apply_indicators(df)
 
@@ -393,8 +407,6 @@ def scan_market():
 
             volume = analyze_volume(df)
 
-            liquidity = detect_liquidity_sweep(df)
-
             skip, reason = should_skip_trade(
                 momentum,
                 volatility,
@@ -403,12 +415,21 @@ def scan_market():
             )
 
             if skip:
-
-                print(
-                    f"{symbol} SKIPPED: {reason}"
-                )
-
                 continue
+
+            now = datetime.utcnow()
+
+            last_time = last_signal_times.get(symbol)
+
+            if last_time:
+
+                elapsed = now - last_time
+
+                if elapsed < timedelta(
+                    hours=SIGNAL_COOLDOWN_HOURS
+                ):
+
+                    continue
 
             price = df["close"].iloc[-1]
 
@@ -426,7 +447,7 @@ def scan_market():
                 else "SHORT"
             )
 
-            message = f'''
+            message = f"""
 ━━━━━━━━━━━━━━━━━━
 🏆 CLEAN MARKET SIGNAL
 ━━━━━━━━━━━━━━━━━━
@@ -441,10 +462,6 @@ def scan_market():
 
 📈 Regime: {regime}
 
-📊 Trend Strength: {trend['strength']}
-
-ADX: {trend['adx']}
-
 Momentum ROC: {momentum['roc']}%
 
 RSI: {momentum['rsi']}
@@ -452,8 +469,6 @@ RSI: {momentum['rsi']}
 Volatility: {volatility['volatility_percent']}%
 
 Relative Volume: {volume['relative_volume']}
-
-Liquidity Sweep: {liquidity['liquidity_sweep']}
 
 ━━━━━━━━━━━━━━━━━━
 🎯 Trade Execution
@@ -474,13 +489,13 @@ Liquidity Sweep: {liquidity['liquidity_sweep']}
 Probability-based setup only.
 
 No guaranteed outcome.
-
-Avoid overleveraging.
-'''
+"""
 
             print(message)
 
             send_telegram_alert(message)
+
+            last_signal_times[symbol] = now
 
         except Exception as e:
 
@@ -488,15 +503,18 @@ Avoid overleveraging.
                 f"ERROR {symbol}: {e}"
             )
 
-# =========================
+# =====================================
 # LOOP
-# =========================
+# =====================================
 
 if __name__ == "__main__":
 
     while True:
 
-        print("Starting market scan...")
+        print(
+            f"\n[{datetime.utcnow()}] "
+            f"Starting market scan..."
+        )
 
         scan_market()
 
