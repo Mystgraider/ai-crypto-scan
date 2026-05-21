@@ -39,8 +39,13 @@ SIGNAL_COOLDOWN_HOURS = 12
 
 COOLDOWN_FILE = "last_signal_times.json"
 
+# ROC threshold — lowered from 0.5 to 0.2
+ROC_THRESHOLD = 0.2
+
 # =====================================
 # ALL COINS
+# FET → AGIX/USDT:USDT (OKX alternative)
+# RNDR → RENDER/USDT:USDT (OKX alternative)
 # =====================================
 
 ALL_SYMBOLS = [
@@ -60,8 +65,8 @@ ALL_SYMBOLS = [
     "BONK/USDT:USDT",
 
     # AI
-    "FET/USDT:USDT",
-    "RNDR/USDT:USDT",
+    "AGIX/USDT:USDT",       # FET not on OKX swap
+    "RENDER/USDT:USDT",     # RNDR renamed to RENDER
     "TAO/USDT:USDT",
     "WLD/USDT:USDT",
     "ARKM/USDT:USDT",
@@ -134,7 +139,7 @@ def load_ohlcv(symbol, timeframe="15m", limit=60):
     return df
 
 # =====================================
-# INDICATORS (pure pandas, no ta lib)
+# INDICATORS (pure pandas)
 # =====================================
 
 def apply_indicators(df):
@@ -176,7 +181,7 @@ def detect_market_regime(df):
     ema20 = df["ema_20"].iloc[-1]
     ema50 = df["ema_50"].iloc[-1]
 
-    if atr_percent < 0.5:
+    if atr_percent < 0.3:
         return "dead_market"
     if abs(ema20 - ema50) < price * 0.001:
         return "ranging"
@@ -202,7 +207,7 @@ def analyze_momentum(df):
     return {
         "roc": round(roc, 2),
         "rsi": round(rsi, 2),
-        "strong": abs(roc) > 0.5
+        "strong": abs(roc) > ROC_THRESHOLD   # 0.2 instead of 0.5
     }
 
 
@@ -212,7 +217,7 @@ def analyze_volatility(df):
     volatility = (atr / price) * 100
     return {
         "volatility_percent": round(volatility, 2),
-        "active": volatility >= 0.5
+        "active": volatility >= 0.3           # lowered from 0.5 to 0.3
     }
 
 
@@ -222,7 +227,7 @@ def analyze_volume(df):
     relative_volume = current_volume / average_volume
     return {
         "relative_volume": round(relative_volume, 2),
-        "strong_volume": relative_volume >= 1.0
+        "strong_volume": relative_volume >= 0.8   # lowered from 1.0 to 0.8
     }
 
 # =====================================
@@ -302,7 +307,6 @@ def scan_all():
 
         try:
 
-            # Check 12hr cooldown
             if is_on_cooldown(symbol, signal_times, now):
                 last = signal_times[symbol]
                 remaining = last + timedelta(hours=SIGNAL_COOLDOWN_HOURS) - now
