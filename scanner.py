@@ -519,64 +519,64 @@ def log_signal(s):
 # =============================================================
 
 def run_scanner():
+
     print()
-    print('╔══════════════════════════════════════════════════════╗')
-    print('║         ELITE FUTURES SCANNER  v2.0                 ║')
-    print('║         Multi-TF + Structure + Smart Money           ║')
-    print('╚══════════════════════════════════════════════════════╝')
+    print('╔══════════════════════════════════════════════╗')
+    print('║           ELITE FUTURES SCANNER v2.0        ║')
+    print('║      Multi-TF + Structure + Smart Money     ║')
+    print('╚══════════════════════════════════════════════╝')
     print()
 
-    scan_count = 0
+    try:
 
-    while True:
-        try:
-            scan_count += 1
-            now = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
-            in_session = is_active_session()
-            session_tag = '🟢 ACTIVE SESSION' if in_session else '🟡 OFF-HOURS (signals filtered)'
+        now = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+        in_session = is_active_session()
 
-            print(f'\n[SCAN #{scan_count}]  {now}  |  {session_tag}')
-            print('─' * 56)
+        session_tag = '🟢 ACTIVE SESSION' if in_session else '🟡 OFF SESSION'
 
-            if not in_session:
-                print('  Waiting for London / New York session...')
-                print('  Next check in 15 minutes.\n')
-                time.sleep(900)
-                continue
+        print(f'\n[SCAN] {now} | {session_tag}')
+        print('-' * 56)
 
-            signals = []
+        if not in_session:
+            print(' Waiting for London / New York session...')
+            return
 
-            for symbol in TOP_COINS:
-                print(f'  Scanning {symbol}...', end='\r')
-                signal = build_signal(symbol)
-                if signal:
-                    signals.append(signal)
-                time.sleep(0.3)  # Rate limit buffer
+        signals = []
 
-            print(' ' * 40, end='\r')  # Clear scan line
+        for symbol in TOP_COINS:
 
-            signals = sorted(signals, key=lambda x: x['score'], reverse=True)
-            signals = signals[:MAX_SIGNALS]
+            print(f' Scanning {symbol}...', end='\r')
 
-            if not signals:
-                print('  No high-conviction setups found this cycle.')
-                print('  Criteria: Score ≥ 75, all 3 TFs aligned, structure confirmed.')
-            else:
-                print(f'  ✅ {len(signals)} signal(s) found:\n')
-                for s in signals:
-                    print_signal(s)
-                    log_signal(s)
+            signal = build_signal(symbol)
 
-            print(f'\n  Waiting 5 minutes for next scan...\n')
-            time.sleep(300)
+            if signal:
+                signals.append(signal)
 
-        except KeyboardInterrupt:
-            print('\n\n  Scanner stopped by user. Signal log saved to:', LOG_FILE)
-            break
-        except Exception as e:
-            print(f'  [SCANNER ERROR] {e}')
-            time.sleep(30)
+            time.sleep(0.3)
 
+        print(' ' * 50, end='\r')
 
-if __name__ == '__main__':
-    run_scanner()
+        signals = sorted(
+            signals,
+            key=lambda x: x['score'],
+            reverse=True
+        )
+
+        signals = signals[:MAX_SIGNALS]
+
+        if not signals:
+
+            print(' No high-conviction setups found this cycle.')
+            print(' Criteria: Score ≥ 75, all 3 TFs aligned, structure confirmed.')
+
+        else:
+
+            print(f'\n✅ {len(signals)} signal(s) found:\n')
+
+            for s in signals:
+                print_signal(s)
+                log_signal(s)
+
+    except Exception as e:
+
+        print(f'[SCANNER ERROR] {e}')
