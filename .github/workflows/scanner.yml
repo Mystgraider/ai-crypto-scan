@@ -1,12 +1,12 @@
-name: AI Crypto Scanner
+name: Elite Crypto Scanner
 
 on:
   schedule:
-    - cron: '*/30 * * * *'   # runs every 30 minutes, 24/7
-  workflow_dispatch:
+    - cron: '*/5 7-21 * * 1-5'  # Every 5 mins, London/NY session, weekdays only
+  workflow_dispatch:              # Manual trigger anytime
 
 jobs:
-  run-bot:
+  scan:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,26 +19,21 @@ jobs:
           python-version: '3.11'
 
       - name: Cache pip dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          key: pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: pip-
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Restore signal cooldown cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
-          path: last_signal_times.json
+          path: signal_log.csv
           key: signal-cache-${{ github.run_id }}
-          restore-keys: |
-            signal-cache-
+          restore-keys: signal-cache-
 
       - name: Run Scanner
-        env:
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python scanner.py
