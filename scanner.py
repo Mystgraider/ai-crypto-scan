@@ -4,11 +4,7 @@ import ta
 import time
 from datetime import datetime
 
-=========================
-
 CONFIG
-
-=========================
 
 TIMEFRAME_4H = '4h' TIMEFRAME_1H = '1h' TIMEFRAME_15M = '15m'
 
@@ -16,27 +12,15 @@ LOOKBACK = 200 MAX_SIGNALS = 5 MIN_RVOL = 1.5 MIN_ADX = 20 MIN_BREAKOUT_BODY = 6
 
 TOP_COINS = [ 'BTC/USDT:USDT', 'ETH/USDT:USDT', 'SOL/USDT:USDT', 'BNB/USDT:USDT', 'XRP/USDT:USDT', 'DOGE/USDT:USDT', 'AVAX/USDT:USDT', 'INJ/USDT:USDT', 'WLD/USDT:USDT', 'ONDO/USDT:USDT', 'SUI/USDT:USDT', 'WIF/USDT:USDT', 'TIA/USDT:USDT', 'OP/USDT:USDT', 'ARKM/USDT:USDT', 'SEI/USDT:USDT', 'PEPE/USDT:USDT', 'ICP/USDT:USDT', 'NEAR/USDT:USDT', ]
 
-=========================
-
 EXCHANGE
-
-=========================
 
 exchange = ccxt.bitget({ 'enableRateLimit': True, 'options': { 'defaultType': 'swap' } })
 
-=========================
-
 STORAGE
-
-=========================
 
 cooldowns = {}
 
-=========================
-
 HELPERS
-
-=========================
 
 def fetch_ohlcv(symbol, timeframe): try: data = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=LOOKBACK) df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume']) return df except Exception as e: print(f"ERROR fetching {symbol}: {e}") return None
 
