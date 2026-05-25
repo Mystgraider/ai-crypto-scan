@@ -1,932 +1,312 @@
-# =====================================
-# ELITE FUTURES SCANNER — FINAL
-# Fully Balanced LONG & SHORT
-# =====================================
+import ccxt import pandas as pd import ta import time from datetime import datetime
 
-import os
-import json
-import requests
-import ccxt
-import pandas as pd
-import xml.etree.ElementTree as ET
+=========================
 
-from dotenv import load_dotenv
-from datetime import datetime, timedelta
+CONFIG
 
-# =====================================
-# LOAD ENV
-# =====================================
+=========================
 
-load_dotenv()
+TIMEFRAME_4H = '4h' TIMEFRAME_1H = '1h' TIMEFRAME_15M = '15m'
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID   = os.getenv("CHAT_ID")
+LOOKBACK = 200 MAX_SIGNALS = 5 MIN_RVOL = 1.5 MIN_ADX = 20 MIN_BREAKOUT_BODY = 65 MIN_ATR_PERCENT = 1.0 RR_RATIO = 2.0 COOLDOWN_MINUTES = 45
 
-# =====================================
-# EXCHANGE — BITGET
-# =====================================
+TOP_COINS = [ 'BTC/USDT:USDT', 'ETH/USDT:USDT', 'SOL/USDT:USDT', 'BNB/USDT:USDT', 'XRP/USDT:USDT', 'DOGE/USDT:USDT', 'AVAX/USDT:USDT', 'INJ/USDT:USDT', 'WLD/USDT:USDT', 'ONDO/USDT:USDT', 'SUI/USDT:USDT', 'WIF/USDT:USDT', 'TIA/USDT:USDT', 'OP/USDT:USDT', 'ARKM/USDT:USDT', 'SEI/USDT:USDT', 'PEPE/USDT:USDT', 'ICP/USDT:USDT', 'NEAR/USDT:USDT', ]
 
-exchange = ccxt.bitget({
-    "enableRateLimit": True,
-    "options": {
-        "defaultType": "swap"
-    }
-})
+=========================
 
-# =====================================
-# SETTINGS
-# =====================================
+EXCHANGE
 
-MIN_RR                = 2.0
-MIN_SL_PCT            = 0.005
-MIN_SCORE             = 8
-SIGNAL_COOLDOWN_HOURS = 12
-COOLDOWN_FILE         = "last_signal_times.json"
+=========================
 
-# =====================================
-# NEWS SOURCES (free RSS)
-# =====================================
+exchange = ccxt.bitget({ 'enableRateLimit': True, 'options': { 'defaultType': 'swap' } })
 
-RSS_FEEDS = [
-    "https://cointelegraph.com/rss",
-    "https://www.coindesk.com/arc/outboundfeeds/rss/",
-]
+=========================
 
-POSITIVE_WORDS = [
-    "surge", "rally", "bullish", "soars", "jumps",
-    "gains", "breakout", "all-time high", "adoption",
-    "upgrade", "partnership", "growth", "record"
-]
+STORAGE
 
-NEGATIVE_WORDS = [
-    "crash", "dump", "bearish", "plunge", "hack",
-    "ban", "lawsuit", "collapse", "exploit", "scam",
-    "fraud", "warning", "fine", "sec charges"
-]
+=========================
 
-EXACT_MATCH_COINS = {
-    "op", "sei", "fet", "bnb", "wld",
-    "arb", "inj", "tia", "ren", "sol"
-}
+cooldowns = {}
 
-# =====================================
-# FIXED COIN LIST (crypto only)
-# =====================================
+=========================
 
-ALL_SYMBOLS = [
+HELPERS
 
-    # MAJORS
-    "BTC/USDT:USDT",
-    "ETH/USDT:USDT",
-    "SOL/USDT:USDT",
-    "XRP/USDT:USDT",
-    "BNB/USDT:USDT",
+=========================
 
-    # MEME
-    "DOGE/USDT:USDT",
-    "PEPE/USDT:USDT",
-    "SHIB/USDT:USDT",
-    "WIF/USDT:USDT",
-    "BONK/USDT:USDT",
+def fetch_ohlcv(symbol, timeframe): try: data = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=LOOKBACK) df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume']) return df except Exception as e: print(f"ERROR fetching {symbol}: {e}") return None
 
-    # AI
-    "FET/USDT:USDT",
-    "RENDER/USDT:USDT",
-    "TAO/USDT:USDT",
-    "WLD/USDT:USDT",
-    "ARKM/USDT:USDT",
+def calculate_indicators(df): df['ema20'] = ta.trend.ema_indicator(df['close'], window=20) df['ema50'] = ta.trend.ema_indicator(df['close'], window=50)
 
-    # TRENDING
-    "ONDO/USDT:USDT",
-    "SEI/USDT:USDT",
-    "SUI/USDT:USDT",
-    "INJ/USDT:USDT",
-    "TIA/USDT:USDT",
+df['rsi'] = ta.momentum.rsi(df['close'], window=14)
 
-    # MIDCAP
-    "AVAX/USDT:USDT",
-    "ARB/USDT:USDT",
-    "OP/USDT:USDT",
-    "LINK/USDT:USDT",
-    "APT/USDT:USDT",
+macd = ta.trend.MACD(df['close'])
+df['macd'] = macd.macd()
+df['macd_signal'] = macd.macd_signal()
 
-]
+adx = ta.trend.ADXIndicator(df['high'], df['low'], df['close'])
+df['adx'] = adx.adx()
 
-# =====================================
-# COOLDOWN
-# =====================================
+atr = ta.volatility.AverageTrueRange(df['high'], df['low'], df['close'])
+df['atr'] = atr.average_true_range()
 
-def load_signal_times():
-    if os.path.exists(COOLDOWN_FILE):
-        with open(COOLDOWN_FILE, "r") as f:
-            raw = json.load(f)
-        return {
-            k: datetime.fromisoformat(v)
-            for k, v in raw.items()
-        }
-    return {}
+df['volume_ma'] = df['volume'].rolling(20).mean()
+df['rvol'] = df['volume'] / df['volume_ma']
 
+return df
 
-def save_signal_times(signal_times):
-    raw = {k: v.isoformat() for k, v in signal_times.items()}
-    with open(COOLDOWN_FILE, "w") as f:
-        json.dump(raw, f, indent=2)
+def get_trend(df): last = df.iloc[-1]
 
+if last['ema20'] > last['ema50']:
+    return 'BULL'
+elif last['ema20'] < last['ema50']:
+    return 'BEAR'
+else:
+    return 'RANGE'
 
-def is_on_cooldown(symbol, signal_times, now):
-    last = signal_times.get(symbol)
-    if not last:
-        return False
-    return (now - last) < timedelta(hours=SIGNAL_COOLDOWN_HOURS)
+def btc_market_context(): btc = fetch_ohlcv('BTC/USDT:USDT', TIMEFRAME_1H) btc = calculate_indicators(btc)
 
-# =====================================
-# TELEGRAM
-# =====================================
+last = btc.iloc[-1]
 
-def send_telegram_alert(message):
-    if not BOT_TOKEN:
-        print("No BOT_TOKEN")
-        return
-    url     = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": message}
-    try:
-        requests.post(url, json=payload, timeout=10)
-    except Exception as e:
-        print(f"Telegram error: {e}")
+trend = get_trend(btc)
 
-# =====================================
-# LOAD OHLCV
-# =====================================
+atr_percent = (last['atr'] / last['close']) * 100
 
-def load_ohlcv(symbol, timeframe, limit=120):
-    ohlcv = exchange.fetch_ohlcv(
-        symbol, timeframe=timeframe, limit=limit
-    )
-    df = pd.DataFrame(
-        ohlcv,
-        columns=["timestamp", "open", "high", "low", "close", "volume"]
-    )
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-    return df
+volatility = 'HIGH' if atr_percent >= MIN_ATR_PERCENT else 'LOW'
 
-# =====================================
-# INDICATORS
-# =====================================
+return trend, volatility
 
-def apply_indicators(df):
+def breakout_body_percent(df): candle = df.iloc[-1]
 
-    # EMA
-    df["ema_20"] = df["close"].ewm(span=20, adjust=False).mean()
-    df["ema_50"] = df["close"].ewm(span=50, adjust=False).mean()
+body = abs(candle['close'] - candle['open'])
+full = candle['high'] - candle['low']
 
-    # RSI
-    delta    = df["close"].diff()
-    gain     = delta.clip(lower=0)
-    loss     = -delta.clip(upper=0)
-    avg_gain = gain.ewm(com=13, adjust=False).mean()
-    avg_loss = loss.ewm(com=13, adjust=False).mean()
-    rs       = avg_gain / avg_loss
-    df["rsi"] = 100 - (100 / (1 + rs))
+if full == 0:
+    return 0
 
-    # MACD
-    ema_12            = df["close"].ewm(span=12, adjust=False).mean()
-    ema_26            = df["close"].ewm(span=26, adjust=False).mean()
-    df["macd"]        = ema_12 - ema_26
-    df["macd_signal"] = df["macd"].ewm(span=9, adjust=False).mean()
+return (body / full) * 100
 
-    # ATR (correct ewm formula)
-    hl        = df["high"] - df["low"]
-    hc        = (df["high"] - df["close"].shift()).abs()
-    lc        = (df["low"] - df["close"].shift()).abs()
-    tr        = pd.concat([hl, hc, lc], axis=1).max(axis=1)
-    df["atr"] = tr.ewm(com=13, adjust=False).mean()
+def momentum_check(df, direction): candles = df.tail(3)
 
-    # Volume
-    df["vol_ma"]  = df["volume"].rolling(20).mean()
-    df["rel_vol"] = df["volume"] / df["vol_ma"]
+if direction == 'LONG':
+    return all(c['close'] > c['open'] for _, c in candles.iterrows())
+else:
+    return all(c['close'] < c['open'] for _, c in candles.iterrows())
 
-    return df
+def macd_aligned(last, direction): if direction == 'LONG': return last['macd'] > last['macd_signal'] else: return last['macd'] < last['macd_signal']
 
-# =====================================
-# TREND DETECTOR
-# Closed candle + min 0.2% EMA gap
-# No fake signals — must be clear trend
-# =====================================
+def relative_strength_vs_btc(symbol_df, btc_df): symbol_change = ((symbol_df['close'].iloc[-1] - symbol_df['close'].iloc[-10]) / symbol_df['close'].iloc[-10]) * 100 btc_change = ((btc_df['close'].iloc[-1] - btc_df['close'].iloc[-10]) / btc_df['close'].iloc[-10]) * 100
 
-def detect_trend(df):
-    ema20 = df["ema_20"].iloc[-2]
-    ema50 = df["ema_50"].iloc[-2]
-    price = df["close"].iloc[-2]
+return symbol_change - btc_change
 
-    if price == 0:
-        return None
+def cooldown_active(symbol): if symbol not in cooldowns: return False
 
-    gap_pct = abs(ema20 - ema50) / price
-    if gap_pct < 0.002:
-        return None
+elapsed = time.time() - cooldowns[symbol]
 
-    if ema20 > ema50 and price > ema20:
-        return "bullish"
-    if ema20 < ema50 and price < ema20:
-        return "bearish"
+return elapsed < (COOLDOWN_MINUTES * 60)
 
+def score_signal(direction, btc_trend, rvol, adx, macd_ok, breakout_ok, rs_strength): score = 0
+
+# BTC alignment
+if direction == 'LONG' and btc_trend == 'BULL':
+    score += 25
+
+if direction == 'SHORT' and btc_trend == 'BEAR':
+    score += 25
+
+# RVOL
+if rvol >= 2.0:
+    score += 25
+elif rvol >= 1.5:
+    score += 15
+
+# ADX
+if adx >= 30:
+    score += 20
+elif adx >= 20:
+    score += 10
+
+# MACD
+if macd_ok:
+    score += 15
+
+# Breakout candle
+if breakout_ok:
+    score += 15
+
+# Relative strength
+if direction == 'LONG' and rs_strength > 1:
+    score += 10
+
+if direction == 'SHORT' and rs_strength < -1:
+    score += 10
+
+return score
+
+def build_signal(symbol): if cooldown_active(symbol): return None
+
+df_4h = fetch_ohlcv(symbol, TIMEFRAME_4H)
+df_1h = fetch_ohlcv(symbol, TIMEFRAME_1H)
+df_15m = fetch_ohlcv(symbol, TIMEFRAME_15M)
+btc_df = fetch_ohlcv('BTC/USDT:USDT', TIMEFRAME_1H)
+
+if any(x is None for x in [df_4h, df_1h, df_15m, btc_df]):
     return None
 
-# =====================================
-# BTC MARKET STATE
-# =====================================
+df_4h = calculate_indicators(df_4h)
+df_1h = calculate_indicators(df_1h)
+df_15m = calculate_indicators(df_15m)
+btc_df = calculate_indicators(btc_df)
 
-def get_btc_market_state():
+last_4h = df_4h.iloc[-1]
+last_1h = df_1h.iloc[-1]
+last_15m = df_15m.iloc[-1]
+
+trend_4h = get_trend(df_4h)
+trend_1h = get_trend(df_1h)
+
+btc_trend, btc_volatility = btc_market_context()
+
+# Reject low volatility market
+if btc_volatility == 'LOW':
+    return None
+
+# Determine direction
+direction = None
+
+if trend_4h == 'BULL' and trend_1h == 'BULL':
+    direction = 'LONG'
+
+if trend_4h == 'BEAR' and trend_1h == 'BEAR':
+    direction = 'SHORT'
+
+if direction is None:
+    return None
+
+# RVOL filter
+rvol = last_15m['rvol']
+
+if rvol < MIN_RVOL:
+    return None
+
+# ADX filter
+adx = last_15m['adx']
+
+if adx < MIN_ADX:
+    return None
+
+# MACD confirmation
+macd_ok = macd_aligned(last_15m, direction)
+
+if not macd_ok:
+    return None
+
+# Breakout body
+body_percent = breakout_body_percent(df_15m)
+
+breakout_ok = body_percent >= MIN_BREAKOUT_BODY
+
+if not breakout_ok:
+    return None
+
+# Momentum
+if not momentum_check(df_15m, direction):
+    return None
+
+# Relative strength vs BTC
+rs_strength = relative_strength_vs_btc(df_15m, btc_df)
+
+if direction == 'LONG' and rs_strength < 1:
+    return None
+
+if direction == 'SHORT' and rs_strength > -1:
+    return None
+
+# ATR
+atr_percent = (last_15m['atr'] / last_15m['close']) * 100
+
+if atr_percent < MIN_ATR_PERCENT:
+    return None
+
+# Entry / SL / TP
+entry = last_15m['close']
+
+if direction == 'LONG':
+    sl = entry - (last_15m['atr'] * 1.2)
+    tp = entry + ((entry - sl) * RR_RATIO)
+else:
+    sl = entry + (last_15m['atr'] * 1.2)
+    tp = entry - ((sl - entry) * RR_RATIO)
+
+# Score
+score = score_signal(
+    direction,
+    btc_trend,
+    rvol,
+    adx,
+    macd_ok,
+    breakout_ok,
+    rs_strength
+)
+
+if score < 70:
+    return None
+
+label = 'HIGH QUALITY'
+
+if score >= 85:
+    label = 'ELITE'
+
+return {
+    'symbol': symbol,
+    'direction': direction,
+    'score': score,
+    'label': label,
+    'entry': round(entry, 6),
+    'sl': round(sl, 6),
+    'tp': round(tp, 6),
+    'rvol': round(rvol, 2),
+    'adx': round(adx, 2),
+    'rsi': round(last_15m['rsi'], 2),
+    'btc_trend': btc_trend,
+    'volatility': btc_volatility,
+    'rs_strength': round(rs_strength, 2),
+    'body_percent': round(body_percent, 2)
+}
+
+def print_signal(signal): print('\n' + '━' * 50) print(f"🏆 {signal['label']} SIGNAL") print('━' * 50) print(f"🪙 {signal['symbol']}") print(f"📢 {signal['direction']}") print(f"⭐ Score: {signal['score']}") print('━' * 50) print(f"BTC Trend: {signal['btc_trend']}") print(f"Volatility: {signal['volatility']}") print(f"RVOL: {signal['rvol']}x") print(f"ADX: {signal['adx']}") print(f"RSI: {signal['rsi']}") print(f"RS vs BTC: {signal['rs_strength']}%") print(f"Breakout Body: {signal['body_percent']}%") print('━' * 50) print(f"💰 Entry: {signal['entry']}") print(f"🛑 Stop Loss: {signal['sl']}") print(f"🎯 Take Profit: {signal['tp']}") print('━' * 50)
+
+def run_scanner(): print('\n🚀 Elite Futures Scanner Started...')
+
+while True:
     try:
-        df    = load_ohlcv("BTC/USDT:USDT", "1h", limit=100)
-        df    = apply_indicators(df)
-        price = df["close"].iloc[-2]
-        atr   = df["atr"].iloc[-2]
-        trend = detect_trend(df)
+        signals = []
 
-        vol_pct = atr / price
+        for symbol in TOP_COINS:
+            print(f"Scanning {symbol}...")
 
-        if vol_pct > 0.03:
-            volatility = "HIGH"
-        elif vol_pct > 0.015:
-            volatility = "NORMAL"
+            signal = build_signal(symbol)
+
+            if signal:
+                signals.append(signal)
+
+        # Sort strongest first
+        signals = sorted(signals, key=lambda x: x['score'], reverse=True)
+
+        # Limit signals
+        signals = signals[:MAX_SIGNALS]
+
+        if len(signals) == 0:
+            print('\n❌ No high quality setups found.')
         else:
-            volatility = "LOW"
+            for signal in signals:
+                print_signal(signal)
 
-        if trend == "bullish":
-            btc_trend = "BULL"
-        elif trend == "bearish":
-            btc_trend = "BEAR"
-        else:
-            btc_trend = "RANGE"
+        print('\n⏰ Waiting 5 minutes...')
+        time.sleep(300)
 
-        return {
-            "trend":      btc_trend,
-            "volatility": volatility,
-            "price":      round(price, 2)
-        }
-    except:
-        return {
-            "trend":      "UNKNOWN",
-            "volatility": "UNKNOWN",
-            "price":      0
-        }
+    except Exception as e:
+        print(f"Scanner Error: {e}")
+        time.sleep(30)
 
-# =====================================
-# NEWS HEADLINES (free RSS)
-# =====================================
-
-def fetch_rss_headlines():
-    headlines = []
-    for url in RSS_FEEDS:
-        try:
-            resp = requests.get(url, timeout=5)
-            root = ET.fromstring(resp.content)
-            for item in root.iter("item"):
-                title = item.findtext("title") or ""
-                headlines.append(title.lower())
-        except:
-            continue
-    return headlines
-
-# =====================================
-# HARD FILTER 1 — 4H TREND
-# Must be clear bullish or bearish
-# Ranging = skip
-# =====================================
-
-def check_4h_trend(symbol):
-    df = load_ohlcv(symbol, "4h", limit=60)
-    df = apply_indicators(df)
-    return detect_trend(df)
-
-# =====================================
-# HARD FILTER 2 — 1H TREND
-# Must match 4H direction exactly
-# Counter or ranging = hard skip
-# =====================================
-
-def check_1h_trend(symbol, direction_4h):
-    df        = load_ohlcv(symbol, "1h", limit=60)
-    df        = apply_indicators(df)
-    direction = detect_trend(df)
-
-    if direction is None:
-        return False, "1H: Unclear (ranging)"
-    if direction != direction_4h:
-        return False, "1H: Counter to 4H"
-
-    label = "BULLISH" if direction == "bullish" else "BEARISH"
-    return True, f"1H Trend: {label}"
-
-# =====================================
-# HARD FILTER 3 — 15M EMA ALIGNED
-# Must align with direction
-# Min 0.1% gap to avoid noise
-# =====================================
-
-def check_15m_ema(df_15m, direction):
-    ema20 = df_15m["ema_20"].iloc[-2]
-    ema50 = df_15m["ema_50"].iloc[-2]
-    price = df_15m["close"].iloc[-2]
-
-    if price == 0:
-        return False, "15M EMA: Price error"
-
-    gap_pct = abs(ema20 - ema50) / price
-    if gap_pct < 0.001:
-        return False, "15M EMA: Gap too small"
-
-    if direction == "bullish" and ema20 > ema50:
-        return True, "15M EMA: Aligned BULLISH"
-    if direction == "bearish" and ema20 < ema50:
-        return True, "15M EMA: Aligned BEARISH"
-
-    return False, "15M EMA: Not aligned"
-
-# =====================================
-# HARD FILTER 4 — VOLUME
-# Must be >= 0.8x average
-# Same threshold for LONG and SHORT
-# =====================================
-
-def check_volume(df_15m):
-    rel_vol = round(df_15m["rel_vol"].iloc[-2], 2)
-    if rel_vol >= 0.8:
-        return True, f"Volume: {rel_vol}x"
-    return False, f"Volume: {rel_vol}x (weak)"
-
-# =====================================
-# HARD FILTER 5 — OVEREXTENSION
-# Price must not be too far from EMA20
-# Same 5% threshold for LONG and SHORT
-# =====================================
-
-def check_overextension(df_15m):
-    price = df_15m["close"].iloc[-2]
-    ema20 = df_15m["ema_20"].iloc[-2]
-
-    if ema20 == 0:
-        return False, "Extension: Error"
-
-    distance = abs(price - ema20) / ema20
-    if distance > 0.05:
-        return False, f"Overextended ({round(distance*100,2)}%)"
-
-    return True, f"Extension: OK ({round(distance*100,2)}%)"
-
-# =====================================
-# HARD FILTER 6 — RELATIVE STRENGTH
-# FIXED: Balanced for LONG and SHORT
-#
-# LONG:  coin must outperform BTC
-# SHORT: coin must underperform BTC
-#        (weaker = better short candidate)
-# =====================================
-
-def check_relative_strength(symbol, btc_df, direction):
-    try:
-        alt_df = load_ohlcv(symbol, "1h", limit=30)
-
-        btc_change = (
-            btc_df["close"].iloc[-2] -
-            btc_df["close"].iloc[-15]
-        ) / btc_df["close"].iloc[-15]
-
-        alt_change = (
-            alt_df["close"].iloc[-2] -
-            alt_df["close"].iloc[-15]
-        ) / alt_df["close"].iloc[-15]
-
-        rs = round((alt_change - btc_change) * 100, 2)
-
-        if direction == "bullish":
-            # LONG: coin must be stronger than BTC
-            if alt_change > btc_change:
-                return True, f"RS: Strong vs BTC (+{rs}%)"
-            return False, f"RS: Weak vs BTC ({rs}%)"
-
-        else:
-            # SHORT: coin must be weaker than BTC
-            # More negative = better short candidate
-            if alt_change < btc_change:
-                return True, f"RS: Weak vs BTC ({rs}%) — good short"
-            return False, f"RS: Stronger than BTC (+{rs}%) — skip short"
-
-    except:
-        return False, "RS: Error"
-
-# =====================================
-# HARD FILTER 7 — BREAKOUT QUALITY
-# Clean candle — big body, small wicks
-# Same logic for LONG and SHORT
-# =====================================
-
-def check_breakout_quality(df_15m, direction):
-    candle     = df_15m.iloc[-2]
-    body       = abs(candle["close"] - candle["open"])
-    range_size = candle["high"] - candle["low"]
-
-    if range_size == 0:
-        return False, "Breakout: Doji candle"
-
-    body_ratio = body / range_size
-    if body_ratio < 0.6:
-        return False, f"Breakout: Weak ({round(body_ratio*100)}% body)"
-
-    if direction == "bullish":
-        upper_wick = candle["high"] - candle["close"]
-        if upper_wick > body:
-            return False, "Breakout: Heavy upper wick"
-
-    if direction == "bearish":
-        lower_wick = candle["close"] - candle["low"]
-        if lower_wick > body:
-            return False, "Breakout: Heavy lower wick"
-
-    return True, f"Breakout: Clean ({round(body_ratio*100)}% body)"
-
-# =====================================
-# HARD FILTER 8 — MOMENTUM PERSISTENCE
-# 3 consecutive closed candles in direction
-# Same logic for LONG and SHORT
-# =====================================
-
-def check_momentum(df_15m, direction):
-    closes = df_15m["close"].tail(5).tolist()
-    c1, c2, c3 = closes[1], closes[2], closes[3]
-
-    if direction == "bullish" and c3 > c2 > c1:
-        return True, "Momentum: 3 bullish candles"
-    if direction == "bearish" and c3 < c2 < c1:
-        return True, "Momentum: 3 bearish candles"
-
-    return False, "Momentum: Weak"
-
-# =====================================
-# SCORE 1 — RSI
-# LONG: 45-70 (healthy bullish)
-# SHORT: 30-55 (healthy bearish)
-# =====================================
-
-def score_rsi(df_15m, direction):
-    rsi = round(df_15m["rsi"].iloc[-2], 1)
-
-    if direction == "bullish" and 45 <= rsi <= 70:
-        return 1, f"RSI: {rsi} ✅"
-    if direction == "bearish" and 30 <= rsi <= 55:
-        return 1, f"RSI: {rsi} ✅"
-
-    return 0, f"RSI: {rsi} ❌"
-
-# =====================================
-# SCORE 2 — MACD
-# LONG: MACD above signal
-# SHORT: MACD below signal
-# =====================================
-
-def score_macd(df_15m, direction):
-    macd     = df_15m["macd"].iloc[-2]
-    macd_sig = df_15m["macd_signal"].iloc[-2]
-
-    if direction == "bullish" and macd > macd_sig:
-        return 1, "MACD: Bullish ✅"
-    if direction == "bearish" and macd < macd_sig:
-        return 1, "MACD: Bearish ✅"
-
-    return 0, "MACD: Against direction ❌"
-
-# =====================================
-# SCORE 3 — FUNDING RATE
-# LONG: skip if overleveraged longs
-# SHORT: skip if overleveraged shorts
-# Balanced — both sides protected
-# =====================================
-
-def score_funding_rate(symbol, direction):
-    try:
-        funding      = exchange.fetch_funding_rate(symbol)
-        funding_rate = funding.get("fundingRate", None)
-
-        if funding_rate is None:
-            return 0, "Funding: No data ❌"
-
-        fr_pct = round(funding_rate * 100, 4)
-
-        if direction == "bullish" and funding_rate > 0.001:
-            return 0, f"Funding: {fr_pct}% (overleveraged longs) ❌"
-        if direction == "bearish" and funding_rate < -0.001:
-            return 0, f"Funding: {fr_pct}% (overleveraged shorts) ❌"
-
-        return 1, f"Funding: {fr_pct}% ✅"
-
-    except:
-        return 0, "Funding: Error ❌"
-
-# =====================================
-# SCORE 4 — ORDER BOOK
-# LONG: buyers dominate
-# SHORT: sellers dominate
-# Balanced — checks both sides
-# =====================================
-
-def score_order_book(symbol, direction):
-    try:
-        ob      = exchange.fetch_order_book(symbol, limit=20)
-        bids    = ob["bids"][:10]
-        asks    = ob["asks"][:10]
-
-        if not bids or not asks:
-            return 0, "Order Book: No data ❌"
-
-        bid_vol = sum([b[1] for b in bids])
-        ask_vol = sum([a[1] for a in asks])
-
-        if ask_vol == 0:
-            return 0, "Order Book: Invalid ❌"
-
-        ratio = round(bid_vol / ask_vol, 2)
-
-        if direction == "bullish" and bid_vol > ask_vol:
-            return 1, f"Order Book: {ratio} buyers ✅"
-        if direction == "bearish" and ask_vol > bid_vol:
-            return 1, f"Order Book: {ratio} sellers ✅"
-
-        return 0, f"Order Book: {ratio} against ❌"
-
-    except:
-        return 0, "Order Book: Error ❌"
-
-# =====================================
-# SCORE 5 — NEWS SENTIMENT
-# FIXED: Balanced for LONG and SHORT
-#
-# LONG:  positive news = +1
-#        neutral       = +1
-#        negative      = 0
-#
-# SHORT: negative news = +1 (confirms drop)
-#        neutral       = +1
-#        positive      = 0 (bad for short)
-# =====================================
-
-def score_news(symbol, direction, all_headlines):
-    try:
-        coin = symbol.split("/")[0].lower()
-
-        if coin in EXACT_MATCH_COINS:
-            relevant = [
-                h for h in all_headlines
-                if f" {coin} " in f" {h} "
-                or h.startswith(f"{coin} ")
-                or h.endswith(f" {coin}")
-            ]
-        else:
-            relevant = [h for h in all_headlines if coin in h]
-
-        if not relevant:
-            return 1, "News: No mentions (neutral) ✅"
-
-        positive = sum(
-            1 for h in relevant
-            for w in POSITIVE_WORDS if w in h
-        )
-        negative = sum(
-            1 for h in relevant
-            for w in NEGATIVE_WORDS if w in h
-        )
-
-        if direction == "bullish":
-            if positive > negative:
-                return 1, f"News: Positive ({positive}+ vs {negative}-) ✅"
-            if negative > positive:
-                return 0, f"News: Negative ({positive}+ vs {negative}-) ❌"
-            return 1, "News: Neutral ✅"
-
-        else:  # bearish / SHORT
-            if negative > positive:
-                return 1, f"News: Negative ({positive}+ vs {negative}-) ✅"
-            if positive > negative:
-                return 0, f"News: Positive ({positive}+ vs {negative}-) ❌"
-            return 1, "News: Neutral ✅"
-
-    except:
-        return 1, "News: Skipped ✅"
-
-# =====================================
-# SCORE 6 — BTC TREND ALIGNMENT
-# LONG: BTC must be BULL or RANGE
-# SHORT: BTC must be BEAR or RANGE
-# =====================================
-
-def score_btc_alignment(direction, btc_state):
-    btc_trend = btc_state["trend"]
-
-    if btc_trend == "RANGE":
-        return 1, "BTC: Ranging (neutral) ✅"
-
-    if direction == "bullish" and btc_trend == "BULL":
-        return 1, "BTC: Aligned BULL ✅"
-    if direction == "bearish" and btc_trend == "BEAR":
-        return 1, "BTC: Aligned BEAR ✅"
-
-    return 0, f"BTC: Counter ({btc_trend}) ❌"
-
-# =====================================
-# SCORE 7 — BTC VOLATILITY
-# NORMAL or LOW = safer for both
-# HIGH = risky for both
-# =====================================
-
-def score_btc_volatility(btc_state):
-    vol = btc_state["volatility"]
-    if vol in ("NORMAL", "LOW"):
-        return 1, f"Volatility: {vol} ✅"
-    return 0, f"Volatility: {vol} ❌"
-
-# =====================================
-# RISK MANAGER
-# Uses 1H ATR for realistic SL
-# Min 0.5% SL to avoid tiny stops
-# Auto decimal for small price coins
-# =====================================
-
-def calculate_trade_levels(price, atr_1h, direction):
-    sl_distance = max(atr_1h * 1.5, price * MIN_SL_PCT)
-
-    if direction == "bullish":
-        stop_loss   = price - sl_distance
-        take_profit = price + (sl_distance * MIN_RR)
-    else:
-        stop_loss   = price + sl_distance
-        take_profit = price - (sl_distance * MIN_RR)
-
-    sl_pct = round((sl_distance / price) * 100, 2)
-    tp_pct = round((sl_distance * MIN_RR / price) * 100, 2)
-
-    if price < 0.0001:
-        decimals = 10
-    elif price < 0.01:
-        decimals = 8
-    elif price < 1:
-        decimals = 6
-    else:
-        decimals = 4
-
-    return {
-        "entry":       round(price, decimals),
-        "stop_loss":   round(stop_loss, decimals),
-        "take_profit": round(take_profit, decimals),
-        "sl_pct":      sl_pct,
-        "tp_pct":      tp_pct,
-        "rr":          MIN_RR
-    }
-
-# =====================================
-# MAIN SCAN
-# =====================================
-#
-# SCORING BREAKDOWN (max = 9):
-#
-# BASE (always 2 if 4H passes):
-#   4H Trend clear = 2 pts
-#
-# SCORING (need total 8/9):
-#   RSI           = 0 or 1
-#   MACD          = 0 or 1
-#   Funding Rate  = 0 or 1
-#   Order Book    = 0 or 1
-#   News          = 0 or 1
-#   BTC Alignment = 0 or 1
-#   BTC Volatility= 0 or 1
-#
-# HARD FILTERS (all must pass or SKIP):
-#   4H Trend clear
-#   1H matches 4H
-#   15M EMA aligned (min 0.1% gap)
-#   Volume >= 0.8x
-#   Not overextended (max 5% from EMA)
-#   Relative Strength (direction-aware)
-#   Clean breakout candle (60%+ body)
-#   3 consecutive momentum candles
-#
-# =====================================
-
-def scan_all():
-
-    signal_times  = load_signal_times()
-    signals_found = 0
-    now           = datetime.utcnow()
-
-    print(f"\n[{now}] ELITE SCAN STARTED\n")
-
-    # BTC Market State
-    btc_state = get_btc_market_state()
-    print(f"  BTC: {btc_state['trend']} | "
-          f"Vol: {btc_state['volatility']} | "
-          f"${btc_state['price']}\n")
-
-    # Fetch news once for all coins
-    print("  Fetching news headlines...")
-    all_headlines = fetch_rss_headlines()
-    print(f"  {len(all_headlines)} headlines loaded.\n")
-
-    # BTC 1H data for RS comparison
-    try:
-        btc_df = load_ohlcv("BTC/USDT:USDT", "1h", limit=30)
-    except:
-        btc_df = None
-
-    print(f"  Scanning {len(ALL_SYMBOLS)} coins...\n")
-
-    for symbol in ALL_SYMBOLS:
-
-        try:
-
-            # Cooldown check
-            if is_on_cooldown(symbol, signal_times, now):
-                last      = signal_times[symbol]
-                remaining = last + timedelta(hours=SIGNAL_COOLDOWN_HOURS) - now
-                hrs       = int(remaining.total_seconds() // 3600)
-                mins      = int((remaining.total_seconds() % 3600) // 60)
-                print(f"  COOLDOWN {symbol}: {hrs}h {mins}m left")
-                continue
-
-            # ══════════════════════════════════
-            # HARD FILTERS — all must pass
-            # ══════════════════════════════════
-
-            # 1. 4H Trend — must be clear
-            direction = check_4h_trend(symbol)
-            if direction is None:
-                print(f"  SKIP {symbol}: 4H unclear/ranging")
-                continue
-
-            # 2. 1H Trend — must match 4H
-            ok_1h, l_1h = check_1h_trend(symbol, direction)
-            if not ok_1h:
-                print(f"  SKIP {symbol}: {l_1h}")
-                continue
-
-            # Load 1H for ATR
-            df_1h  = load_ohlcv(symbol, "1h", limit=60)
-            df_1h  = apply_indicators(df_1h)
-            atr_1h = df_1h["atr"].iloc[-2]
-
-            # Load 15M for entry analysis
-            df_15m = load_ohlcv(symbol, "15m", limit=60)
-            df_15m = apply_indicators(df_15m)
-
-            price = df_15m["close"].iloc[-2]
-            if price == 0:
-                print(f"  SKIP {symbol}: price is 0")
-                continue
-
-            # 3. 15M EMA aligned
-            ok_ema, l_ema = check_15m_ema(df_15m, direction)
-            if not ok_ema:
-                print(f"  SKIP {symbol}: {l_ema}")
-                continue
-
-            # 4. Volume >= 0.8x
-            ok_vol, l_vol = check_volume(df_15m)
-            if not ok_vol:
-                print(f"  SKIP {symbol}: {l_vol}")
-                continue
-
-            # 5. Not overextended
-            ok_ext, l_ext = check_overextension(df_15m)
-            if not ok_ext:
-                print(f"  SKIP {symbol}: {l_ext}")
-                continue
-
-            # 6. Relative Strength (direction-aware)
-            if btc_df is not None:
-                ok_rs, l_rs = check_relative_strength(
-                    symbol, btc_df, direction
-                )
-                if not ok_rs:
-                    print(f"  SKIP {symbol}: {l_rs}")
-                    continue
-            else:
-                l_rs = "RS: Skipped"
-
-            # 7. Breakout quality
-            ok_break, l_break = check_breakout_quality(df_15m, direction)
-            if not ok_break:
-                print(f"  SKIP {symbol}: {l_break}")
-                continue
-
-            # 8. Momentum persistence
-            ok_momo, l_momo = check_momentum(df_15m, direction)
-            if not ok_momo:
-                print(f"  SKIP {symbol}: {l_momo}")
-                continue
-
-            # ══════════════════════════════════
-            # SCORING — need 8 out of 9
-            # ══════════════════════════════════
-
-            # Base: 4H passed = 2 pts
-            s1, l_rsi  = score_rsi(df_15m, direction)
-            s2, l_macd = score_macd(df_15m, direction)
-            s3, l_fund = score_funding_rate(symbol, direction)
-            s4, l_ob   = score_order_book(symbol, direction)
-            s5, l_news = score_news(symbol, direction, all_headlines)
-            s6, l_btca = score_btc_alignment(direction, btc_state)
-            s7, l_btcv = score_btc_volatility(btc_state)
-
-            total_score = 2 + s1 + s2 + s3 + s4 + s5 + s6 + s7
-            max_score   = 9
-
-            print(f"  {symbol}: {direction.upper()} "
-                  f"Score {total_score}/{max_score}")
-
-            if total_score < MIN_SCORE:
-                print(f"  SKIP {symbol}: Score too low "
-                      f"({total_score}/{max_score})")
-                continue
-
-            # ══════════════════════════════════
-            # SIGNAL CONFIRMED — SEND ALERT
-            # ══════════════════════════════════
-
-            signal_type = "LONG 🟢" if direction == "bullish" else "SHORT 🔴"
-            levels      = calculate_trade_levels(price, atr_1h, direction)
-
-            message = (
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"🏆 ELITE SIGNAL\n"
-                f"━━━━━━━━━━━━━━━━━━\n\n"
-                f"🪙 {symbol}\n"
-                f"📢 Signal: {signal_type}\n"
-                f"🏦 Bitget Futures\n"
-                f"⭐ Score: {total_score}/{max_score}\n\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"🌍 Market Context\n"
-                f"━━━━━━━━━━━━━━━━━━\n\n"
-                f"BTC: {btc_state['trend']} | "
-                f"{btc_state['volatility']}\n\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"📊 Timeframe Check\n"
-                f"━━━━━━━━━━━━━━━━━━\n\n"
-                f"✅ 4H Trend: "
-                f"{'BULLISH' if direction == 'bullish' else 'BEARISH'}"
-                f" (2pts)\n"
-                f"✅ {l_1h}\n"
-                f"✅ {l_ema}\n\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"📈 Quality Filters\n"
-                f"━━━━━━━━━━━━━━━━━━\n\n"
-                f"✅ {l_vol}\n"
-                f"✅ {l_ext}\n"
-                f"✅ {l_rs}\n"
-                f"✅ {l_break}\n"
-                f"✅ {l_momo}\n\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"📊 Confirmation\n"
-                f"━━━━━━━━━━━━━━━━━━\n\n"
-                f"{l_rsi}\n"
-                f"{l_macd}\n"
-                f"{l_fund}\n"
-                f"{l_ob}\n"
-                f"{l_news}\n"
-                f"{l_btca}\n"
-                f"{l_btcv}\n\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"🎯 Trade Execution\n"
-                f"━━━━━━━━━━━━━━━━━━\n\n"
-                f"💰 Entry:       {levels['entry']}\n"
-                f"🛑 Stop Loss:   {levels['stop_loss']}"
-                f" (-{levels['sl_pct']}%)\n"
-                f"🎯 Take Profit: {levels['take_profit']}"
-                f" (+{levels['tp_pct']}%)\n"
-                f"⚖ Risk Reward:  1:{levels['rr']}\n\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"⚠ IMPORTANT\n"
-                f"━━━━━━━━━━━━━━━━━━\n\n"
-                f"Probability-based setup only.\n"
-                f"No guaranteed outcome."
-            )
-
-            print(f"  ✅ SIGNAL: {symbol} → "
-                  f"{signal_type} ({total_score}/{max_score})")
-
-            send_telegram_alert(message)
-
-            signal_times[symbol] = now
-            signals_found += 1
-
-        except Exception as e:
-            print(f"  ERROR {symbol}: {e}")
-
-    save_signal_times(signal_times)
-    print(f"\n[DONE] {signals_found} signal(s) sent.\n")
-
-
-# =====================================
-# ENTRY POINT
-# =====================================
-
-if __name__ == "__main__":
-    scan_all()
+if name == 'main': run_scanner()
