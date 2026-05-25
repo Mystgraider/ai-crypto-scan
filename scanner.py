@@ -1,5 +1,8 @@
-import ccxt import pandas as pd import ta import time from datetime import datetime
-
+import ccxt
+import pandas as pd
+import ta
+import time
+from datetime import datetime
 =========================
 
 CONFIG
