@@ -14,7 +14,6 @@ TIMEFRAME_15M = '15m'
 LOOKBACK = 200
 MAX_SIGNALS = 5
 
-# BALANCED FILTERS
 MIN_RVOL = 1.2
 MIN_ADX = 18
 MIN_ATR_PERCENT = 0.5
@@ -22,7 +21,12 @@ MIN_BREAKOUT_BODY = 65
 
 RR_RATIO = 2.0
 
+# =========================
+# COINS
+# =========================
+
 TOP_COINS = [
+
     # MAJORS
     'BTC/USDT:USDT',
     'ETH/USDT:USDT',
@@ -34,7 +38,7 @@ TOP_COINS = [
     'LINK/USDT:USDT',
     'TRX/USDT:USDT',
     'DOT/USDT:USDT',
-    'MATIC/USDT:USDT',
+    'POL/USDT:USDT',
     'ATOM/USDT:USDT',
     'LTC/USDT:USDT',
     'ETC/USDT:USDT',
@@ -42,12 +46,11 @@ TOP_COINS = [
     # AI / TRENDING
     'FET/USDT:USDT',
     'TAO/USDT:USDT',
-    'RNDR/USDT:USDT',
+    'RENDER/USDT:USDT',
     'WLD/USDT:USDT',
     'ARKM/USDT:USDT',
     'INJ/USDT:USDT',
     'GRT/USDT:USDT',
-    'AGIX/USDT:USDT',
 
     # DEFI
     'AAVE/USDT:USDT',
@@ -71,9 +74,6 @@ TOP_COINS = [
 
     # MEMES / HIGH VOL
     'PEPE/USDT:USDT',
-    '1000PEPE/USDT:USDT',
-    'BONK/USDT:USDT',
-    '1000BONK/USDT:USDT',
     'WIF/USDT:USDT',
     'FLOKI/USDT:USDT',
     'SHIB/USDT:USDT',
@@ -87,7 +87,6 @@ TOP_COINS = [
     'JASMY/USDT:USDT',
     'CFX/USDT:USDT',
     'ALGO/USDT:USDT',
-    'FLOW/USDT:USDT',
 ]
 
 # =========================
@@ -106,7 +105,9 @@ exchange = ccxt.bitget({
 # =========================
 
 def fetch_ohlcv(symbol, timeframe):
+
     try:
+
         data = exchange.fetch_ohlcv(
             symbol,
             timeframe=timeframe,
@@ -115,12 +116,20 @@ def fetch_ohlcv(symbol, timeframe):
 
         df = pd.DataFrame(
             data,
-            columns=['timestamp', 'open', 'high', 'low', 'close', 'volume']
+            columns=[
+                'timestamp',
+                'open',
+                'high',
+                'low',
+                'close',
+                'volume'
+            ]
         )
 
         return df
 
     except Exception as e:
+
         print(f'ERROR {symbol}: {e}')
         return None
 
@@ -130,10 +139,20 @@ def fetch_ohlcv(symbol, timeframe):
 
 def calculate_indicators(df):
 
-    df['ema20'] = ta.trend.ema_indicator(df['close'], window=20)
-    df['ema50'] = ta.trend.ema_indicator(df['close'], window=50)
+    df['ema20'] = ta.trend.ema_indicator(
+        df['close'],
+        window=20
+    )
 
-    df['rsi'] = ta.momentum.rsi(df['close'], window=14)
+    df['ema50'] = ta.trend.ema_indicator(
+        df['close'],
+        window=50
+    )
+
+    df['rsi'] = ta.momentum.rsi(
+        df['close'],
+        window=14
+    )
 
     macd = ta.trend.MACD(df['close'])
 
@@ -187,6 +206,7 @@ def breakout_body_percent(df):
     candle = df.iloc[-1]
 
     body = abs(candle['close'] - candle['open'])
+
     full = candle['high'] - candle['low']
 
     if full == 0:
@@ -203,6 +223,7 @@ def momentum_check(df, direction):
     candles = df.tail(3)
 
     if direction == 'LONG':
+
         return all(
             row['close'] > row['open']
             for _, row in candles.iterrows()
@@ -230,7 +251,10 @@ def macd_aligned(last, direction):
 
 def btc_context():
 
-    btc = fetch_ohlcv('BTC/USDT:USDT', TIMEFRAME_1H)
+    btc = fetch_ohlcv(
+        'BTC/USDT:USDT',
+        TIMEFRAME_1H
+    )
 
     if btc is None:
         return 'RANGE'
@@ -249,7 +273,11 @@ def build_signal(symbol):
     df_1h = fetch_ohlcv(symbol, TIMEFRAME_1H)
     df_15m = fetch_ohlcv(symbol, TIMEFRAME_15M)
 
-    if df_4h is None or df_1h is None or df_15m is None:
+    if (
+        df_4h is None
+        or df_1h is None
+        or df_15m is None
+    ):
         return None
 
     df_4h = calculate_indicators(df_4h)
@@ -272,7 +300,7 @@ def build_signal(symbol):
         direction = 'LONG'
 
     # SHORT
-    if (
+    elif (
         trend_4h == 'BEAR'
         and trend_1h == 'BEAR'
         and btc_trend == 'BEAR'
@@ -340,18 +368,20 @@ def build_signal(symbol):
     else:
         score += 10
 
-    # MACD
-    score += 15
-
-    # MOMENTUM
-    score += 10
+    # MACD + MOMENTUM
+    score += 25
 
     # RSI PENALTY
     if rsi > 80:
         score -= 10
 
+    label = 'HIGH QUALITY'
+
+    if score >= 80:
+        label = 'ELITE'
+
     # =========================
-    # ENTRY / TP / SL
+    # ENTRY / SL / TP
     # =========================
 
     entry = close
@@ -368,27 +398,17 @@ def build_signal(symbol):
 
         tp = entry - ((sl - entry) * RR_RATIO)
 
-    # =========================
-    # LABEL
-    # =========================
-
-    label = 'HIGH QUALITY'
-
-    if score >= 80:
-        label = 'ELITE'
-
-    # =========================
-    # RETURN
-    # =========================
-
     return {
+
         'symbol': symbol,
         'direction': direction,
         'score': score,
         'label': label,
+
         'entry': round(entry, 6),
         'sl': round(sl, 6),
         'tp': round(tp, 6),
+
         'rvol': round(rvol, 2),
         'adx': round(adx, 2),
         'rsi': round(rsi, 2)
@@ -400,7 +420,7 @@ def build_signal(symbol):
 
 def print_signal(signal):
 
-    print('\\n' + '=' * 50)
+    print('\n' + '=' * 50)
 
     print(f"{signal['label']} SIGNAL")
 
@@ -432,47 +452,35 @@ def run_scanner():
 
     print('Elite Futures Scanner Started')
 
-    while True:
+    signals = []
 
-        try:
+    for symbol in TOP_COINS:
 
-            signals = []
+        time.sleep(0.3)
 
-            for symbol in TOP_COINS:
+        print(f'Scanning {symbol}...')
 
-                print(f'Scanning {symbol}...')
+        signal = build_signal(symbol)
 
-                signal = build_signal(symbol)
+        if signal:
+            signals.append(signal)
 
-                if signal:
-                    signals.append(signal)
+    signals = sorted(
+        signals,
+        key=lambda x: x['score'],
+        reverse=True
+    )
 
-            signals = sorted(
-                signals,
-                key=lambda x: x['score'],
-                reverse=True
-            )
+    signals = signals[:MAX_SIGNALS]
 
-            signals = signals[:MAX_SIGNALS]
+    if len(signals) == 0:
 
-            if len(signals) == 0:
+        print('No setups found.')
 
-                print('No setups found.')
+    else:
 
-            else:
-
-                for signal in signals:
-                    print_signal(signal)
-
-            print('Waiting 5 minutes...')
-
-            time.sleep(300)
-
-        except Exception as e:
-
-            print(f'SCANNER ERROR: {e}')
-
-            time.sleep(30)
+        for signal in signals:
+            print_signal(signal)
 
 # =========================
 # START
