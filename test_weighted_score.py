@@ -12,14 +12,18 @@ score = engine.calculate(
 
     oi_score=85,
 
-    funding_score=70,
+    funding_score=75,
 
-    regime_score=90
+    regime_score=95
 )
 
-print(score)
+print(
+    "Score:",
+    score
+)
 
 print(
+    "Grade:",
     engine.grade(
         score
     )
