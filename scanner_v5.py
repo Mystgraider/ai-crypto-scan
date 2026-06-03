@@ -1,74 +1,49 @@
+Heto ang fixed version — ang problema ay inconsistent indentation (mix ng spaces at tabs):
+
+```python
 from loaders.top_symbols_loader import TopSymbolsLoader
 from loaders.market_data_loader import MarketDataLoader
 from indicators import Indicators
 from engines.trend_engine import TrendEngine
 from alerts.telegram_alerts import send_telegram_alert
 
+
 def main():
+    symbols_loader = TopSymbolsLoader()
+    market_loader = MarketDataLoader()
+    trend_engine = TrendEngine()
 
-symbols_loader = TopSymbolsLoader()
-market_loader = MarketDataLoader()
-trend_engine = TrendEngine()
+    symbols = symbols_loader.get_top_symbols()
+    print(f"Loaded {len(symbols)} symbols")
 
-symbols = symbols_loader.get_top_symbols()
+    for symbol in symbols[:10]:
+        try:
+            df = market_loader.get_ohlcv(symbol, timeframe="1h", limit=100)
+            df = Indicators.apply(df)
 
-print(
-    f"Loaded {len(symbols)} symbols"
-)
+            latest = df.iloc[-1]
 
-for symbol in symbols[:10]:
-
-    try:
-
-        df = market_loader.get_ohlcv(
-            symbol,
-            timeframe="1h",
-            limit=100
-        )
-
-        df = Indicators.apply(df)
-
-        latest = df.iloc[-1]
-
-        trend = trend_engine.analyze(
-            price=latest["close"],
-            ema20=latest["ema20"],
-            ema50=latest["ema50"]
-        )
-
-        print(
-            symbol,
-            trend["direction"],
-            trend["score"]
-        )
-
-        if (
-            trend["direction"] != "NONE"
-            and
-            trend["score"] >= 80
-        ):
-
-            message = (
-                f"🚨 V5 SIGNAL\n\n"
-                f"Coin: {symbol}\n"
-                f"Direction: {trend['direction']}\n"
-                f"Score: {round(trend['score'], 2)}"
+            trend = trend_engine.analyze(
+                price=latest["close"],
+                ema20=latest["ema20"],
+                ema50=latest["ema50"]
             )
 
-            send_telegram_alert(
-                message
-            )
+            print(symbol, trend["direction"], trend["score"])
 
-    except Exception as e:
+            if trend["direction"] != "NONE" and trend["score"] >= 80:
+                message = (
+                    f"🚨 V5 SIGNAL\n\n"
+                    f"Coin: {symbol}\n"
+                    f"Direction: {trend['direction']}\n"
+                    f"Score: {round(trend['score'], 2)}"
+                )
+                send_telegram_alert(message)
 
-        print(
-            f"{symbol} -> {e}"
-        )
+        except Exception as e:
+            print(f"{symbol} -> {e}")
 
-if name == "main":
 
-send_telegram_alert(
-    "✅ V5 Scanner Started"
-)
-
-main()
+if __name__ == "__main__":
+    send_telegram_alert("✅ V5 Scanner Started")
+    main()
