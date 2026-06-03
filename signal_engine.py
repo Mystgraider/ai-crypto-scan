@@ -1,22 +1,76 @@
-from signal_engine import (
-    SignalEngine
+from weighted_score_engine import (
+    WeightedScoreEngine
 )
 
-engine = SignalEngine()
 
-result = engine.generate(
+class SignalEngine:
 
-    trend_score=90,
+    def __init__(self):
 
-    volume_score=85,
+        self.score_engine = (
+            WeightedScoreEngine()
+        )
 
-    oi_score=90,
+    def generate(
 
-    funding_score=80,
+        self,
 
-    regime_score=90,
+        trend_score,
 
-    direction="LONG"
-)
+        volume_score,
 
-print(result)
+        oi_score,
+
+        funding_score,
+
+        regime_score,
+
+        direction
+
+    ):
+
+        score = (
+            self.score_engine.calculate(
+
+                trend_score=
+                trend_score,
+
+                volume_score=
+                volume_score,
+
+                oi_score=
+                oi_score,
+
+                funding_score=
+                funding_score,
+
+                regime_score=
+                regime_score
+            )
+        )
+
+        grade = (
+            self.score_engine.grade(
+                score
+            )
+        )
+
+        if score >= 80:
+
+            return {
+
+                "signal": direction,
+
+                "score": score,
+
+                "grade": grade
+            }
+
+        return {
+
+            "signal": "NO_TRADE",
+
+            "score": score,
+
+            "grade": grade
+        }
