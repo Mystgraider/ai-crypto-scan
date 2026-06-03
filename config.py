@@ -1,6 +1,12 @@
 CONFIG = {
 
-    # Scanner
+    "exchange": "okx",
+
+    "top_coins_limit": 100,
+
+    "min_score": 70,
+
+    "min_rr": 2.0,
 
     "top_coins_limit": 300,
 
