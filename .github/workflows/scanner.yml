@@ -34,3 +34,6 @@ jobs:
 
       - name: Run Scanner
         run: python scanner.py
+
+      - name: Run Scanner V5
+        run: python scanner_v5.py
