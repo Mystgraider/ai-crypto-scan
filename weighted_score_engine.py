@@ -1,15 +1,50 @@
 class WeightedScoreEngine:
 
-    def calculate(
+    def normalize(
         self,
-        trend_score=0,
-        volume_score=0,
-        oi_score=0,
-        funding_score=0,
-        regime_score=0
+        value,
+        minimum,
+        maximum
     ):
 
-        total = (
+        if maximum <= minimum:
+            return 0
+
+        value = max(
+            minimum,
+            min(
+                value,
+                maximum
+            )
+        )
+
+        return (
+            (
+                value - minimum
+            )
+            /
+            (
+                maximum - minimum
+            )
+        ) * 100
+
+    def calculate(
+
+        self,
+
+        trend_score,
+
+        volume_score,
+
+        oi_score,
+
+        funding_score,
+
+        regime_score
+
+    ):
+
+        final_score = (
 
             trend_score * 0.30 +
 
@@ -24,7 +59,7 @@ class WeightedScoreEngine:
         )
 
         return round(
-            total,
+            final_score,
             2
         )
 
