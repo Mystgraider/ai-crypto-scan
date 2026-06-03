@@ -5,6 +5,7 @@ from engines.trend_engine import TrendEngine
 from alerts.telegram_alerts import send_telegram_alert
 from storage.signal_logger import save_signal
 
+
 def main():
     symbols_loader = TopSymbolsLoader()
     market_loader = MarketDataLoader()
@@ -29,27 +30,23 @@ def main():
             print(symbol, trend["direction"], trend["score"])
 
             if trend["direction"] != "NONE" and trend["score"] >= 80:
-
-    message = (
-        f"🚨 V5 SIGNAL\n\n"
-        f"Coin: {symbol}\n"
-        f"Direction: {trend['direction']}\n"
-        f"Score: {round(trend['score'], 2)}"
-    )
-
-    send_telegram_alert(message)
-
-    save_signal(
-        symbol=symbol,
-        direction=trend["direction"],
-        entry=float(latest["close"]),
-        sl=0,
-        tp1=0,
-        tp2=0,
-        tp3=0,
-        score=trend["score"]
-    )
+                message = (
+                    f"🚨 V5 SIGNAL\n\n"
+                    f"Coin: {symbol}\n"
+                    f"Direction: {trend['direction']}\n"
+                    f"Score: {round(trend['score'], 2)}"
+                )
                 send_telegram_alert(message)
+                save_signal(
+                    symbol=symbol,
+                    direction=trend["direction"],
+                    entry=float(latest["close"]),
+                    sl=0,
+                    tp1=0,
+                    tp2=0,
+                    tp3=0,
+                    score=trend["score"]
+                )
 
         except Exception as e:
             print(f"{symbol} -> {e}")
