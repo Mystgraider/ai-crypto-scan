@@ -1,6 +1,3 @@
-Heto ang fixed version — ang problema ay inconsistent indentation (mix ng spaces at tabs):
-
-```python
 from loaders.top_symbols_loader import TopSymbolsLoader
 from loaders.market_data_loader import MarketDataLoader
 from indicators import Indicators
