@@ -3,7 +3,7 @@ from loaders.market_data_loader import MarketDataLoader
 from indicators import Indicators
 from engines.trend_engine import TrendEngine
 from alerts.telegram_alerts import send_telegram_alert
-
+from storage.signal_logger import save_signal
 
 def main():
     symbols_loader = TopSymbolsLoader()
