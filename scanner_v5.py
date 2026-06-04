@@ -14,7 +14,7 @@ def main():
     symbols = symbols_loader.get_top_symbols()
     print(f"Loaded {len(symbols)} symbols")
 
-    for symbol in symbols[:10]:
+    for symbol in symbols:
         try:
             df = market_loader.get_ohlcv(symbol, timeframe="1h", limit=100)
             df = Indicators.apply(df)
