@@ -14,7 +14,7 @@ def main():
     symbols = symbols_loader.get_top_symbols()
     print(f"Loaded {len(symbols)} symbols")
 
-    for symbol in symbols:
+    for symbol in symbols[:10]:
         try:
             df = market_loader.get_ohlcv(symbol, timeframe="1h", limit=100)
             df = Indicators.apply(df)
@@ -30,6 +30,14 @@ def main():
             print(symbol, trend["direction"], trend["score"])
 
             if trend["direction"] != "NONE" and trend["score"] >= 80:
+                message = (
+                    f"🚨 V5 SIGNAL\n\n"
+                    f"Coin: {symbol}\n"
+                    f"Direction: {trend['direction']}\n"
+                    f"Score: {round(trend['score'], 2)}"
+                )
+                send_telegram_alert(message)
+
                 entry = float(latest["close"])
                 atr = float(latest["atr"])
 
@@ -43,20 +51,6 @@ def main():
                     tp1 = round(entry - (atr * 2), 6)
                     tp2 = round(entry - (atr * 3), 6)
                     tp3 = round(entry - (atr * 5), 6)
-
-                message = (
-                    f"🚨 V5 SIGNAL\n\n"
-                    f"Coin: {symbol}\n"
-                    f"Direction: {trend['direction']}\n"
-                    f"Score: {round(trend['score'], 2)}\n\n"
-                    f"Entry: {entry}\n"
-                    f"SL: {sl}\n"
-                    f"TP1: {tp1}\n"
-                    f"TP2: {tp2}\n"
-                    f"TP3: {tp3}"
-                )
-
-                send_telegram_alert(message)
 
                 save_signal(
                     symbol=symbol,
