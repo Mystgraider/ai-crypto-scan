@@ -37,17 +37,35 @@ def main():
                     f"Score: {round(trend['score'], 2)}"
                 )
                 send_telegram_alert(message)
-                save_signal(
-                    symbol=symbol,
-                    direction=trend["direction"],
-                    entry=float(latest["close"]),
-                    sl=0,
-                    tp1=0,
-                    tp2=0,
-                    tp3=0,
-                    score=trend["score"]
-                )
+                entry = float(latest["close"])
+atr = float(latest["atr"])
 
+if trend["direction"] == "LONG":
+
+    sl = round(entry - (atr * 1.5), 6)
+
+    tp1 = round(entry + (atr * 2), 6)
+    tp2 = round(entry + (atr * 3), 6)
+    tp3 = round(entry + (atr * 5), 6)
+
+else:
+
+    sl = round(entry + (atr * 1.5), 6)
+
+    tp1 = round(entry - (atr * 2), 6)
+    tp2 = round(entry - (atr * 3), 6)
+    tp3 = round(entry - (atr * 5), 6)
+
+save_signal(
+    symbol=symbol,
+    direction=trend["direction"],
+    entry=entry,
+    sl=sl,
+    tp1=tp1,
+    tp2=tp2,
+    tp3=tp3,
+    score=trend["score"]
+)
         except Exception as e:
             print(f"{symbol} -> {e}")
 
