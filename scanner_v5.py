@@ -30,19 +30,17 @@ def main():
             score = float(trend["score"])
             direction = trend["direction"]
 
-            print(f"{symbol} {direction} {round(score, 2)}")
-
             valid_signal = False
 
             if direction == "LONG":
                 valid_signal = (
-                    score >= 90
-                    and latest["rsi"] < 45
+                    score >= 85
+                    and latest["rsi"] < 55
                 )
             elif direction == "SHORT":
                 valid_signal = (
-                    score >= 90
-                    and latest["rsi"] > 55
+                    score >= 85
+                    and latest["rsi"] > 45
                 )
 
             if not valid_signal:
@@ -92,8 +90,3 @@ def main():
 
         except Exception as e:
             print(f"{symbol} -> {e}")
-
-
-if __name__ == "__main__":
-    send_telegram_alert("✅ V5 Scanner Started")
-    main()
