@@ -1,56 +1,25 @@
 import pandas as pd
-
-from loaders.market_loader import (
-    MarketLoader
-)
+from loaders.market_loader import MarketLoader
+from config import CONFIG
 
 
 class MarketDataLoader:
 
     def __init__(self):
+        self.exchange = MarketLoader().get_exchange()
 
-        self.loader = MarketLoader()
+    def get_ohlcv(self, symbol, timeframe=None, limit=None):
 
-        self.exchange = (
-            self.loader.get_exchange()
-        )
+        tf    = timeframe or CONFIG["timeframe"]
+        lim   = limit     or CONFIG["ohlcv_limit"]
 
-    def get_ohlcv(
-        self,
-        symbol,
-        timeframe="1h",
-        limit=100
-    ):
-
-        data = self.exchange.fetch_ohlcv(
-            symbol,
-            timeframe=timeframe,
-            limit=limit
-        )
+        data = self.exchange.fetch_ohlcv(symbol, timeframe=tf, limit=lim)
 
         df = pd.DataFrame(
-
             data,
-
-            columns=[
-
-                "timestamp",
-
-                "open",
-
-                "high",
-
-                "low",
-
-                "close",
-
-                "volume"
-            ]
+            columns=["timestamp", "open", "high", "low", "close", "volume"]
         )
 
-        df["timestamp"] = pd.to_datetime(
-            df["timestamp"],
-            unit="ms"
-        )
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
 
         return df
