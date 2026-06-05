@@ -24,7 +24,6 @@ def send_telegram_alert(message: str, parse_mode: str = "HTML") -> bool:
         ok   = resp.status_code == 200
         print(f"{'✅' if ok else '❌'} Telegram: {resp.status_code}")
         return ok
-
     except Exception as e:
         print(f"❌ Telegram error: {e}")
         return False
@@ -43,16 +42,17 @@ def format_signal(
     grade:     str,
 ) -> str:
 
-    emoji = "🟢" if direction == "LONG" else "🔴"
+    emoji     = "🟢" if direction == "LONG" else "🔴"
+    grade_bar = {"S": "🏆", "A": "🥇", "B": "🥈", "C": "🥉"}.get(grade, "📊")
 
     return (
         f"🚨 <b>ELITE V5 SIGNAL</b>\n\n"
         f"{emoji} <b>{direction}</b> — <b>{symbol}</b>\n"
-        f"🏅 Grade: <b>{grade}</b>  |  Score: <b>{round(score, 1)}</b>\n\n"
+        f"{grade_bar} Grade: <b>{grade}</b>  |  Score: <b>{round(score, 1)}</b>\n\n"
         f"🎯 Entry: <code>{entry}</code>\n"
         f"🛑 SL:    <code>{sl}</code>\n"
         f"✅ TP1:  <code>{tp1}</code>\n"
         f"✅ TP2:  <code>{tp2}</code>\n"
         f"✅ TP3:  <code>{tp3}</code>\n\n"
-        f"📐 RR: {rr}R"
+        f"📐 RR: <b>{rr}R</b>"
     )
