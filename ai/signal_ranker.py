@@ -1,14 +1,18 @@
+"""
+AI Signal Ranker — Phase 5 upgrade
+=====================================
+Now incorporates Relative Strength score into ranking.
+
+Ranking weights:
+  40% trend_score     — how strong is the trend
+  25% quality_score   — volume + RSI quality
+  20% rs_score        — relative strength vs BTC
+  10% rr              — risk/reward ratio
+   5% sr_bonus        — near S/R level bonus
+"""
+
+
 class AISignalRanker:
-    """
-    Phase 5 — AI Signal Ranking Layer.
-
-    Takes a list of candidate signal dicts and returns them sorted
-    by composite score descending. Only signals above the grade
-    threshold are returned.
-
-    Each candidate must contain:
-      symbol, direction, trend_score, quality_score, rr, grade
-    """
 
     GRADE_WEIGHT = {"S": 4, "A": 3, "B": 2, "C": 1, "D": 0}
 
@@ -20,22 +24,25 @@ class AISignalRanker:
 
             trend_score   = float(c.get("trend_score",   0))
             quality_score = float(c.get("quality_score", 0))
+            rs_score      = float(c.get("rs_score",     50))   # default neutral
             rr            = float(c.get("rr",            0))
+            sr_bonus      = float(c.get("sr_bonus",      0))
             grade         = c.get("grade", "D")
 
-            grade_bonus = self.GRADE_WEIGHT.get(grade, 0) * 5
+            grade_bonus = self.GRADE_WEIGHT.get(grade, 0) * 2
 
             composite = (
-                trend_score   * 0.40 +
-                quality_score * 0.35 +
-                min(rr, 5) / 5 * 100 * 0.15 +
-                grade_bonus   * 0.10
+                trend_score            * 0.40 +
+                quality_score          * 0.25 +
+                rs_score               * 0.20 +
+                min(rr, 5) / 5 * 100   * 0.10 +
+                min(sr_bonus, 15)       * 0.05 +
+                grade_bonus
             )
 
-            scored.append({**c, "composite": round(composite, 2)})
+            scored.append({**c, "ai_composite": round(composite, 2)})
 
-        # Best signals first
-        scored.sort(key=lambda x: x["composite"], reverse=True)
+        scored.sort(key=lambda x: x["ai_composite"], reverse=True)
 
         return scored
 

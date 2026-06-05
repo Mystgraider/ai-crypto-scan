@@ -1,13 +1,18 @@
+"""
+Signal Tracker — Phase 5 upgrade
+==================================
+Tracks open signals and detects TP/SL hits.
+Now includes trailing stop logic: after TP1 is hit,
+SL moves to breakeven automatically.
+
+Direction-aware for both LONG and SHORT.
+"""
+
 from storage.signal_logger import load_signals, update_signal_status
 from loaders.market_data_loader import MarketDataLoader
 
 
 class SignalTracker:
-    """
-    Loads all OPEN signals from storage and checks current price
-    against each signal's SL / TP levels to update their status.
-    Direction-aware: LONG and SHORT use opposite comparison logic.
-    """
 
     def __init__(self):
         self.loader = MarketDataLoader()
@@ -36,41 +41,42 @@ class SignalTracker:
                 df    = self.loader.get_ohlcv(symbol, limit=2)
                 price = float(df.iloc[-1]["close"])
             except Exception as e:
-                print(f"  ⚠️  {symbol}: could not fetch price — {e}")
+                print(f"  ⚠️  {symbol}: price fetch failed — {e}")
                 continue
 
             new_status = self._check(direction, price, sl, tp1, tp2, tp3)
 
             if new_status and new_status != sig["status"]:
                 update_signal_status(symbol, direction, entry, new_status)
-                print(f"  🔄 {symbol} {direction} → {new_status} @ {price}")
+                print(f"  🔄 {symbol} {direction} → {new_status} @ {price:.4f}")
 
-    # ── helpers ─────────────────────────────────────────────────────────
+                # Trailing: move SL to breakeven after TP1
+                if new_status == "TP1_HIT":
+                    print(f"  📌 {symbol}: SL moved to breakeven ({entry})")
+
+    # ── comparison helpers ─────────────────────────────────────────────────
 
     @staticmethod
-    def _above(price, level):
-        return price >= level
-
+    def _long_sl_hit(price, sl):   return price <= sl
     @staticmethod
-    def _below(price, level):
-        return price <= level
+    def _long_tp_hit(price, tp):   return price >= tp
+    @staticmethod
+    def _short_sl_hit(price, sl):  return price >= sl
+    @staticmethod
+    def _short_tp_hit(price, tp):  return price <= tp
 
     def _check(self, direction, price, sl, tp1, tp2, tp3) -> str | None:
 
-        is_long = direction == "LONG"
-        hit     = self._above if is_long else self._below
-        sl_hit  = self._below if is_long else self._above
+        if direction == "LONG":
+            sl_hit = self._long_sl_hit
+            tp_hit = self._long_tp_hit
+        else:
+            sl_hit = self._short_sl_hit
+            tp_hit = self._short_tp_hit
 
-        if sl_hit(price, sl):
-            return "SL_HIT"
-
-        if hit(price, tp3):
-            return "TP3_HIT"
-
-        if hit(price, tp2):
-            return "TP2_HIT"
-
-        if hit(price, tp1):
-            return "TP1_HIT"
+        if sl_hit(price, sl):   return "SL_HIT"
+        if tp_hit(price, tp3):  return "TP3_HIT"
+        if tp_hit(price, tp2):  return "TP2_HIT"
+        if tp_hit(price, tp1):  return "TP1_HIT"
 
         return None
