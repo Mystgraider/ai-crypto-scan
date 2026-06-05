@@ -1,18 +1,20 @@
 """
-Risk Engine — V5.4 fix
-========================
-FIXED: ATR multipliers now guarantee RR >= 2.0
+Risk Engine — V5.5
+====================
+Direction-aware SL sizing:
 
-Previous bug:
-  SL = 1.5× ATR, TP1 = 2.0× ATR → RR = 1.33 (always failed min_rr=2.0)
-  Result: 222/300 coins failed risk check → 0 signals
+LONG  → SL = 1.0× ATR  (normal, price doesn't usually wick 1 ATR against trend)
+SHORT → SL = 2.0× ATR  (wider, bear market bounces are violent and fast)
 
-Fixed multipliers:
-  SL = 1.0× ATR, TP1 = 2.5× ATR → RR = 2.5 ✅
-  TP2 = 4.0× ATR, TP3 = 6.0× ATR
+Why SHORT needs wider SL:
+  In a downtrend, BTC bounces 1-2% regularly (dead cat)
+  Alts bounce 2-4% due to higher beta
+  1× ATR SL = ~1-2% = gets hit on normal bounce
+  2× ATR SL = ~2-4% = survives normal bounce, continues down after
 
-SL at 1×ATR = natural volatility boundary.
-Price shouldn't cross 1 full ATR against you if the trend is real.
+TP adjusted to maintain RR >= 2.0:
+  LONG:  SL=1.0×, TP1=2.5×  → RR=2.5
+  SHORT: SL=2.0×, TP1=4.5×  → RR=2.25
 """
 
 from config import CONFIG
@@ -22,19 +24,27 @@ class RiskEngine:
 
     def calculate(self, direction: str, entry: float, atr: float) -> dict | None:
 
-        sl_mult  = CONFIG["sl_atr_mult"]    # 1.0
-        tp1_mult = CONFIG["tp1_atr_mult"]   # 2.5
-        tp2_mult = CONFIG["tp2_atr_mult"]   # 4.0
-        tp3_mult = CONFIG["tp3_atr_mult"]   # 6.0
-        min_rr   = CONFIG["min_rr"]         # 2.0
-        min_sl   = CONFIG["min_sl_pct"]     # 0.003
+        min_rr = CONFIG["min_rr"]    # 2.0
+        min_sl = CONFIG["min_sl_pct"]  # 0.003
+
+        if direction == "LONG":
+            sl_mult  = CONFIG["sl_atr_mult"]     # 1.0
+            tp1_mult = CONFIG["tp1_atr_mult"]    # 2.5
+            tp2_mult = CONFIG["tp2_atr_mult"]    # 4.0
+            tp3_mult = CONFIG["tp3_atr_mult"]    # 6.0
+        else:
+            # SHORT: wider SL to survive dead cat bounces
+            sl_mult  = CONFIG["short_sl_atr_mult"]   # 2.0
+            tp1_mult = CONFIG["short_tp1_atr_mult"]  # 4.5
+            tp2_mult = CONFIG["short_tp2_atr_mult"]  # 6.0
+            tp3_mult = CONFIG["short_tp3_atr_mult"]  # 8.0
 
         if direction == "LONG":
             sl  = round(entry - atr * sl_mult,  8)
             tp1 = round(entry + atr * tp1_mult, 8)
             tp2 = round(entry + atr * tp2_mult, 8)
             tp3 = round(entry + atr * tp3_mult, 8)
-        else:  # SHORT
+        else:
             sl  = round(entry + atr * sl_mult,  8)
             tp1 = round(entry - atr * tp1_mult, 8)
             tp2 = round(entry - atr * tp2_mult, 8)
@@ -43,11 +53,9 @@ class RiskEngine:
         sl_dist  = abs(entry - sl)
         tp1_dist = abs(entry - tp1)
 
-        # Guard: SL too small (coin barely moves)
         if entry > 0 and sl_dist / entry < min_sl:
             return None
 
-        # Guard: RR below minimum
         if sl_dist == 0 or (tp1_dist / sl_dist) < min_rr:
             return None
 

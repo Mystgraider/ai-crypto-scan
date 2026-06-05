@@ -1,28 +1,12 @@
 """
-Elite Futures Scanner V5.3 — Phase 5
-======================================
-Full pipeline:
-
-  GitHub Actions (every 5min)
-  -> BTC Market Filter (regime gate)
-  -> Load Top 300 Symbols (by volume)
-  -> Per symbol:
-       1H OHLCV + Indicators
-       Trend Engine (ADX >= 20 gate)
-       BTC Regime Filter
-       Relative Strength vs BTC
-       Support/Resistance levels
-       Volume Spike classification
-       4H MTF confirmation
-       Quality Engine
-       Risk Engine (Entry/SL/TP/RR)
-       Signal Validator
-  -> AI Ranker (trend + quality + RS + SR + RR)
-  -> Dynamic Position Sizing
-  -> Telegram Alert (all data + position recommendation)
-  -> Signal Logger
-  -> Signal Tracker (TP/SL hit + trailing stop)
-  -> Analytics summary
+Elite Futures Scanner V5.5
+============================
+Key upgrades vs V5.4:
+- BTC 4H required for BEAR confirmation (not just 1H)
+- BTC RSI floor: block shorts when RSI < 42 (bounce risk)
+- BTC RSI ceil:  block longs  when RSI > 72 (pullback risk)
+- SHORT SL = 2× ATR (wider, survives dead cat bounces)
+- SHORT requires resistance ceiling within 3% (no shorting open air)
 """
 
 from loaders.top_symbols_loader  import TopSymbolsLoader
@@ -48,8 +32,6 @@ from ai.confidence_engine        import ConfidenceEngine
 from config                      import CONFIG
 
 
-# ── helpers ───────────────────────────────────────────────────────────────────
-
 def grade_score(score: float) -> str:
     if score >= CONFIG["signal_score_s"]: return "S"
     if score >= CONFIG["signal_score_a"]: return "A"
@@ -57,12 +39,10 @@ def grade_score(score: float) -> str:
     return "C"
 
 
-# ── main ──────────────────────────────────────────────────────────────────────
-
 def main():
 
     print("=" * 55)
-    print("🚀 Elite Futures Scanner V5.3 — Phase 5")
+    print("🚀 Elite Futures Scanner V5.5")
     print("=" * 55)
 
     market_loader  = MarketDataLoader()
@@ -77,20 +57,34 @@ def main():
     sr_engine      = SupportResistanceEngine()
     sizer          = PositionSizer()
 
-    # ── Step 1: BTC Market Regime ──────────────────────────────────────────
+    # ── Step 1: BTC Regime (1H + 4H) ──────────────────────────────────────
     print("\n[1/8] BTC Market Filter...")
 
-    btc_regime   = {"regime": "UNKNOWN", "allow_long": True, "allow_short": True, "adx": 0, "rsi": 50}
-    btc_closes   = []
+    btc_regime = {
+        "regime": "UNKNOWN", "allow_long": True, "allow_short": True,
+        "adx": 0, "rsi": 50, "reason": "BTC filter disabled"
+    }
+    btc_closes = []
 
     if CONFIG["btc_filter_enabled"]:
         try:
-            btc_df     = market_loader.get_1h(CONFIG["btc_symbol"], limit=100)
-            btc_df     = Indicators.apply(btc_df)
-            btc_closes = btc_df["close"].tolist()
-            btc_regime = btc_filter.analyze(btc_df)
-            print(f"      BTC: {btc_regime['regime']} | ADX: {btc_regime['adx']} | RSI: {btc_regime['rsi']}")
-            print(f"      LONG allowed: {btc_regime['allow_long']} | SHORT allowed: {btc_regime['allow_short']}")
+            btc_1h     = market_loader.get_1h(CONFIG["btc_symbol"], limit=100)
+            btc_1h     = Indicators.apply(btc_1h)
+            btc_closes = btc_1h["close"].tolist()
+
+            btc_4h = None
+            try:
+                btc_4h = market_loader.get_4h(CONFIG["btc_symbol"], limit=50)
+                btc_4h = Indicators.apply(btc_4h)
+            except Exception:
+                pass
+
+            btc_regime = btc_filter.analyze(btc_1h, btc_4h)
+
+            print(f"      BTC: {btc_regime['regime']} | ADX:{btc_regime['adx']} | RSI:{btc_regime['rsi']}")
+            print(f"      LONG:{btc_regime['allow_long']} | SHORT:{btc_regime['allow_short']}")
+            print(f"      Reason: {btc_regime['reason']}")
+
         except Exception as e:
             print(f"      ⚠️ BTC filter failed: {e} — allowing all signals")
 
@@ -107,7 +101,11 @@ def main():
     print(f"\n[3/8] Scanning {len(symbols)} symbols...")
 
     candidates = []
-    skip = {"cooldown": 0, "btc": 0, "trend": 0, "mtf": 0, "quality": 0, "risk": 0, "errors": 0}
+    skip = {
+        "cooldown": 0, "btc": 0, "trend": 0, "mtf": 0,
+        "sr_no_ceiling": 0, "weak_rs": 0, "quality": 0,
+        "risk": 0, "errors": 0
+    }
 
     for symbol in symbols:
 
@@ -151,23 +149,28 @@ def main():
                     skip["btc"] += 1
                     continue
 
+            # ── S/R Levels ─────────────────────────────────────────────
+            sr_levels = sr_engine.find_levels(df_1h)
+            sr_bonus  = sr_engine.score_bonus(direction, sr_levels)
+
+            # SHORT requires resistance ceiling within 3% — no open-air shorts
+            if direction == "SHORT" and CONFIG["short_requires_resistance"]:
+                if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):
+                    skip["sr_no_ceiling"] += 1
+                    continue
+
             # ── Relative Strength ──────────────────────────────────────
             coin_closes = df_1h["close"].tolist()
             rs = rs_engine.calculate(coin_closes, btc_closes)
 
-            # Skip WEAK relative strength coins entirely
             if rs["rs_label"] == "WEAK":
-                skip["quality"] += 1
+                skip["weak_rs"] += 1
                 continue
-
-            # ── Support / Resistance ───────────────────────────────────
-            sr_levels = sr_engine.find_levels(df_1h)
-            sr_bonus  = sr_engine.score_bonus(direction, sr_levels)
 
             # ── Volume Spike ───────────────────────────────────────────
             spike = spike_engine.analyze(rel_volume)
 
-            # ── Multi-Timeframe ────────────────────────────────────────
+            # ── Multi-Timeframe (4H) ───────────────────────────────────
             mtf_status     = "SKIPPED"
             mtf_multiplier = 1.0
             mtf_4h_dir     = "UNKNOWN"
@@ -240,9 +243,12 @@ def main():
             print(f"  ⚠️  {symbol}: {e}")
 
     print(f"      ✅ {len(candidates)} candidate(s)")
-    print(f"      📊 skip — cd:{skip['cooldown']} btc:{skip['btc']} "
-          f"trend:{skip['trend']} mtf:{skip['mtf']} "
-          f"q:{skip['quality']} risk:{skip['risk']} err:{skip['errors']}")
+    print(
+        f"      📊 cd:{skip['cooldown']} btc:{skip['btc']} "
+        f"trend:{skip['trend']} mtf:{skip['mtf']} "
+        f"no_ceil:{skip['sr_no_ceiling']} rs:{skip['weak_rs']} "
+        f"q:{skip['quality']} risk:{skip['risk']} err:{skip['errors']}"
+    )
 
     # ── Step 4: AI Ranking ─────────────────────────────────────────────────
     print("\n[4/8] AI Ranking...")
@@ -253,7 +259,6 @@ def main():
 
     ranked = AISignalRanker().rank(candidates)
     ranked = ranked[:CONFIG["max_signals_per_run"]]
-
     print(f"      ✅ {len(ranked)} signal(s) to fire")
 
     # ── Step 5: Alert + Log ────────────────────────────────────────────────
@@ -275,9 +280,19 @@ def main():
         )
 
         mtf_icon = {"CONFIRMED": "✅", "ALLOWED": "🟡", "SKIPPED": "⬜"}.get(sig["mtf_status"], "⬜")
-        btc_icon = {"BULL": "🟢", "BEAR": "🔴", "RANGE": "🟡",
-                    "EXTREME_BULL": "🔥", "EXTREME_BEAR": "🧊"}.get(sig["btc_regime"], "⬜")
-        rs_icon  = {"STRONG": "💪", "NEUTRAL": "➡️", "WEAK": "👎"}.get(sig["rs_label"], "➡️")
+        btc_icon = {
+            "BULL": "🟢", "BEAR": "🔴", "RANGE": "🟡",
+            "BULL_CAUTION": "🟡", "BEAR_CAUTION": "🟡",
+            "EXTREME_BULL": "🔥", "EXTREME_BEAR": "🧊"
+        }.get(sig["btc_regime"], "⬜")
+        rs_icon = {"STRONG": "💪", "NEUTRAL": "➡️"}.get(sig["rs_label"], "➡️")
+
+        # Show nearest key level in alert
+        key_level = ""
+        if sig["direction"] == "SHORT" and sig["sr_resistance"]:
+            key_level = f"\n🔒 Resistance: <code>{sig['sr_resistance']}</code>"
+        elif sig["direction"] == "LONG" and sig["sr_support"]:
+            key_level = f"\n🛡 Support: <code>{sig['sr_support']}</code>"
 
         message = format_signal(
             symbol=sig["symbol"],
@@ -293,7 +308,7 @@ def main():
         )
 
         message += (
-            f"\n\n"
+            f"{key_level}\n\n"
             f"📊 <i>ADX:{sig['adx']} | RSI:{sig['rsi']} | Vol:{sig['rel_volume']}x ({sig['spike_tier']})</i>\n"
             f"{mtf_icon} 4H: <i>{sig['mtf_4h']} ({sig['mtf_status']})</i>\n"
             f"{btc_icon} BTC: <i>{sig['btc_regime']}</i>\n"
@@ -303,20 +318,12 @@ def main():
         )
 
         send_telegram_alert(message)
-
         save_signal(
-            symbol=sig["symbol"],
-            direction=sig["direction"],
-            entry=sig["entry"],
-            sl=sig["sl"],
-            tp1=sig["tp1"],
-            tp2=sig["tp2"],
-            tp3=sig["tp3"],
-            score=sig["composite"],
-            grade=sig["grade"],
-            rr=sig["rr"],
+            symbol=sig["symbol"], direction=sig["direction"],
+            entry=sig["entry"], sl=sig["sl"],
+            tp1=sig["tp1"], tp2=sig["tp2"], tp3=sig["tp3"],
+            score=sig["composite"], grade=sig["grade"], rr=sig["rr"],
         )
-
         set_cooldown(sig["symbol"])
 
         print(
@@ -325,11 +332,10 @@ def main():
             f"RS:{sig['rs_label']} 4H:{sig['mtf_4h']} BTC:{sig['btc_regime']}"
         )
 
-    # ── Step 6: Track signals ──────────────────────────────────────────────
+    # ── Steps 6-8 ──────────────────────────────────────────────────────────
     print("\n[6/8] Running signal tracker...")
     SignalTracker().run()
 
-    # ── Step 7: Analytics ──────────────────────────────────────────────────
     print("\n[7/8] Analytics...")
     s = AnalyticsEngine().compute()
     print(f"      {s['total_signals']} total | {s['open']} open | WR:{s['win_rate']}% | PF:{s['profit_factor']}")
