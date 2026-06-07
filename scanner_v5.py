@@ -1,12 +1,11 @@
 """
-Elite Futures Scanner V5.5
+Elite Futures Scanner V5.6
 ============================
-Key upgrades vs V5.4:
-- BTC 4H required for BEAR confirmation (not just 1H)
-- BTC RSI floor: block shorts when RSI < 42 (bounce risk)
-- BTC RSI ceil:  block longs  when RSI > 72 (pullback risk)
-- SHORT SL = 2× ATR (wider, survives dead cat bounces)
-- SHORT requires resistance ceiling within 3% (no shorting open air)
+Fixes vs V5.5:
+- WEAK volume (< 1.0x) = quality score 0 = blocked (was passing)
+- SHORT coin RSI < 40 = quality score 0 = blocked (coin bounce risk)
+- Composite score capped at 100.0 (was overflowing to 105)
+- BTC dated futures contracts excluded (BTC-YYMMDD format)
 """
 
 from loaders.top_symbols_loader  import TopSymbolsLoader
@@ -39,10 +38,15 @@ def grade_score(score: float) -> str:
     return "C"
 
 
+def is_dated_futures(symbol: str) -> bool:
+    """Exclude dated futures like BTC/USDT:USDT-260626 — behave differently from perps."""
+    return "-" in symbol.split(":")[-1] if ":" in symbol else False
+
+
 def main():
 
     print("=" * 55)
-    print("🚀 Elite Futures Scanner V5.5")
+    print("🚀 Elite Futures Scanner V5.6")
     print("=" * 55)
 
     market_loader  = MarketDataLoader()
@@ -102,14 +106,20 @@ def main():
 
     candidates = []
     skip = {
-        "cooldown": 0, "btc": 0, "trend": 0, "mtf": 0,
-        "sr_no_ceiling": 0, "weak_rs": 0, "quality": 0,
-        "risk": 0, "errors": 0
+        "cooldown": 0, "dated_futures": 0, "btc": 0, "trend": 0,
+        "mtf": 0, "sr_no_ceiling": 0, "weak_rs": 0,
+        "quality": 0, "risk": 0, "errors": 0
     }
 
     for symbol in symbols:
 
+        # Skip BTC perp itself
         if symbol == CONFIG["btc_symbol"]:
+            continue
+
+        # Skip dated futures contracts (e.g. BTC/USDT:USDT-260626)
+        if is_dated_futures(symbol):
+            skip["dated_futures"] += 1
             continue
 
         if is_on_cooldown(symbol):
@@ -117,7 +127,6 @@ def main():
             continue
 
         try:
-            # ── 1H ────────────────────────────────────────────────────
             df_1h  = market_loader.get_1h(symbol)
             df_1h  = Indicators.apply(df_1h)
             latest = df_1h.iloc[-1]
@@ -153,7 +162,6 @@ def main():
             sr_levels = sr_engine.find_levels(df_1h)
             sr_bonus  = sr_engine.score_bonus(direction, sr_levels)
 
-            # SHORT requires resistance ceiling within 3% — no open-air shorts
             if direction == "SHORT" and CONFIG["short_requires_resistance"]:
                 if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):
                     skip["sr_no_ceiling"] += 1
@@ -191,8 +199,10 @@ def main():
                 skip["mtf"] += 1
                 continue
 
-            # ── Quality ────────────────────────────────────────────────
-            quality_score = quality_engine.score(rel_volume=rel_volume, rsi=rsi, direction=direction)
+            # ── Quality (WEAK vol = 0, SHORT RSI < 40 = 0) ────────────
+            quality_score = quality_engine.score(
+                rel_volume=rel_volume, rsi=rsi, direction=direction
+            )
 
             # ── Risk ───────────────────────────────────────────────────
             risk = risk_engine.calculate(direction, price, atr)
@@ -205,9 +215,9 @@ def main():
                     skip["quality"] += 1
                 continue
 
-            # ── Composite ─────────────────────────────────────────────
+            # ── Composite — CAPPED at 100 ─────────────────────────────
             base      = trend_score * 0.6 + quality_score * 0.4
-            composite = round((base + sr_bonus) * mtf_multiplier, 2)
+            composite = min(100.0, round((base + sr_bonus) * mtf_multiplier, 2))
             g         = grade_score(composite)
 
             candidates.append({
@@ -244,8 +254,8 @@ def main():
 
     print(f"      ✅ {len(candidates)} candidate(s)")
     print(
-        f"      📊 cd:{skip['cooldown']} btc:{skip['btc']} "
-        f"trend:{skip['trend']} mtf:{skip['mtf']} "
+        f"      📊 cd:{skip['cooldown']} dated:{skip['dated_futures']} "
+        f"btc:{skip['btc']} trend:{skip['trend']} mtf:{skip['mtf']} "
         f"no_ceil:{skip['sr_no_ceiling']} rs:{skip['weak_rs']} "
         f"q:{skip['quality']} risk:{skip['risk']} err:{skip['errors']}"
     )
@@ -273,10 +283,8 @@ def main():
         )
 
         sizing = sizer.calculate(
-            grade=sig["grade"],
-            confidence=confidence,
-            entry=sig["entry"],
-            sl=sig["sl"],
+            grade=sig["grade"], confidence=confidence,
+            entry=sig["entry"], sl=sig["sl"],
         )
 
         mtf_icon = {"CONFIRMED": "✅", "ALLOWED": "🟡", "SKIPPED": "⬜"}.get(sig["mtf_status"], "⬜")
@@ -287,7 +295,6 @@ def main():
         }.get(sig["btc_regime"], "⬜")
         rs_icon = {"STRONG": "💪", "NEUTRAL": "➡️"}.get(sig["rs_label"], "➡️")
 
-        # Show nearest key level in alert
         key_level = ""
         if sig["direction"] == "SHORT" and sig["sr_resistance"]:
             key_level = f"\n🔒 Resistance: <code>{sig['sr_resistance']}</code>"
@@ -295,16 +302,10 @@ def main():
             key_level = f"\n🛡 Support: <code>{sig['sr_support']}</code>"
 
         message = format_signal(
-            symbol=sig["symbol"],
-            direction=sig["direction"],
-            score=sig["composite"],
-            entry=sig["entry"],
-            sl=sig["sl"],
-            tp1=sig["tp1"],
-            tp2=sig["tp2"],
-            tp3=sig["tp3"],
-            rr=sig["rr"],
-            grade=sig["grade"],
+            symbol=sig["symbol"], direction=sig["direction"],
+            score=sig["composite"], entry=sig["entry"],
+            sl=sig["sl"], tp1=sig["tp1"], tp2=sig["tp2"], tp3=sig["tp3"],
+            rr=sig["rr"], grade=sig["grade"],
         )
 
         message += (
@@ -329,7 +330,8 @@ def main():
         print(
             f"  ✅ {sig['symbol']} {sig['direction']} | "
             f"Grade:{sig['grade']} Score:{sig['composite']} | "
-            f"RS:{sig['rs_label']} 4H:{sig['mtf_4h']} BTC:{sig['btc_regime']}"
+            f"Vol:{sig['rel_volume']}x RSI:{sig['rsi']} | "
+            f"4H:{sig['mtf_4h']} BTC:{sig['btc_regime']}"
         )
 
     # ── Steps 6-8 ──────────────────────────────────────────────────────────
