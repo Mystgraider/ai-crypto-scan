@@ -58,6 +58,9 @@ CONFIG = {
     # Max signals per run
     "max_signals_per_run": 5,
 
+    # BTC RANGE regime — require higher score (ranging market = risky)
+    "range_regime_min_score": 80,   # higher bar when BTC is ranging
+
     # Funding rate
     "funding_enabled":          True,
     "funding_short_block_above": 0.0001,   # block SHORT if funding > +0.01%
@@ -75,6 +78,6 @@ CONFIG = {
 
     # Versions
     "db_version":       "1.0.0",
-    "config_version":   "1.5.0",
-    "strategy_version": "5.5.0",
+    "config_version":   "1.8.3",
+    "strategy_version": "5.8.3",
 }

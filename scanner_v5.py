@@ -1,11 +1,7 @@
 """
-Elite Futures Scanner V5.6
-============================
-Fixes vs V5.5:
-- WEAK volume (< 1.0x) = quality score 0 = blocked (was passing)
-- SHORT coin RSI < 40 = quality score 0 = blocked (coin bounce risk)
-- Composite score capped at 100.0 (was overflowing to 105)
-- BTC dated futures contracts excluded (BTC-YYMMDD format)
+Elite Futures Scanner V5.8.3
+=============================
+Full pipeline with all filters active.
 """
 
 from loaders.top_symbols_loader  import TopSymbolsLoader
@@ -50,7 +46,7 @@ def is_dated_futures(symbol: str) -> bool:
 def main():
 
     print("=" * 55)
-    print("🚀 Elite Futures Scanner V5.6")
+    print("🚀 Elite Futures Scanner V5.8.3")
     print("=" * 55)
 
     market_loader  = MarketDataLoader()
@@ -174,6 +170,16 @@ def main():
                     skip["btc"] += 1
                     continue
 
+            # ── BTC RANGE regime — require higher score ───────────────────
+            # In ranging market both directions are risky
+            # Raise the bar: only very high conviction signals allowed
+            if btc_regime["regime"] == "RANGE":
+                range_min = CONFIG.get("range_regime_min_score", 80)
+                # Pre-check: trend score must already be >= range_min
+                if trend_score < range_min:
+                    skip["btc"] += 1
+                    continue
+
             # ── Funding Rate ──────────────────────────────────────────────
             funding_result = {"long_ok": True, "short_ok": True,
                               "funding_pct": 0.0, "short_score_adj": 0}
@@ -211,7 +217,11 @@ def main():
 
             # ── Relative Strength ──────────────────────────────────────
             coin_closes = df_1h["close"].tolist()
-            rs = rs_engine.calculate(coin_closes, btc_closes)
+            # Skip RS check if no BTC data (BTC filter failed)
+            if len(btc_closes) < 21:
+                rs = {"rs_score": 50.0, "rs_label": "NEUTRAL", "rs_ratio": 1.0}
+            else:
+                rs = rs_engine.calculate(coin_closes, btc_closes)
 
             if rs["rs_label"] == "WEAK":
                 skip["weak_rs"] += 1
@@ -237,7 +247,8 @@ def main():
                 except Exception:
                     pass
 
-            if CONFIG["mtf_reject_counter_trend"] and mtf_status == "REJECTED":
+            # SKIPPED = no 4H data = same risk as NEUTRAL = reject
+            if CONFIG["mtf_reject_counter_trend"] and mtf_status in ("REJECTED", "SKIPPED"):
                 skip["mtf"] += 1
                 continue
 
@@ -398,6 +409,9 @@ def main():
             rel_volume=sig["rel_volume"], spike_tier=sig["spike_tier"],
             mtf_status=sig["mtf_status"], btc_regime=sig["btc_regime"],
             rs_label=sig["rs_label"],
+            funding_pct=str(sig.get("funding_pct", 0)),
+            oi_signal=sig.get("oi_signal", "NEUTRAL"),
+            beta_label=sig.get("beta_label", "MEDIUM"),
         )
         set_cooldown(sig["symbol"])
 

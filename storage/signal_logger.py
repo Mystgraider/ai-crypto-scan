@@ -10,6 +10,7 @@ FIELDNAMES = [
     "score", "grade", "rr",
     "adx", "rsi", "rel_volume", "spike_tier",
     "mtf_status", "btc_regime", "rs_label",
+    "funding_pct", "oi_signal", "beta_label",
     "status"
 ]
 
@@ -40,6 +41,9 @@ def save_signal(
     mtf_status: str   = "",
     btc_regime: str   = "",
     rs_label:   str   = "",
+    funding_pct: str  = "0",
+    oi_signal:  str   = "",
+    beta_label: str   = "",
     status:     str   = "OPEN",
 ):
     _ensure_file()
@@ -63,6 +67,9 @@ def save_signal(
         "mtf_status": mtf_status,
         "btc_regime": btc_regime,
         "rs_label":   rs_label,
+        "funding_pct": funding_pct,
+        "oi_signal":  oi_signal,
+        "beta_label": beta_label,
         "status":     status,
     }
 
