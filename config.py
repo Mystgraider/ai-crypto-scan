@@ -10,11 +10,11 @@ CONFIG = {
     "ohlcv_4h_limit": 50,
 
     # Signal thresholds
-    "min_score": 60,
+    "min_score": 70,    # raised: block Grade C signals
     "signal_score_s": 90,
     "signal_score_a": 80,
     "signal_score_b": 70,
-    "signal_score_c": 60,
+    "signal_score_c": 70,   # C grade now same as min — effectively blocked
 
     # ADX gate
     "adx_min": 20,
