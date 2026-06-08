@@ -320,10 +320,14 @@ def main():
 
         send_telegram_alert(message)
         save_signal(
-            symbol=sig["symbol"], direction=sig["direction"],
-            entry=sig["entry"], sl=sig["sl"],
-            tp1=sig["tp1"], tp2=sig["tp2"], tp3=sig["tp3"],
-            score=sig["composite"], grade=sig["grade"], rr=sig["rr"],
+            symbol=sig["symbol"],     direction=sig["direction"],
+            entry=sig["entry"],       sl=sig["sl"],
+            tp1=sig["tp1"],           tp2=sig["tp2"],       tp3=sig["tp3"],
+            score=sig["composite"],   grade=sig["grade"],   rr=sig["rr"],
+            adx=sig["adx"],           rsi=sig["rsi"],
+            rel_volume=sig["rel_volume"], spike_tier=sig["spike_tier"],
+            mtf_status=sig["mtf_status"], btc_regime=sig["btc_regime"],
+            rs_label=sig["rs_label"],
         )
         set_cooldown(sig["symbol"])
 

@@ -2,9 +2,7 @@ name: Elite Futures Scanner V5
 
 on:
   schedule:
-    # Every 5 minutes — main scan
     - cron: '*/5 * * * *'
-    # Daily report at 00:00 UTC
     - cron: '0 0 * * *'
   workflow_dispatch:
 
@@ -18,6 +16,9 @@ jobs:
       group: elite-scanner
       cancel-in-progress: false
 
+    permissions:
+      contents: write
+
     env:
       PYTHONUNBUFFERED: "1"
       BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
@@ -26,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -41,10 +44,22 @@ jobs:
       - name: Run Scanner V5
         run: python scanner_v5.py
 
+      - name: Save signals to repo
+        if: always()
+        run: |
+          git config user.name "Elite Scanner Bot"
+          git config user.email "bot@elitescanner.dev"
+          git add storage/signals.csv storage/cooldown.json || true
+          git diff --staged --quiet || git commit -m "chore: update signals [skip ci]"
+          git push || true
+
   daily_report:
     if: github.event.schedule == '0 0 * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+
+    permissions:
+      contents: write
 
     env:
       PYTHONUNBUFFERED: "1"
@@ -54,6 +69,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -68,3 +85,12 @@ jobs:
 
       - name: Send Daily Report
         run: python daily_report_runner.py
+
+      - name: Save updated statuses
+        if: always()
+        run: |
+          git config user.name "Elite Scanner Bot"
+          git config user.email "bot@elitescanner.dev"
+          git add storage/signals.csv || true
+          git diff --staged --quiet || git commit -m "chore: update signal statuses [skip ci]"
+          git push || true
