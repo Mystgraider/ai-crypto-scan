@@ -1,7 +1,7 @@
 CONFIG = {
 
     # Exchange
-    "exchange": "okx",
+    "exchange": "bitget",
 
     # Scanning
     "top_coins_limit": 300,

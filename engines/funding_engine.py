@@ -1,3 +1,5 @@
+import ccxt
+
 """
 Funding Rate Engine — V5.8
 ============================
@@ -87,10 +89,31 @@ class FundingEngine:
         """
         Fetch current funding rate from OKX via ccxt.
         Returns 0.0 if unavailable (fail-safe = allow signal).
+
+        OKX ccxt uses fetch_funding_rate() which returns:
+        {"fundingRate": 0.0001, ...}
+        Symbol must be in OKX swap format: BTC/USDT:USDT
         """
         try:
+            # ccxt fetch_funding_rate for perpetual swaps
             data = exchange.fetch_funding_rate(symbol)
-            return float(data.get("fundingRate", 0.0))
-        except Exception as e:
-            print(f"  ⚠️  Funding rate fetch failed for {symbol}: {e}")
-            return 0.0  # neutral — don't block on API failure
+
+            # ccxt returns fundingRate as a decimal (0.0001 = 0.01%)
+            rate = (
+                data.get("fundingRate") or
+                data.get("info", {}).get("fundingRate") or
+                0.0
+            )
+            return float(rate)
+
+        except ccxt.BadSymbol:
+            # Symbol doesn't support funding rate (e.g. dated futures)
+            return 0.0
+
+        except ccxt.NetworkError as e:
+            print(f"  ⚠️  Funding network error {symbol}: {e}")
+            return 0.0
+
+        except Exception:
+            # Silent fail — never block signal on API error
+            return 0.0
