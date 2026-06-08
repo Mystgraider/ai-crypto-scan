@@ -27,6 +27,7 @@ from storage.cooldown_manager    import is_on_cooldown, set_cooldown
 from tracker.signal_tracker      import SignalTracker
 from reports.analytics_engine    import AnalyticsEngine
 from ai.signal_ranker            import AISignalRanker
+from ai.adaptive_engine          import AdaptiveEngine
 from ai.confidence_engine        import ConfidenceEngine
 from config                      import CONFIG
 
@@ -60,6 +61,7 @@ def main():
     rs_engine      = RelativeStrengthEngine()
     sr_engine      = SupportResistanceEngine()
     sizer          = PositionSizer()
+    adaptive       = AdaptiveEngine()
 
     # ── Step 1: BTC Regime (1H + 4H) ──────────────────────────────────────
     print("\n[1/8] BTC Market Filter...")
@@ -92,7 +94,18 @@ def main():
         except Exception as e:
             print(f"      ⚠️ BTC filter failed: {e} — allowing all signals")
 
-    # ── Step 2: Load Symbols ───────────────────────────────────────────────
+    # ── Step 1b: Adaptive Parameter Tuning ───────────────────────────────
+    print("\n[1b] Adaptive Engine...")
+    adapt = adaptive.evaluate()
+    print(f"      Level: {adapt['level_name']} | "
+          f"Recent: {adapt['recent_wins']}W/{adapt['recent_losses']}L "
+          f"(last {adapt['window']})")
+    print(f"      MinScore:{adapt['min_score']} | "
+          f"MaxSignals:{adapt['max_signals']} | "
+          f"Cooldown:{adapt['cooldown_hours']}H | "
+          f"Grades:{adapt['allowed_grades']}")
+
+    # ── Step 2: Load Symbols ───────────────────────────────────────────────────
     print("\n[2/8] Loading top symbols...")
     symbols = TopSymbolsLoader().get_top_symbols()
     print(f"      ✅ {len(symbols)} symbols loaded")
@@ -208,6 +221,11 @@ def main():
             risk = risk_engine.calculate(direction, price, atr)
 
             # ── Validate ───────────────────────────────────────────────
+            # Use adaptive min_score (raises on losing streak)
+            if quality_score < adapt["min_score"] or trend_score < adapt["min_score"]:
+                skip["quality"] += 1
+                continue
+
             if not validator.validate(direction, trend_score, quality_score, risk):
                 if risk is None:
                     skip["risk"] += 1
@@ -268,7 +286,9 @@ def main():
     conf_eng  = ConfidenceEngine()
 
     ranked = AISignalRanker().rank(candidates)
-    ranked = ranked[:CONFIG["max_signals_per_run"]]
+    # Apply adaptive grade filter and max signals
+    ranked = [s for s in ranked if s["grade"] in adapt["allowed_grades"]]
+    ranked = ranked[:adapt["max_signals"]]
     print(f"      ✅ {len(ranked)} signal(s) to fire")
 
     # ── Step 5: Alert + Log ────────────────────────────────────────────────
