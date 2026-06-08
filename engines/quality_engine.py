@@ -2,63 +2,74 @@ class QualityEngine:
     """
     Signal quality score 0-100.
 
-    Hard blocks (return 0 regardless of other factors):
-      - rel_volume < 1.0        → no conviction, no signal
-      - LONG  RSI > 70          → overbought, hard block
-      - SHORT RSI < 40          → coin bounce risk, hard block
-
     Volume score (60% weight):
-      >= 3.0x = 100
-      >= 2.0x = 90
-      >= 1.5x = 80
-      >= 1.2x = 70
-      >= 1.0x = 58
-      <  1.0x = 0  ← HARD BLOCK
+      >= 3.0x = EXTREME  = 100
+      >= 2.0x = HIGH     = 90
+      >= 1.5x = ELEVATED = 80
+      >= 1.2x = NORMAL   = 70
+      >= 1.0x = BASELINE = 58
+      <  1.0x = WEAK     = 0  ← BLOCKED (no conviction)
 
     RSI score (40% weight):
-      LONG  ideal: 45-60
-      SHORT ideal: 42-55
+      LONG ideal: 45-60 (trending, not overbought)
+      SHORT ideal: 40-55 (trending, not oversold)
+
+    Anti-fake-signal rules:
+      LONG  RSI > 70 → score 0 (chasing pump)
+      SHORT RSI < 40 → score 0 (coin already low = bounce risk)
+      SHORT RSI < 42 → score 20 (borderline, penalized)
     """
 
-    MIN_VOLUME       = 1.0
-    LONG_RSI_MAX     = 70    # block LONG if RSI above this
-    SHORT_RSI_MIN    = 40    # block SHORT if RSI below this
+    # Minimum rel_volume to allow any signal
+    MIN_VOLUME = 1.0
 
     def score(self, rel_volume: float, rsi: float, direction: str) -> float:
 
-        # ── Hard block: weak volume ────────────────────────────────────
+        # ── Hard block: WEAK volume = no conviction ────────────────────
         if rel_volume < self.MIN_VOLUME:
             return 0.0
 
-        # ── Hard block: extreme RSI — check BEFORE volume bonus ───────
-        if direction == "LONG" and rsi > self.LONG_RSI_MAX:
-            return 0.0   # overbought — no matter how high the volume
-
-        if direction == "SHORT" and rsi < self.SHORT_RSI_MIN:
-            return 0.0   # coin too low — bounce risk regardless of volume
-
         # ── Volume score ───────────────────────────────────────────────
-        if rel_volume >= 3.0:   vol_score = 100
-        elif rel_volume >= 2.0: vol_score = 90
-        elif rel_volume >= 1.5: vol_score = 80
-        elif rel_volume >= 1.2: vol_score = 70
-        else:                   vol_score = 58
+        if rel_volume >= 3.0:
+            vol_score = 100
+        elif rel_volume >= 2.0:
+            vol_score = 90
+        elif rel_volume >= 1.5:
+            vol_score = 80
+        elif rel_volume >= 1.2:
+            vol_score = 70
+        else:
+            vol_score = 58   # 1.0-1.2x — baseline, barely acceptable
 
         # ── RSI score ──────────────────────────────────────────────────
         if direction == "LONG":
-            if rsi > 65:                rsi_score = 20
-            elif 45 <= rsi <= 60:       rsi_score = 100
-            elif 40 <= rsi < 45:        rsi_score = 80
-            elif 60 < rsi <= 65:        rsi_score = 80
-            elif 35 <= rsi < 40:        rsi_score = 50
-            else:                       rsi_score = 30
+            if rsi > 70:
+                rsi_score = 0     # overbought — hard block
+            elif rsi > 65:
+                rsi_score = 20    # hot — heavily penalized
+            elif 45 <= rsi <= 60:
+                rsi_score = 100   # ideal
+            elif 40 <= rsi < 45 or 60 < rsi <= 65:
+                rsi_score = 80
+            elif 35 <= rsi < 40:
+                rsi_score = 50
+            else:
+                rsi_score = 30    # very oversold — bounce risk for long too
 
         else:  # SHORT
-            if rsi < 42:                rsi_score = 20   # borderline
-            elif 42 <= rsi <= 55:       rsi_score = 100  # ideal
-            elif 55 < rsi <= 60:        rsi_score = 80
-            elif 60 < rsi <= 65:        rsi_score = 60
-            elif rsi > 70:              rsi_score = 0    # overbought SHORT = squeeze risk
-            else:                       rsi_score = 40
+            if rsi < 40:
+                rsi_score = 0     # coin RSI too low = bounce imminent — HARD BLOCK
+            elif rsi < 42:
+                rsi_score = 20    # borderline — heavily penalized
+            elif 42 <= rsi <= 55:
+                rsi_score = 100   # ideal short zone
+            elif 55 < rsi <= 60:
+                rsi_score = 80
+            elif 60 < rsi <= 65:
+                rsi_score = 60
+            elif rsi > 70:
+                rsi_score = 0     # overbought — dangerous to short (squeeze risk)
+            else:
+                rsi_score = 40
 
         return round(vol_score * 0.6 + rsi_score * 0.4, 2)

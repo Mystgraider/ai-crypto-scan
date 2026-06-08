@@ -40,21 +40,21 @@ class MultiFrameEngine:
     def confirm(self, signal_direction: str, trend_4h: str) -> dict:
         """
         Cross-check 1H signal vs 4H trend.
-
-        V5.8.3 change: 4H NEUTRAL is now REJECTED for both LONG and SHORT.
-        Reason: TAO LONG with 4H NEUTRAL hit SL — no 4H confirmation
-        means the higher timeframe does not support the trade.
-        Only fire when 4H fully agrees with 1H direction.
+        Returns confirmation status and score multiplier.
         """
 
         if signal_direction == "LONG":
             if trend_4h == "BULLISH":
                 return {"status": "CONFIRMED", "multiplier": 1.10}
-            else:  # NEUTRAL or BEARISH — both rejected
+            elif trend_4h == "NEUTRAL":
+                return {"status": "ALLOWED",   "multiplier": 1.00}
+            else:  # BEARISH
                 return {"status": "REJECTED",  "multiplier": 0.00}
 
         else:  # SHORT
             if trend_4h == "BEARISH":
                 return {"status": "CONFIRMED", "multiplier": 1.10}
-            else:  # NEUTRAL or BULLISH — both rejected
+            elif trend_4h == "NEUTRAL":
+                return {"status": "ALLOWED",   "multiplier": 1.00}
+            else:  # BULLISH
                 return {"status": "REJECTED",  "multiplier": 0.00}

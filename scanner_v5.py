@@ -1,7 +1,25 @@
 """
-Elite Futures Scanner V5.8.3
-=============================
-Full pipeline with all filters active.
+Elite Futures Scanner V5.9
+============================
+Strategy: V5.6 (proven, generates signals)
+Infrastructure: V5.8 (persistent logs, daily report, circuit breaker, NaN guards)
+
+V5.6 Strategy (restored):
+  - 4H NEUTRAL = ALLOWED (not rejected) — generates more signals
+  - min_score = 65 (was raised to 70, caused 0 signals)
+  - Grade C allowed (score >= 65)
+  - BTC filter: BEAR_CAUTION blocks shorts (RSI < 42 or 4H not bear)
+  - MTF: only REJECTED blocked (counter-trend), NEUTRAL fires with score penalty
+
+V5.8 Infrastructure (kept):
+  - Persistent signals.csv + cooldown.json committed to repo
+  - Circuit breaker (3 SL hits/day = pause)
+  - Funding rate filter
+  - Beta filter for SHORT
+  - OI engine (score adjustment)
+  - NaN guard + min 60 candles guard
+  - Stock token error handling
+  - Daily report with grade breakdown
 """
 
 from loaders.top_symbols_loader  import TopSymbolsLoader
@@ -17,16 +35,16 @@ from engines.volume_spike        import VolumeSpikeEngine
 from engines.relative_strength   import RelativeStrengthEngine
 from engines.support_resistance  import SupportResistanceEngine
 from engines.position_sizer      import PositionSizer
+from engines.funding_engine      import FundingEngine
+from engines.beta_filter         import BetaFilter
+from engines.oi_engine           import OIEngine
+from engines.circuit_breaker     import check as circuit_check
 from alerts.telegram_alerts      import send_telegram_alert, format_signal
 from storage.signal_logger       import save_signal
 from storage.cooldown_manager    import is_on_cooldown, set_cooldown
 from tracker.signal_tracker      import SignalTracker
 from reports.analytics_engine    import AnalyticsEngine
 from ai.signal_ranker            import AISignalRanker
-from engines.funding_engine      import FundingEngine
-from engines.beta_filter         import BetaFilter
-from engines.oi_engine           import OIEngine
-from engines.circuit_breaker     import check as circuit_check
 from ai.confidence_engine        import ConfidenceEngine
 from config                      import CONFIG
 
@@ -35,18 +53,18 @@ def grade_score(score: float) -> str:
     if score >= CONFIG["signal_score_s"]: return "S"
     if score >= CONFIG["signal_score_a"]: return "A"
     if score >= CONFIG["signal_score_b"]: return "B"
-    return "C"
+    if score >= CONFIG["signal_score_c"]: return "C"
+    return "D"
 
 
 def is_dated_futures(symbol: str) -> bool:
-    """Exclude dated futures like BTC/USDT:USDT-260626 — behave differently from perps."""
     return "-" in symbol.split(":")[-1] if ":" in symbol else False
 
 
 def main():
 
     print("=" * 55)
-    print("🚀 Elite Futures Scanner V5.8.3")
+    print("🚀 Elite Futures Scanner V5.9")
     print("=" * 55)
 
     market_loader  = MarketDataLoader()
@@ -65,7 +83,7 @@ def main():
     beta_filter    = BetaFilter()
     oi_engine      = OIEngine()
 
-    # ── Step 1: BTC Regime (1H + 4H) ──────────────────────────────────────
+    # ── Step 1: BTC Regime ─────────────────────────────────────────────────
     print("\n[1/8] BTC Market Filter...")
 
     btc_regime = {
@@ -88,15 +106,13 @@ def main():
                 pass
 
             btc_regime = btc_filter.analyze(btc_1h, btc_4h)
-
             print(f"      BTC: {btc_regime['regime']} | ADX:{btc_regime['adx']} | RSI:{btc_regime['rsi']}")
             print(f"      LONG:{btc_regime['allow_long']} | SHORT:{btc_regime['allow_short']}")
             print(f"      Reason: {btc_regime['reason']}")
-
         except Exception as e:
             print(f"      ⚠️ BTC filter failed: {e} — allowing all signals")
 
-    # ── Step 1b: Circuit Breaker ──────────────────────────────────────────
+    # ── Step 1b: Circuit Breaker ───────────────────────────────────────────
     print("\n[1b] Circuit Breaker...")
     breaker = circuit_check()
     if breaker["is_tripped"]:
@@ -104,7 +120,7 @@ def main():
         return
     print(f"      ✅ OK — {breaker['losses_today']}/{breaker['max_losses']} losses today")
 
-    # ── Step 2: Load Symbols ───────────────────────────────────────────────────
+    # ── Step 2: Load Symbols ───────────────────────────────────────────────
     print("\n[2/8] Loading top symbols...")
     symbols = TopSymbolsLoader().get_top_symbols()
     print(f"      ✅ {len(symbols)} symbols loaded")
@@ -118,20 +134,18 @@ def main():
 
     candidates = []
     skip = {
-        "cooldown": 0, "dated_futures": 0, "btc": 0, "trend": 0,
-        "mtf": 0, "sr_no_ceiling": 0, "weak_rs": 0,
-        "quality": 0, "risk": 0, "errors": 0
+        "cooldown": 0, "dated": 0, "btc": 0, "trend": 0,
+        "funding": 0, "high_beta": 0, "sr_no_ceil": 0,
+        "weak_rs": 0, "mtf": 0, "quality": 0, "risk": 0, "errors": 0
     }
 
     for symbol in symbols:
 
-        # Skip BTC perp itself
         if symbol == CONFIG["btc_symbol"]:
             continue
 
-        # Skip dated futures contracts (e.g. BTC/USDT:USDT-260626)
         if is_dated_futures(symbol):
-            skip["dated_futures"] += 1
+            skip["dated"] += 1
             continue
 
         if is_on_cooldown(symbol):
@@ -139,13 +153,14 @@ def main():
             continue
 
         try:
+            # ── 1H data ───────────────────────────────────────────────
             df_1h  = market_loader.get_1h(symbol)
-            df_1h  = Indicators.apply(df_1h)
+            df_1h  = Indicators.apply(df_1h)   # raises if < 60 candles
             latest = df_1h.iloc[-1]
 
-            # Skip if any key indicator is NaN (insufficient history)
-            required = ["close","ema_20","ema_50","atr","adx","rsi","roc","rel_volume"]
-            if latest[required].isnull().any():
+            # NaN guard
+            req = ["close","ema_20","ema_50","atr","adx","rsi","roc","rel_volume"]
+            if latest[req].isnull().any():
                 skip["errors"] += 1
                 continue
 
@@ -176,41 +191,37 @@ def main():
                     skip["btc"] += 1
                     continue
 
-            # ── BTC RANGE regime — require higher score ───────────────────
-            # In ranging market both directions are risky
-            # Raise the bar: only very high conviction signals allowed
+            # ── BTC RANGE: require higher trend score ──────────────────
             if btc_regime["regime"] == "RANGE":
-                range_min = CONFIG.get("range_regime_min_score", 80)
-                # Pre-check: trend score must already be >= range_min
-                if trend_score < range_min:
+                if trend_score < CONFIG.get("range_regime_min_score", 80):
                     skip["btc"] += 1
                     continue
 
-            # ── Funding Rate ──────────────────────────────────────────────
-            funding_result = {"long_ok": True, "short_ok": True,
-                              "funding_pct": 0.0, "short_score_adj": 0}
+            # ── Funding Rate ───────────────────────────────────────────
             if CONFIG["funding_enabled"]:
-                funding_rate   = funding_engine.fetch_funding(exchange, symbol)
-                funding_result = funding_engine.analyze(funding_rate)
+                fr = funding_engine.fetch_funding(exchange, symbol)
+                funding_result = funding_engine.analyze(fr)
                 if direction == "LONG"  and not funding_result["long_ok"]:
-                    skip["funding"] = skip.get("funding", 0) + 1
+                    skip["funding"] += 1
                     continue
                 if direction == "SHORT" and not funding_result["short_ok"]:
-                    skip["funding"] = skip.get("funding", 0) + 1
+                    skip["funding"] += 1
                     continue
+            else:
+                funding_result = {"funding_pct": 0.0, "short_score_adj": 0}
 
-            # ── Beta Filter ────────────────────────────────────────────────
-            beta_result = {"short_ok": True, "beta_label": "MEDIUM",
-                           "beta": 1.0, "preferred": False}
+            # ── Beta Filter (SHORT only) ───────────────────────────────
             if CONFIG["beta_filter_enabled"] and direction == "SHORT":
-                coin_closes_temp = df_1h["close"].tolist()
+                coin_closes_beta = df_1h["close"].tolist()
                 beta_result = beta_filter.evaluate(
                     symbol=symbol, direction=direction,
-                    coin_closes=coin_closes_temp, btc_closes=btc_closes
+                    coin_closes=coin_closes_beta, btc_closes=btc_closes
                 )
                 if not beta_result["short_ok"]:
-                    skip["high_beta"] = skip.get("high_beta", 0) + 1
+                    skip["high_beta"] += 1
                     continue
+            else:
+                beta_result = {"beta_label": "N/A", "beta": 1.0}
 
             # ── S/R Levels ─────────────────────────────────────────────
             sr_levels = sr_engine.find_levels(df_1h)
@@ -218,16 +229,15 @@ def main():
 
             if direction == "SHORT" and CONFIG["short_requires_resistance"]:
                 if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):
-                    skip["sr_no_ceiling"] += 1
+                    skip["sr_no_ceil"] += 1
                     continue
 
             # ── Relative Strength ──────────────────────────────────────
             coin_closes = df_1h["close"].tolist()
-            # Skip RS check if no BTC data (BTC filter failed)
-            if len(btc_closes) < 21:
-                rs = {"rs_score": 50.0, "rs_label": "NEUTRAL", "rs_ratio": 1.0}
-            else:
+            if len(btc_closes) >= 21:
                 rs = rs_engine.calculate(coin_closes, btc_closes)
+            else:
+                rs = {"rs_score": 50.0, "rs_label": "NEUTRAL", "rs_ratio": 1.0}
 
             if rs["rs_label"] == "WEAK":
                 skip["weak_rs"] += 1
@@ -236,37 +246,36 @@ def main():
             # ── Volume Spike ───────────────────────────────────────────
             spike = spike_engine.analyze(rel_volume)
 
-            # ── Multi-Timeframe (4H) ───────────────────────────────────
+            # ── Multi-Timeframe 4H ─────────────────────────────────────
+            # V5.6: NEUTRAL = ALLOWED (not rejected)
             mtf_status     = "SKIPPED"
             mtf_multiplier = 1.0
             mtf_4h_dir     = "UNKNOWN"
 
             if CONFIG["mtf_enabled"]:
                 try:
-                    df_4h      = market_loader.get_4h(symbol)
-                    df_4h      = Indicators.apply(df_4h)
-                    # Validate 4H has enough data
-                    if df_4h.iloc[-1][["ema_20","ema_50","adx"]].isnull().any():
-                        raise ValueError("4H NaN indicators")
-                    tf4        = mtf_engine.analyze_4h(df_4h)
-                    mtf_4h_dir = tf4["direction"]
-                    confirm    = mtf_engine.confirm(direction, mtf_4h_dir)
-                    mtf_status     = confirm["status"]
-                    mtf_multiplier = confirm["multiplier"]
+                    df_4h = market_loader.get_4h(symbol)
+                    df_4h = Indicators.apply(df_4h)
+                    if not df_4h.iloc[-1][["ema_20","ema_50","adx"]].isnull().any():
+                        tf4        = mtf_engine.analyze_4h(df_4h)
+                        mtf_4h_dir = tf4["direction"]
+                        confirm    = mtf_engine.confirm(direction, mtf_4h_dir)
+                        mtf_status     = confirm["status"]
+                        mtf_multiplier = confirm["multiplier"]
                 except Exception:
                     pass
 
-            # SKIPPED = no 4H data = same risk as NEUTRAL = reject
-            if CONFIG["mtf_reject_counter_trend"] and mtf_status in ("REJECTED", "SKIPPED"):
+            # Only block REJECTED (counter-trend) — NEUTRAL and SKIPPED allowed
+            if CONFIG["mtf_reject_counter_trend"] and mtf_status == "REJECTED":
                 skip["mtf"] += 1
                 continue
 
-            # ── Quality (WEAK vol = 0, SHORT RSI < 40 = 0) ────────────
+            # ── Quality Engine ─────────────────────────────────────────
             quality_score = quality_engine.score(
                 rel_volume=rel_volume, rsi=rsi, direction=direction
             )
 
-            # ── OI Confirmation ───────────────────────────────────────────
+            # ── OI Engine (score adjustment) ───────────────────────────
             oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}
             if CONFIG["oi_enabled"]:
                 try:
@@ -282,10 +291,10 @@ def main():
                 except Exception:
                     pass
 
-            # ── Risk ───────────────────────────────────────────────────
+            # ── Risk Engine ────────────────────────────────────────────
             risk = risk_engine.calculate(direction, price, atr)
 
-            # ── Validate ───────────────────────────────────────────────
+            # ── Validator ──────────────────────────────────────────────
             if not validator.validate(direction, trend_score, quality_score, risk):
                 if risk is None:
                     skip["risk"] += 1
@@ -293,13 +302,14 @@ def main():
                     skip["quality"] += 1
                 continue
 
-            # ── Composite — CAPPED at 100 ─────────────────────────────
+            # ── Composite Score ────────────────────────────────────────
+            oi_adj    = oi_result["score_adj"]
+            fund_adj  = funding_result.get("short_score_adj", 0) if direction == "SHORT" else 0
             base      = trend_score * 0.6 + quality_score * 0.4
-            oi_adj      = oi_result["score_adj"]
-            fund_adj    = funding_result["short_score_adj"] if direction == "SHORT" else 0
-            composite   = min(100.0, round((base + sr_bonus + oi_adj + fund_adj) * mtf_multiplier, 2))
-            composite   = max(0.0, composite)
-            g         = grade_score(composite)
+            composite = min(100.0, max(0.0, round(
+                (base + sr_bonus + oi_adj + fund_adj) * mtf_multiplier, 2
+            )))
+            g = grade_score(composite)
 
             candidates.append({
                 "symbol":        symbol,
@@ -308,7 +318,7 @@ def main():
                 "quality_score": quality_score,
                 "rs_score":      rs["rs_score"],
                 "rs_label":      rs["rs_label"],
-                "rs_ratio":      rs["rs_ratio"],
+                "rs_ratio":      rs.get("rs_ratio", 1.0),
                 "sr_bonus":      sr_bonus,
                 "sr_support":    sr_levels["nearest_support"],
                 "sr_resistance": sr_levels["nearest_resistance"],
@@ -327,29 +337,29 @@ def main():
                 "mtf_status":    mtf_status,
                 "mtf_4h":        mtf_4h_dir,
                 "btc_regime":    btc_regime["regime"],
-                "funding_pct":   funding_result["funding_pct"],
+                "funding_pct":   str(funding_result.get("funding_pct", 0)),
                 "oi_signal":     oi_result["oi_signal"],
-                "beta_label":    beta_result["beta_label"],
-                "beta":          beta_result.get("beta", 1.0),
+                "beta_label":    beta_result.get("beta_label", "N/A"),
             })
 
         except Exception as e:
             skip["errors"] += 1
-            print(f"  ⚠️  {symbol}: {e}")
+            # Only print non-NaN errors to keep logs clean
+            if "Insufficient candles" not in str(e) and "NaN" not in str(e):
+                print(f"  ⚠️  {symbol}: {e}")
 
     print(f"      ✅ {len(candidates)} candidate(s)")
     print(
-        f"      📊 cd:{skip.get('cooldown',0)} dated:{skip.get('dated_futures',0)} "
-        f"btc:{skip.get('btc',0)} trend:{skip.get('trend',0)} "
-        f"fund:{skip.get('funding',0)} beta:{skip.get('high_beta',0)} "
-        f"mtf:{skip.get('mtf',0)} no_ceil:{skip.get('sr_no_ceiling',0)} "
-        f"rs:{skip.get('weak_rs',0)} q:{skip.get('quality',0)} "
-        f"risk:{skip.get('risk',0)} err:{skip.get('errors',0)}"
+        f"      📊 cd:{skip['cooldown']} dated:{skip['dated']} "
+        f"btc:{skip['btc']} trend:{skip['trend']} "
+        f"fund:{skip['funding']} beta:{skip['high_beta']} "
+        f"mtf:{skip['mtf']} sr:{skip['sr_no_ceil']} "
+        f"rs:{skip['weak_rs']} q:{skip['quality']} "
+        f"risk:{skip['risk']} err:{skip['errors']}"
     )
 
     # ── Step 4: AI Ranking ─────────────────────────────────────────────────
     print("\n[4/8] AI Ranking...")
-
     analytics = AnalyticsEngine().compute()
     hist_wr   = analytics["win_rate"]
     conf_eng  = ConfidenceEngine()
@@ -374,13 +384,13 @@ def main():
             entry=sig["entry"], sl=sig["sl"],
         )
 
-        mtf_icon = {"CONFIRMED": "✅", "ALLOWED": "🟡", "SKIPPED": "⬜"}.get(sig["mtf_status"], "⬜")
+        mtf_icon = {"CONFIRMED":"✅","ALLOWED":"🟡","SKIPPED":"⬜"}.get(sig["mtf_status"],"⬜")
         btc_icon = {
-            "BULL": "🟢", "BEAR": "🔴", "RANGE": "🟡",
-            "BULL_CAUTION": "🟡", "BEAR_CAUTION": "🟡",
-            "EXTREME_BULL": "🔥", "EXTREME_BEAR": "🧊"
-        }.get(sig["btc_regime"], "⬜")
-        rs_icon = {"STRONG": "💪", "NEUTRAL": "➡️"}.get(sig["rs_label"], "➡️")
+            "BULL":"🟢","BEAR":"🔴","RANGE":"🟡",
+            "BULL_CAUTION":"🟡","BEAR_CAUTION":"🟡",
+            "EXTREME_BULL":"🔥","EXTREME_BEAR":"🧊"
+        }.get(sig["btc_regime"],"⬜")
+        rs_icon = {"STRONG":"💪","NEUTRAL":"➡️"}.get(sig["rs_label"],"➡️")
 
         key_level = ""
         if sig["direction"] == "SHORT" and sig["sr_resistance"]:
@@ -409,25 +419,27 @@ def main():
         )
 
         send_telegram_alert(message)
+
         save_signal(
-            symbol=sig["symbol"],     direction=sig["direction"],
-            entry=sig["entry"],       sl=sig["sl"],
-            tp1=sig["tp1"],           tp2=sig["tp2"],       tp3=sig["tp3"],
-            score=sig["composite"],   grade=sig["grade"],   rr=sig["rr"],
-            adx=sig["adx"],           rsi=sig["rsi"],
+            symbol=sig["symbol"],      direction=sig["direction"],
+            entry=sig["entry"],        sl=sig["sl"],
+            tp1=sig["tp1"],            tp2=sig["tp2"],        tp3=sig["tp3"],
+            score=sig["composite"],    grade=sig["grade"],    rr=sig["rr"],
+            adx=sig["adx"],            rsi=sig["rsi"],
             rel_volume=sig["rel_volume"], spike_tier=sig["spike_tier"],
             mtf_status=sig["mtf_status"], btc_regime=sig["btc_regime"],
             rs_label=sig["rs_label"],
-            funding_pct=str(sig.get("funding_pct", 0)),
-            oi_signal=sig.get("oi_signal", "NEUTRAL"),
-            beta_label=sig.get("beta_label", "MEDIUM"),
+            funding_pct=sig["funding_pct"],
+            oi_signal=sig["oi_signal"],
+            beta_label=sig["beta_label"],
         )
+
         set_cooldown(sig["symbol"])
 
         print(
             f"  ✅ {sig['symbol']} {sig['direction']} | "
             f"Grade:{sig['grade']} Score:{sig['composite']} | "
-            f"Vol:{sig['rel_volume']}x RSI:{sig['rsi']} | "
+            f"RSI:{sig['rsi']} Vol:{sig['rel_volume']}x | "
             f"4H:{sig['mtf_4h']} BTC:{sig['btc_regime']}"
         )
 
