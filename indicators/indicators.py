@@ -4,15 +4,18 @@ import pandas as pd
 
 class Indicators:
 
-    MIN_CANDLES = 60  # need at least 60 candles for EMA50 + ADX to be valid
+    MIN_CANDLES = 60
 
     @staticmethod
-    def apply(df):
+    def apply(df: pd.DataFrame) -> pd.DataFrame:
 
         if len(df) < Indicators.MIN_CANDLES:
             raise ValueError(
                 f"Insufficient candles: {len(df)} < {Indicators.MIN_CANDLES}"
             )
+
+        # pandas 3.0 copy-on-write: must copy before assigning new columns
+        df = df.copy()
 
         c = df["close"]
         h = df["high"]
