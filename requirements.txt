@@ -2,4 +2,4 @@ ccxt
 pandas
 requests
 python-dotenv
-ta
+# ta  # replaced with pure pandas in indicators.py
