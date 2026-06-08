@@ -143,6 +143,12 @@ def main():
             df_1h  = Indicators.apply(df_1h)
             latest = df_1h.iloc[-1]
 
+            # Skip if any key indicator is NaN (insufficient history)
+            required = ["close","ema_20","ema_50","atr","adx","rsi","roc","rel_volume"]
+            if latest[required].isnull().any():
+                skip["errors"] += 1
+                continue
+
             price      = float(latest["close"])
             ema20      = float(latest["ema_20"])
             ema50      = float(latest["ema_50"])
@@ -239,6 +245,9 @@ def main():
                 try:
                     df_4h      = market_loader.get_4h(symbol)
                     df_4h      = Indicators.apply(df_4h)
+                    # Validate 4H has enough data
+                    if df_4h.iloc[-1][["ema_20","ema_50","adx"]].isnull().any():
+                        raise ValueError("4H NaN indicators")
                     tf4        = mtf_engine.analyze_4h(df_4h)
                     mtf_4h_dir = tf4["direction"]
                     confirm    = mtf_engine.confirm(direction, mtf_4h_dir)

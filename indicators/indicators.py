@@ -1,10 +1,18 @@
 import ta
+import pandas as pd
 
 
 class Indicators:
 
+    MIN_CANDLES = 60  # need at least 60 candles for EMA50 + ADX to be valid
+
     @staticmethod
     def apply(df):
+
+        if len(df) < Indicators.MIN_CANDLES:
+            raise ValueError(
+                f"Insufficient candles: {len(df)} < {Indicators.MIN_CANDLES}"
+            )
 
         c = df["close"]
         h = df["high"]
