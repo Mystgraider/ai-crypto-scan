@@ -27,6 +27,10 @@ from storage.cooldown_manager    import is_on_cooldown, set_cooldown
 from tracker.signal_tracker      import SignalTracker
 from reports.analytics_engine    import AnalyticsEngine
 from ai.signal_ranker            import AISignalRanker
+from engines.funding_engine      import FundingEngine
+from engines.beta_filter         import BetaFilter
+from engines.oi_engine           import OIEngine
+from engines.circuit_breaker     import check as circuit_check
 from ai.confidence_engine        import ConfidenceEngine
 from config                      import CONFIG
 
@@ -50,6 +54,7 @@ def main():
     print("=" * 55)
 
     market_loader  = MarketDataLoader()
+    exchange       = market_loader.exchange
     trend_engine   = TrendEngine()
     quality_engine = QualityEngine()
     risk_engine    = RiskEngine()
@@ -60,6 +65,9 @@ def main():
     rs_engine      = RelativeStrengthEngine()
     sr_engine      = SupportResistanceEngine()
     sizer          = PositionSizer()
+    funding_engine = FundingEngine()
+    beta_filter    = BetaFilter()
+    oi_engine      = OIEngine()
 
     # ── Step 1: BTC Regime (1H + 4H) ──────────────────────────────────────
     print("\n[1/8] BTC Market Filter...")
@@ -91,6 +99,14 @@ def main():
 
         except Exception as e:
             print(f"      ⚠️ BTC filter failed: {e} — allowing all signals")
+
+    # ── Step 1b: Circuit Breaker ──────────────────────────────────────────
+    print("\n[1b] Circuit Breaker...")
+    breaker = circuit_check()
+    if breaker["is_tripped"]:
+        print(f"      🔴 TRIPPED — {breaker['losses_today']} losses today. Signals paused.")
+        return
+    print(f"      ✅ OK — {breaker['losses_today']}/{breaker['max_losses']} losses today")
 
     # ── Step 2: Load Symbols ───────────────────────────────────────────────────
     print("\n[2/8] Loading top symbols...")
@@ -158,6 +174,32 @@ def main():
                     skip["btc"] += 1
                     continue
 
+            # ── Funding Rate ──────────────────────────────────────────────
+            funding_result = {"long_ok": True, "short_ok": True,
+                              "funding_pct": 0.0, "short_score_adj": 0}
+            if CONFIG["funding_enabled"]:
+                funding_rate   = funding_engine.fetch_funding(exchange, symbol)
+                funding_result = funding_engine.analyze(funding_rate)
+                if direction == "LONG"  and not funding_result["long_ok"]:
+                    skip["funding"] = skip.get("funding", 0) + 1
+                    continue
+                if direction == "SHORT" and not funding_result["short_ok"]:
+                    skip["funding"] = skip.get("funding", 0) + 1
+                    continue
+
+            # ── Beta Filter ────────────────────────────────────────────────
+            beta_result = {"short_ok": True, "beta_label": "MEDIUM",
+                           "beta": 1.0, "preferred": False}
+            if CONFIG["beta_filter_enabled"] and direction == "SHORT":
+                coin_closes_temp = df_1h["close"].tolist()
+                beta_result = beta_filter.evaluate(
+                    symbol=symbol, direction=direction,
+                    coin_closes=coin_closes_temp, btc_closes=btc_closes
+                )
+                if not beta_result["short_ok"]:
+                    skip["high_beta"] = skip.get("high_beta", 0) + 1
+                    continue
+
             # ── S/R Levels ─────────────────────────────────────────────
             sr_levels = sr_engine.find_levels(df_1h)
             sr_bonus  = sr_engine.score_bonus(direction, sr_levels)
@@ -204,6 +246,22 @@ def main():
                 rel_volume=rel_volume, rsi=rsi, direction=direction
             )
 
+            # ── OI Confirmation ───────────────────────────────────────────
+            oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}
+            if CONFIG["oi_enabled"]:
+                try:
+                    oi_data = oi_engine.fetch_oi(exchange, symbol)
+                    if oi_data["available"]:
+                        price_chg = float(df_1h["close"].pct_change().iloc[-1] * 100)
+                        oi_result = oi_engine.analyze(
+                            current_oi=oi_data["current_oi"],
+                            previous_oi=oi_data["previous_oi"],
+                            price_change=price_chg,
+                            direction=direction,
+                        )
+                except Exception:
+                    pass
+
             # ── Risk ───────────────────────────────────────────────────
             risk = risk_engine.calculate(direction, price, atr)
 
@@ -217,7 +275,10 @@ def main():
 
             # ── Composite — CAPPED at 100 ─────────────────────────────
             base      = trend_score * 0.6 + quality_score * 0.4
-            composite = min(100.0, round((base + sr_bonus) * mtf_multiplier, 2))
+            oi_adj      = oi_result["score_adj"]
+            fund_adj    = funding_result["short_score_adj"] if direction == "SHORT" else 0
+            composite   = min(100.0, round((base + sr_bonus + oi_adj + fund_adj) * mtf_multiplier, 2))
+            composite   = max(0.0, composite)
             g         = grade_score(composite)
 
             candidates.append({
@@ -246,6 +307,10 @@ def main():
                 "mtf_status":    mtf_status,
                 "mtf_4h":        mtf_4h_dir,
                 "btc_regime":    btc_regime["regime"],
+                "funding_pct":   funding_result["funding_pct"],
+                "oi_signal":     oi_result["oi_signal"],
+                "beta_label":    beta_result["beta_label"],
+                "beta":          beta_result.get("beta", 1.0),
             })
 
         except Exception as e:
@@ -254,10 +319,12 @@ def main():
 
     print(f"      ✅ {len(candidates)} candidate(s)")
     print(
-        f"      📊 cd:{skip['cooldown']} dated:{skip['dated_futures']} "
-        f"btc:{skip['btc']} trend:{skip['trend']} mtf:{skip['mtf']} "
-        f"no_ceil:{skip['sr_no_ceiling']} rs:{skip['weak_rs']} "
-        f"q:{skip['quality']} risk:{skip['risk']} err:{skip['errors']}"
+        f"      📊 cd:{skip.get('cooldown',0)} dated:{skip.get('dated_futures',0)} "
+        f"btc:{skip.get('btc',0)} trend:{skip.get('trend',0)} "
+        f"fund:{skip.get('funding',0)} beta:{skip.get('high_beta',0)} "
+        f"mtf:{skip.get('mtf',0)} no_ceil:{skip.get('sr_no_ceiling',0)} "
+        f"rs:{skip.get('weak_rs',0)} q:{skip.get('quality',0)} "
+        f"risk:{skip.get('risk',0)} err:{skip.get('errors',0)}"
     )
 
     # ── Step 4: AI Ranking ─────────────────────────────────────────────────
@@ -314,6 +381,9 @@ def main():
             f"{mtf_icon} 4H: <i>{sig['mtf_4h']} ({sig['mtf_status']})</i>\n"
             f"{btc_icon} BTC: <i>{sig['btc_regime']}</i>\n"
             f"{rs_icon} RS: <i>{sig['rs_label']} ({sig['rs_ratio']}x BTC)</i>\n"
+            f"💸 Funding: <i>{sig['funding_pct']}%</i> | "
+            f"OI: <i>{sig['oi_signal']}</i> | "
+            f"Beta: <i>{sig['beta_label']}</i>\n"
             f"🤖 Confidence: <b>{confidence}%</b>\n\n"
             f"{sizer.format_recommendation(sizing)}"
         )

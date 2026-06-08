@@ -58,6 +58,21 @@ CONFIG = {
     # Max signals per run
     "max_signals_per_run": 5,
 
+    # Funding rate
+    "funding_enabled":          True,
+    "funding_short_block_above": 0.0001,   # block SHORT if funding > +0.01%
+    "funding_long_block_below":  -0.0005,  # block LONG if funding < -0.05%
+
+    # Beta filter
+    "beta_filter_enabled":      True,
+    "beta_short_block_above":   1.5,       # block SHORT if beta > 1.5
+
+    # OI confirmation
+    "oi_enabled":               True,
+
+    # Circuit breaker
+    "max_daily_losses":         3,         # pause after 3 SL hits per day
+
     # Versions
     "db_version":       "1.0.0",
     "config_version":   "1.5.0",
