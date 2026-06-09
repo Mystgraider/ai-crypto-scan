@@ -1,5 +1,5 @@
 """
-Elite Futures Scanner V5.9.2
+Elite Futures Scanner V5.9.3
 ==============================
 Strategy: V5.6 (proven, generates signals)
 Infrastructure: V5.8 (persistent logs, daily report, circuit breaker, NaN guards)
@@ -64,7 +64,7 @@ def is_dated_futures(symbol: str) -> bool:
 def main():
 
     print("=" * 55)
-    print("🚀 Elite Futures Scanner V5.9.2")
+    print("🚀 Elite Futures Scanner V5.9.3")
     print("=" * 55)
 
     market_loader  = MarketDataLoader()
