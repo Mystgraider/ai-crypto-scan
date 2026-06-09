@@ -100,10 +100,10 @@ def main():
 
             btc_4h = None
             try:
-                btc_4h = market_loader.get_4h(CONFIG["btc_symbol"], limit=50)
-                btc_4h = Indicators.apply(btc_4h)
+                _btc_4h_raw = market_loader.get_4h(CONFIG["btc_symbol"], limit=50)
+                btc_4h = Indicators.apply(_btc_4h_raw)
             except Exception:
-                pass
+                btc_4h = None   # ensure raw df never reaches btc_filter
 
             btc_regime = btc_filter.analyze(btc_1h, btc_4h)
             print(f"      BTC: {btc_regime['regime']} | ADX:{btc_regime['adx']} | RSI:{btc_regime['rsi']}")
@@ -257,8 +257,8 @@ def main():
 
             if CONFIG["mtf_enabled"]:
                 try:
-                    df_4h = market_loader.get_4h(symbol)
-                    df_4h = Indicators.apply(df_4h)
+                    _df_4h_raw = market_loader.get_4h(symbol)
+                    df_4h      = Indicators.apply(_df_4h_raw)
                     if not df_4h.iloc[-1][["ema_20","ema_50","adx"]].isnull().any():
                         tf4        = mtf_engine.analyze_4h(df_4h)
                         mtf_4h_dir = tf4["direction"]
@@ -266,7 +266,9 @@ def main():
                         mtf_status     = confirm["status"]
                         mtf_multiplier = confirm["multiplier"]
                 except Exception:
-                    pass
+                    mtf_status     = "SKIPPED"
+                    mtf_multiplier = 1.0
+                    mtf_4h_dir     = "UNKNOWN"
 
             # Only block REJECTED (counter-trend) — NEUTRAL and SKIPPED allowed
             if CONFIG["mtf_reject_counter_trend"] and mtf_status == "REJECTED":
