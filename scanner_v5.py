@@ -196,7 +196,7 @@ def main():
 
             # ── BTC RANGE: require higher trend score ──────────────────
             if btc_regime["regime"] == "RANGE":
-                if trend_score < CONFIG.get("range_regime_min_score", 80):
+                if trend_score < CONFIG.get("range_regime_min_score", 85):
                     skip["btc"] += 1
                     continue
 
@@ -246,6 +246,13 @@ def main():
                 skip["weak_rs"] += 1
                 continue
 
+            # Cap RS — if coin is 10x+ stronger than BTC, it already pumped
+            # Entering now = chasing = high reversal risk
+            rs_max = CONFIG.get("rs_max_ratio", 10.0)
+            if rs.get("rs_ratio", 1.0) > rs_max:
+                skip["weak_rs"] += 1
+                continue
+
             # ── Volume Spike ───────────────────────────────────────────
             spike = spike_engine.analyze(rel_volume)
 
@@ -262,7 +269,8 @@ def main():
                     if not df_4h.iloc[-1][["ema_20","ema_50","adx"]].isnull().any():
                         tf4        = mtf_engine.analyze_4h(df_4h)
                         mtf_4h_dir = tf4["direction"]
-                        confirm    = mtf_engine.confirm(direction, mtf_4h_dir)
+                        mtf_4h_rsi = tf4.get("rsi", 50.0)
+                        confirm    = mtf_engine.confirm(direction, mtf_4h_dir, mtf_4h_rsi)
                         mtf_status     = confirm["status"]
                         mtf_multiplier = confirm["multiplier"]
                 except Exception:
@@ -270,8 +278,9 @@ def main():
                     mtf_multiplier = 1.0
                     mtf_4h_dir     = "UNKNOWN"
 
-            # Only block REJECTED (counter-trend) — NEUTRAL and SKIPPED allowed
-            if CONFIG["mtf_reject_counter_trend"] and mtf_status == "REJECTED":
+            # Block REJECTED (counter-trend) AND SKIPPED (no 4H data = unconfirmed)
+            # NEUTRAL is still allowed (4H ranging but not against us)
+            if CONFIG["mtf_reject_counter_trend"] and mtf_status in ("REJECTED", "SKIPPED"):
                 skip["mtf"] += 1
                 continue
 

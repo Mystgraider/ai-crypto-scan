@@ -35,7 +35,7 @@ CONFIG = {
     "short_resistance_max_pct":  3.0,
 
     # BTC RANGE regime — require higher score
-    "range_regime_min_score": 80,
+    "range_regime_min_score": 85,  # raised: BTC RANGE = risky, need stronger signal
 
     # Risk — V5.4 proven values
     "min_rr":     2.0,
@@ -61,6 +61,9 @@ CONFIG = {
 
     # Circuit breaker
     "max_daily_losses": 3,
+
+    # RS cap — if coin already 10x+ vs BTC, it pumped already
+    "rs_max_ratio": 10.0,
 
     # Funding rate
     "funding_enabled":           True,
