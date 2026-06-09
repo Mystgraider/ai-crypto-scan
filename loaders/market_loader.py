@@ -16,7 +16,10 @@ class MarketLoader:
         elif name == "bitget":
             self.exchange = ccxt.bitget({
                 "enableRateLimit": True,
-                "options": {"defaultType": "swap"}
+                "options": {
+                    "defaultType": "swap",
+                    "fetchCurrencies": False,   # skip slow spot currencies load
+                }
             })
 
         else:

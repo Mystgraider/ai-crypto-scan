@@ -1,6 +1,6 @@
 """
-Elite Futures Scanner V5.9
-============================
+Elite Futures Scanner V5.9.2
+==============================
 Strategy: V5.6 (proven, generates signals)
 Infrastructure: V5.8 (persistent logs, daily report, circuit breaker, NaN guards)
 
@@ -64,7 +64,7 @@ def is_dated_futures(symbol: str) -> bool:
 def main():
 
     print("=" * 55)
-    print("🚀 Elite Futures Scanner V5.9")
+    print("🚀 Elite Futures Scanner V5.9.2")
     print("=" * 55)
 
     market_loader  = MarketDataLoader()
@@ -110,7 +110,10 @@ def main():
             print(f"      LONG:{btc_regime['allow_long']} | SHORT:{btc_regime['allow_short']}")
             print(f"      Reason: {btc_regime['reason']}")
         except Exception as e:
-            print(f"      ⚠️ BTC filter failed: {e} — allowing all signals")
+            import traceback
+            print(f"      ⚠️ BTC filter failed: {type(e).__name__}: {e}")
+            print(f"      {traceback.format_exc().splitlines()[-1]}")
+            print(f"      Allowing all signals")
 
     # ── Step 1b: Circuit Breaker ───────────────────────────────────────────
     print("\n[1b] Circuit Breaker...")
