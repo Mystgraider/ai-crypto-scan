@@ -32,7 +32,7 @@ CONFIG = {
 
     # S/R
     "short_requires_resistance": True,
-    "short_resistance_max_pct":  3.0,
+    "short_resistance_max_pct":  5.0,   # relaxed from 3% — allows shorts in strong downtrends
 
     # BTC RANGE regime — require higher score
     "range_regime_min_score": 85,  # raised: BTC RANGE = risky, need stronger signal
