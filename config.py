@@ -79,6 +79,6 @@ CONFIG = {
 
     # Versions
     "db_version":       "1.0.0",
-    "config_version":   "1.9.0",
-    "strategy_version": "5.9.0",
+    "config_version":   "2.0.0",
+    "strategy_version": "6.0.0",
 }

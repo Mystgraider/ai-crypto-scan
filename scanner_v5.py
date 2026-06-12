@@ -1,25 +1,15 @@
 """
-Elite Futures Scanner V5.9.3
+Elite Futures Scanner V6.0
 ==============================
-Strategy: V5.6 (proven, generates signals)
-Infrastructure: V5.8 (persistent logs, daily report, circuit breaker, NaN guards)
-
-V5.6 Strategy (restored):
-  - 4H NEUTRAL = ALLOWED (not rejected) — generates more signals
-  - min_score = 65 (was raised to 70, caused 0 signals)
-  - Grade C allowed (score >= 65)
-  - BTC filter: BEAR_CAUTION blocks shorts (RSI < 42 or 4H not bear)
-  - MTF: only REJECTED blocked (counter-trend), NEUTRAL fires with score penalty
-
-V5.8 Infrastructure (kept):
-  - Persistent signals.csv + cooldown.json committed to repo
-  - Circuit breaker (3 SL hits/day = pause)
-  - Funding rate filter
-  - Beta filter for SHORT
-  - OI engine (score adjustment)
-  - NaN guard + min 60 candles guard
-  - Stock token error handling
-  - Daily report with grade breakdown
+V6.0 Upgrades (anti-fake-signal edition):
+  - MACD (12/26/9) confirmation in trend + quality engine
+  - Bollinger Bands: blocks entries at extremes
+  - Stochastic RSI: prevents overbought LONG / oversold SHORT
+  - 15M timeframe added to MTF engine (entry precision)
+  - OI signal properly weighted in AI ranker
+  - Funding rate score incorporated into AI ranking
+  - CONFIRMED_STRONG status for triple-aligned signals (4H+MACD+15M)
+  - Version synced to V6.0
 """
 
 from loaders.top_symbols_loader  import TopSymbolsLoader
@@ -60,7 +50,7 @@ def grade_score(score: float) -> str:
 def is_dated_futures(symbol: str) -> bool:
     return "-" in symbol.split(":")[-1] if ":" in symbol else False
 
-# Known stock tokens on Bitget — different behavior from crypto
+
 STOCK_TOKENS = {
     "NIO/USDT:USDT", "NVDA/USDT:USDT", "AAPL/USDT:USDT",
     "TSLA/USDT:USDT", "AMZN/USDT:USDT", "GOOGL/USDT:USDT",
@@ -74,6 +64,7 @@ STOCK_TOKENS = {
     "C/USDT:USDT",    "MORPHO/USDT:USDT",
 }
 
+
 def is_stock_token(symbol: str) -> bool:
     return symbol in STOCK_TOKENS
 
@@ -81,7 +72,7 @@ def is_stock_token(symbol: str) -> bool:
 def main():
 
     print("=" * 55)
-    print("🚀 Elite Futures Scanner V5.9.3")
+    print("🚀 Elite Futures Scanner V6.0")
     print("=" * 55)
 
     market_loader  = MarketDataLoader()
@@ -120,7 +111,7 @@ def main():
                 _btc_4h_raw = market_loader.get_4h(CONFIG["btc_symbol"], limit=50)
                 btc_4h = Indicators.apply(_btc_4h_raw)
             except Exception:
-                btc_4h = None   # ensure raw df never reaches btc_filter
+                btc_4h = None
 
             btc_regime = btc_filter.analyze(btc_1h, btc_4h)
             print(f"      BTC: {btc_regime['regime']} | ADX:{btc_regime['adx']} | RSI:{btc_regime['rsi']}")
@@ -163,15 +154,12 @@ def main():
 
         if symbol == CONFIG["btc_symbol"]:
             continue
-
         if is_dated_futures(symbol):
             skip["dated"] += 1
             continue
-
         if is_stock_token(symbol):
-            skip["dated"] += 1   # reuse dated counter
+            skip["dated"] += 1
             continue
-
         if is_on_cooldown(symbol):
             skip["cooldown"] += 1
             continue
@@ -179,11 +167,12 @@ def main():
         try:
             # ── 1H data ───────────────────────────────────────────────
             df_1h  = market_loader.get_1h(symbol)
-            df_1h  = Indicators.apply(df_1h)   # raises if < 60 candles
+            df_1h  = Indicators.apply(df_1h)
             latest = df_1h.iloc[-1]
 
-            # NaN guard
-            req = ["close","ema_20","ema_50","atr","adx","rsi","roc","rel_volume"]
+            # NaN guard — now includes new indicators
+            req = ["close","ema_20","ema_50","atr","adx","rsi","roc","rel_volume",
+                   "macd","macd_sig","macd_hist","bb_pct_b","stoch_k","stoch_d"]
             if latest[req].isnull().any():
                 skip["errors"] += 1
                 continue
@@ -196,9 +185,21 @@ def main():
             rsi        = float(latest["rsi"])
             roc        = float(latest["roc"])
             rel_volume = float(latest["rel_volume"])
+            macd       = float(latest["macd"])
+            macd_sig   = float(latest["macd_sig"])
+            macd_hist  = float(latest["macd_hist"])
+            bb_pct_b   = float(latest["bb_pct_b"])
+            stoch_k    = float(latest["stoch_k"])
+            stoch_d    = float(latest["stoch_d"])
 
-            # ── Trend ─────────────────────────────────────────────────
-            trend       = trend_engine.analyze(price=price, ema20=ema20, ema50=ema50, adx=adx, roc=roc)
+            # ── Trend (V6 — with MACD + Stoch + BB) ───────────────────
+            trend = trend_engine.analyze(
+                price=price, ema20=ema20, ema50=ema50,
+                adx=adx, roc=roc,
+                macd=macd, macd_sig=macd_sig, macd_hist=macd_hist,
+                stoch_k=stoch_k, stoch_d=stoch_d,
+                bb_pct_b=bb_pct_b,
+            )
             direction   = trend["direction"]
             trend_score = trend["score"]
 
@@ -215,26 +216,26 @@ def main():
                     skip["btc"] += 1
                     continue
 
-            # ── BTC RANGE: require higher trend score ──────────────────
             if btc_regime["regime"] == "RANGE":
                 if trend_score < CONFIG.get("range_regime_min_score", 85):
                     skip["btc"] += 1
                     continue
 
             # ── Funding Rate ───────────────────────────────────────────
+            funding_result = {"funding_pct": 0.0, "funding_pct_raw": 0.0, "short_score_adj": 0}
             if CONFIG["funding_enabled"]:
                 fr = funding_engine.fetch_funding(exchange, symbol)
                 funding_result = funding_engine.analyze(fr)
+                funding_result["funding_pct_raw"] = fr
                 if direction == "LONG"  and not funding_result["long_ok"]:
                     skip["funding"] += 1
                     continue
                 if direction == "SHORT" and not funding_result["short_ok"]:
                     skip["funding"] += 1
                     continue
-            else:
-                funding_result = {"funding_pct": 0.0, "short_score_adj": 0}
 
             # ── Beta Filter (SHORT only) ───────────────────────────────
+            beta_result = {"beta_label": "N/A", "beta": 1.0}
             if CONFIG["beta_filter_enabled"] and direction == "SHORT":
                 coin_closes_beta = df_1h["close"].tolist()
                 beta_result = beta_filter.evaluate(
@@ -244,8 +245,6 @@ def main():
                 if not beta_result["short_ok"]:
                     skip["high_beta"] += 1
                     continue
-            else:
-                beta_result = {"beta_label": "N/A", "beta": 1.0}
 
             # ── S/R Levels ─────────────────────────────────────────────
             sr_levels = sr_engine.find_levels(df_1h)
@@ -267,8 +266,6 @@ def main():
                 skip["weak_rs"] += 1
                 continue
 
-            # Cap RS — if coin is 10x+ stronger than BTC, it already pumped
-            # Entering now = chasing = high reversal risk
             rs_max = CONFIG.get("rs_max_ratio", 10.0)
             if rs.get("rs_ratio", 1.0) > rs_max:
                 skip["weak_rs"] += 1
@@ -277,51 +274,60 @@ def main():
             # ── Volume Spike ───────────────────────────────────────────
             spike = spike_engine.analyze(rel_volume)
 
-            # ── Multi-Timeframe 4H ─────────────────────────────────────
-            # V5.6: NEUTRAL = ALLOWED (not rejected)
+            # ── Multi-Timeframe: 4H + 15M ──────────────────────────────
             mtf_status     = "SKIPPED"
             mtf_multiplier = 1.0
             mtf_4h_dir     = "UNKNOWN"
+            mtf_15m_dir    = "UNKNOWN"
 
             if CONFIG["mtf_enabled"]:
-                for _attempt in range(2):   # retry once on failure
+                trend_15m = None
+
+                # Try 15M first (entry precision)
+                try:
+                    _df_15m_raw = market_loader.get_15m(symbol) if hasattr(market_loader, "get_15m") else None
+                    if _df_15m_raw is not None:
+                        df_15m = Indicators.apply(_df_15m_raw)
+                        if not df_15m.iloc[-1][["ema_20","ema_50","adx"]].isnull().any():
+                            trend_15m   = mtf_engine.analyze_15m(df_15m)
+                            mtf_15m_dir = trend_15m["direction"]
+                except Exception:
+                    trend_15m = None
+
+                # 4H confirmation
+                for _attempt in range(2):
                     try:
                         _df_4h_raw = market_loader.get_4h(symbol)
                         df_4h      = Indicators.apply(_df_4h_raw)
                         if not df_4h.iloc[-1][["ema_20","ema_50","adx"]].isnull().any():
-                            tf4        = mtf_engine.analyze_4h(df_4h)
-                            mtf_4h_dir = tf4["direction"]
-                            mtf_4h_rsi = tf4.get("rsi", 50.0)
-                            confirm    = mtf_engine.confirm(direction, mtf_4h_dir, mtf_4h_rsi)
+                            tf4         = mtf_engine.analyze_4h(df_4h)
+                            mtf_4h_dir  = tf4["direction"]
+                            mtf_4h_rsi  = tf4.get("rsi", 50.0)
+                            confirm     = mtf_engine.confirm(direction, tf4, trend_15m)
                             mtf_status     = confirm["status"]
                             mtf_multiplier = confirm["multiplier"]
-                            break   # success — exit retry loop
+                            break
                     except Exception:
                         if _attempt == 1:
-                            # After 2 tries, use ADX strength as proxy
-                            # Strong ADX (>30) on 1H = treat as NEUTRAL not SKIPPED
-                            # Weak ADX = SKIPPED = blocked
                             if adx >= 30:
                                 mtf_status     = "ALLOWED"
-                                mtf_multiplier = 0.95  # small penalty for no 4H
+                                mtf_multiplier = 0.95
                                 mtf_4h_dir     = "PROXY"
                             else:
                                 mtf_status     = "SKIPPED"
                                 mtf_multiplier = 1.0
-                                mtf_4h_dir     = "UNKNOWN"
 
-            # Block REJECTED (counter-trend) AND SKIPPED (no 4H data = unconfirmed)
-            # NEUTRAL is still allowed (4H ranging but not against us)
             if CONFIG["mtf_reject_counter_trend"] and mtf_status in ("REJECTED", "SKIPPED"):
                 skip["mtf"] += 1
                 continue
 
-            # ── Quality Engine ─────────────────────────────────────────
+            # ── Quality Engine (V6 — with Stoch + BB + MACD) ──────────
             quality_score = quality_engine.score(
-                rel_volume=rel_volume, rsi=rsi, direction=direction
+                rel_volume=rel_volume, rsi=rsi, direction=direction,
+                stoch_k=stoch_k, bb_pct_b=bb_pct_b, macd_hist=macd_hist,
             )
 
-            # ── OI Engine (score adjustment) ───────────────────────────
+            # ── OI Engine ──────────────────────────────────────────────
             oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}
             if CONFIG["oi_enabled"]:
                 try:
@@ -358,39 +364,43 @@ def main():
             g = grade_score(composite)
 
             candidates.append({
-                "symbol":        symbol,
-                "direction":     direction,
-                "trend_score":   trend_score,
-                "quality_score": quality_score,
-                "rs_score":      rs["rs_score"],
-                "rs_label":      rs["rs_label"],
-                "rs_ratio":      rs.get("rs_ratio", 1.0),
-                "sr_bonus":      sr_bonus,
-                "sr_support":    sr_levels["nearest_support"],
-                "sr_resistance": sr_levels["nearest_resistance"],
-                "composite":     composite,
-                "grade":         g,
-                "rr":            risk["rr"],
-                "entry":         risk["entry"],
-                "sl":            risk["sl"],
-                "tp1":           risk["tp1"],
-                "tp2":           risk["tp2"],
-                "tp3":           risk["tp3"],
-                "rsi":           round(rsi, 2),
-                "adx":           round(adx, 2),
-                "rel_volume":    round(rel_volume, 2),
-                "spike_tier":    spike["tier"],
-                "mtf_status":    mtf_status,
-                "mtf_4h":        mtf_4h_dir,
-                "btc_regime":    btc_regime["regime"],
-                "funding_pct":   str(funding_result.get("funding_pct", 0)),
-                "oi_signal":     oi_result["oi_signal"],
-                "beta_label":    beta_result.get("beta_label", "N/A"),
+                "symbol":          symbol,
+                "direction":       direction,
+                "trend_score":     trend_score,
+                "quality_score":   quality_score,
+                "rs_score":        rs["rs_score"],
+                "rs_label":        rs["rs_label"],
+                "rs_ratio":        rs.get("rs_ratio", 1.0),
+                "sr_bonus":        sr_bonus,
+                "sr_support":      sr_levels["nearest_support"],
+                "sr_resistance":   sr_levels["nearest_resistance"],
+                "composite":       composite,
+                "grade":           g,
+                "rr":              risk["rr"],
+                "entry":           risk["entry"],
+                "sl":              risk["sl"],
+                "tp1":             risk["tp1"],
+                "tp2":             risk["tp2"],
+                "tp3":             risk["tp3"],
+                "rsi":             round(rsi, 2),
+                "adx":             round(adx, 2),
+                "rel_volume":      round(rel_volume, 2),
+                "spike_tier":      spike["tier"],
+                "macd_hist":       round(macd_hist, 6),
+                "stoch_k":         round(stoch_k, 2),
+                "bb_pct_b":        round(bb_pct_b, 3),
+                "mtf_status":      mtf_status,
+                "mtf_4h":          mtf_4h_dir,
+                "mtf_15m":         mtf_15m_dir,
+                "btc_regime":      btc_regime["regime"],
+                "funding_pct":     str(funding_result.get("funding_pct", 0)),
+                "funding_pct_raw": funding_result.get("funding_pct_raw", 0.0),
+                "oi_signal":       oi_result["oi_signal"],
+                "beta_label":      beta_result.get("beta_label", "N/A"),
             })
 
         except Exception as e:
             skip["errors"] += 1
-            # Only print non-NaN errors to keep logs clean
             if "Insufficient candles" not in str(e) and "NaN" not in str(e):
                 print(f"  ⚠️  {symbol}: {e}")
 
@@ -430,7 +440,14 @@ def main():
             entry=sig["entry"], sl=sig["sl"],
         )
 
-        mtf_icon = {"CONFIRMED":"✅","ALLOWED":"🟡","SKIPPED":"⬜"}.get(sig["mtf_status"],"⬜")
+        mtf_icon = {
+            "CONFIRMED_STRONG": "✅✅",
+            "CONFIRMED":        "✅",
+            "ALLOWED":          "🟡",
+            "ALLOWED_WEAK":     "🟠",
+            "SKIPPED":          "⬜"
+        }.get(sig["mtf_status"], "⬜")
+
         btc_icon = {
             "BULL":"🟢","BEAR":"🔴","RANGE":"🟡",
             "BULL_CAUTION":"🟡","BEAR_CAUTION":"🟡",
@@ -453,8 +470,9 @@ def main():
 
         message += (
             f"{key_level}\n\n"
-            f"📊 <i>ADX:{sig['adx']} | RSI:{sig['rsi']} | Vol:{sig['rel_volume']}x ({sig['spike_tier']})</i>\n"
-            f"{mtf_icon} 4H: <i>{sig['mtf_4h']} ({sig['mtf_status']})</i>\n"
+            f"📊 <i>ADX:{sig['adx']} | RSI:{sig['rsi']} | StochK:{sig['stoch_k']} | Vol:{sig['rel_volume']}x ({sig['spike_tier']})</i>\n"
+            f"📈 <i>MACD hist:{sig['macd_hist']} | BB%B:{sig['bb_pct_b']}</i>\n"
+            f"{mtf_icon} MTF: <i>{sig['mtf_4h']} 4H / {sig['mtf_15m']} 15M ({sig['mtf_status']})</i>\n"
             f"{btc_icon} BTC: <i>{sig['btc_regime']}</i>\n"
             f"{rs_icon} RS: <i>{sig['rs_label']} ({sig['rs_ratio']}x BTC)</i>\n"
             f"💸 Funding: <i>{sig['funding_pct']}%</i> | "
@@ -467,11 +485,11 @@ def main():
         send_telegram_alert(message)
 
         save_signal(
-            symbol=sig["symbol"],      direction=sig["direction"],
-            entry=sig["entry"],        sl=sig["sl"],
-            tp1=sig["tp1"],            tp2=sig["tp2"],        tp3=sig["tp3"],
-            score=sig["composite"],    grade=sig["grade"],    rr=sig["rr"],
-            adx=sig["adx"],            rsi=sig["rsi"],
+            symbol=sig["symbol"],        direction=sig["direction"],
+            entry=sig["entry"],          sl=sig["sl"],
+            tp1=sig["tp1"],              tp2=sig["tp2"],        tp3=sig["tp3"],
+            score=sig["composite"],      grade=sig["grade"],    rr=sig["rr"],
+            adx=sig["adx"],              rsi=sig["rsi"],
             rel_volume=sig["rel_volume"], spike_tier=sig["spike_tier"],
             mtf_status=sig["mtf_status"], btc_regime=sig["btc_regime"],
             rs_label=sig["rs_label"],
@@ -485,8 +503,8 @@ def main():
         print(
             f"  ✅ {sig['symbol']} {sig['direction']} | "
             f"Grade:{sig['grade']} Score:{sig['composite']} | "
-            f"RSI:{sig['rsi']} Vol:{sig['rel_volume']}x | "
-            f"4H:{sig['mtf_4h']} BTC:{sig['btc_regime']}"
+            f"RSI:{sig['rsi']} StochK:{sig['stoch_k']} Vol:{sig['rel_volume']}x | "
+            f"MTF:{sig['mtf_status']} BTC:{sig['btc_regime']}"
         )
 
     # ── Steps 6-8 ──────────────────────────────────────────────────────────
