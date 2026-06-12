@@ -60,6 +60,23 @@ def grade_score(score: float) -> str:
 def is_dated_futures(symbol: str) -> bool:
     return "-" in symbol.split(":")[-1] if ":" in symbol else False
 
+# Known stock tokens on Bitget — different behavior from crypto
+STOCK_TOKENS = {
+    "NIO/USDT:USDT", "NVDA/USDT:USDT", "AAPL/USDT:USDT",
+    "TSLA/USDT:USDT", "AMZN/USDT:USDT", "GOOGL/USDT:USDT",
+    "MSFT/USDT:USDT", "META/USDT:USDT", "PLTR/USDT:USDT",
+    "ARQQ/USDT:USDT", "AXTI/USDT:USDT", "EWY/USDT:USDT",
+    "ASML/USDT:USDT", "AMAT/USDT:USDT", "CRWD/USDT:USDT",
+    "ADBE/USDT:USDT", "TWLO/USDT:USDT", "SPIR/USDT:USDT",
+    "MDB/USDT:USDT",  "IWM/USDT:USDT",  "SATSSTOCK/USDT:USDT",
+    "SATL/USDT:USDT", "DXYZ/USDT:USDT", "QNTSTOCK/USDT:USDT",
+    "BX/USDT:USDT",   "AWE/USDT:USDT",  "SLX/USDT:USDT",
+    "C/USDT:USDT",    "MORPHO/USDT:USDT",
+}
+
+def is_stock_token(symbol: str) -> bool:
+    return symbol in STOCK_TOKENS
+
 
 def main():
 
@@ -149,6 +166,10 @@ def main():
 
         if is_dated_futures(symbol):
             skip["dated"] += 1
+            continue
+
+        if is_stock_token(symbol):
+            skip["dated"] += 1   # reuse dated counter
             continue
 
         if is_on_cooldown(symbol):
@@ -263,20 +284,31 @@ def main():
             mtf_4h_dir     = "UNKNOWN"
 
             if CONFIG["mtf_enabled"]:
-                try:
-                    _df_4h_raw = market_loader.get_4h(symbol)
-                    df_4h      = Indicators.apply(_df_4h_raw)
-                    if not df_4h.iloc[-1][["ema_20","ema_50","adx"]].isnull().any():
-                        tf4        = mtf_engine.analyze_4h(df_4h)
-                        mtf_4h_dir = tf4["direction"]
-                        mtf_4h_rsi = tf4.get("rsi", 50.0)
-                        confirm    = mtf_engine.confirm(direction, mtf_4h_dir, mtf_4h_rsi)
-                        mtf_status     = confirm["status"]
-                        mtf_multiplier = confirm["multiplier"]
-                except Exception:
-                    mtf_status     = "SKIPPED"
-                    mtf_multiplier = 1.0
-                    mtf_4h_dir     = "UNKNOWN"
+                for _attempt in range(2):   # retry once on failure
+                    try:
+                        _df_4h_raw = market_loader.get_4h(symbol)
+                        df_4h      = Indicators.apply(_df_4h_raw)
+                        if not df_4h.iloc[-1][["ema_20","ema_50","adx"]].isnull().any():
+                            tf4        = mtf_engine.analyze_4h(df_4h)
+                            mtf_4h_dir = tf4["direction"]
+                            mtf_4h_rsi = tf4.get("rsi", 50.0)
+                            confirm    = mtf_engine.confirm(direction, mtf_4h_dir, mtf_4h_rsi)
+                            mtf_status     = confirm["status"]
+                            mtf_multiplier = confirm["multiplier"]
+                            break   # success — exit retry loop
+                    except Exception:
+                        if _attempt == 1:
+                            # After 2 tries, use ADX strength as proxy
+                            # Strong ADX (>30) on 1H = treat as NEUTRAL not SKIPPED
+                            # Weak ADX = SKIPPED = blocked
+                            if adx >= 30:
+                                mtf_status     = "ALLOWED"
+                                mtf_multiplier = 0.95  # small penalty for no 4H
+                                mtf_4h_dir     = "PROXY"
+                            else:
+                                mtf_status     = "SKIPPED"
+                                mtf_multiplier = 1.0
+                                mtf_4h_dir     = "UNKNOWN"
 
             # Block REJECTED (counter-trend) AND SKIPPED (no 4H data = unconfirmed)
             # NEUTRAL is still allowed (4H ranging but not against us)
