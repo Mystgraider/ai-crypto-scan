@@ -1,15 +1,15 @@
 """
-Elite Futures Scanner V6.0
+Elite Futures Scanner V6.1.1
 ==============================
-V6.0 Upgrades (anti-fake-signal edition):
-  - MACD (12/26/9) confirmation in trend + quality engine
-  - Bollinger Bands: blocks entries at extremes
-  - Stochastic RSI: prevents overbought LONG / oversold SHORT
-  - 15M timeframe added to MTF engine (entry precision)
-  - OI signal properly weighted in AI ranker
-  - Funding rate score incorporated into AI ranking
-  - CONFIRMED_STRONG status for triple-aligned signals (4H+MACD+15M)
-  - Version synced to V6.0
+V6.1.1 Fix (no strategy changes):
+  - quality_engine.score() now accepts stoch_k, bb_pct_b, macd_hist
+    (was crashing with "unexpected keyword argument" on every symbol
+    in V6.1 -> 0 candidates every scan). Params accepted but unused —
+    scoring formula is identical to V6.1.
+
+V6.1 (data-driven, unchanged):
+  - RSI 55-60 / Vol 1.0-1.5x sweet spots from 16 closed signals
+  - Vol > 3.0x hard block (extreme spike = reversal risk)
 """
 
 from loaders.top_symbols_loader  import TopSymbolsLoader
@@ -76,7 +76,7 @@ def is_stock_token(symbol: str) -> bool:
 def main():
 
     print("=" * 55)
-    print("🚀 Elite Futures Scanner V6.1")
+    print("🚀 Elite Futures Scanner V6.1.1")
     print("=" * 55)
 
     market_loader  = MarketDataLoader()

@@ -13,6 +13,11 @@ class QualityEngine:
     - LONG  RSI > 70: overbought
     - SHORT RSI < 30: extreme oversold
     - Vol > 3.0x: extreme spike = reversal risk
+
+    V6.1.1 FIX ONLY: now accepts stoch_k, bb_pct_b, macd_hist kwargs
+    (scanner_v5.py V6.1 passes these) so it no longer crashes with
+    "unexpected keyword argument". These extra params are accepted
+    but NOT used — scoring formula below is 100% unchanged from V6.1.
     """
 
     MIN_VOLUME = 1.0
@@ -20,7 +25,15 @@ class QualityEngine:
     LONG_RSI_MAX  = 70
     SHORT_RSI_MIN = 30
 
-    def score(self, rel_volume: float, rsi: float, direction: str) -> float:
+    def score(
+        self,
+        rel_volume: float,
+        rsi: float,
+        direction: str,
+        stoch_k: float = None,   # accepted for compatibility, unused
+        bb_pct_b: float = None,  # accepted for compatibility, unused
+        macd_hist: float = None, # accepted for compatibility, unused
+    ) -> float:
 
         # Hard blocks
         if rel_volume < self.MIN_VOLUME:
