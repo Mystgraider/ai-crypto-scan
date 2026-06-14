@@ -10,11 +10,11 @@ CONFIG = {
     "ohlcv_4h_limit": 50,
 
     # Signal thresholds — V5.6 values (relaxed, proven to generate signals)
-    "min_score": 65,
-    "signal_score_s": 90,
-    "signal_score_a": 80,
-    "signal_score_b": 70,
-    "signal_score_c": 65,
+    "min_score": 70,           # data: score 70-75 = 100% WR, 80+ = 0% WR
+    "signal_score_s": 95,      # S grade rarely fires — only exceptional
+    "signal_score_a": 82,      # A grade: 80-82 only (not 80-90)
+    "signal_score_b": 70,      # B grade: 70-82 = best historical WR
+    "signal_score_c": 65,      # C grade: below min_score, blocked
 
     # ADX gate (enforced in trend_engine)
     "adx_min": 20,
@@ -57,13 +57,14 @@ CONFIG = {
     "signal_cooldown_hours": 4,
 
     # Max signals per run
-    "max_signals_per_run": 5,
+    "max_signals_per_run": 3,     # data: fewer better quality signals
 
     # Circuit breaker
     "max_daily_losses": 3,
 
     # RS cap — if coin already 10x+ vs BTC, it pumped already
-    "rs_max_ratio": 10.0,
+    "rs_max_ratio": 8.0,          # tightened: 10x+ = chasing
+    "vol_max_ratio": 2.0,          # new: vol > 2.0x = already moved
 
     # Funding rate
     "funding_enabled":           True,
@@ -79,6 +80,6 @@ CONFIG = {
 
     # Versions
     "db_version":       "1.0.0",
-    "config_version":   "2.0.0",
-    "strategy_version": "6.0.0",
+    "config_version":   "2.1.0",
+    "strategy_version": "6.1.0",
 }

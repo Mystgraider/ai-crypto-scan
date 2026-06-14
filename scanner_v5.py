@@ -62,6 +62,10 @@ STOCK_TOKENS = {
     "SATL/USDT:USDT", "DXYZ/USDT:USDT", "QNTSTOCK/USDT:USDT",
     "BX/USDT:USDT",   "AWE/USDT:USDT",  "SLX/USDT:USDT",
     "C/USDT:USDT",    "MORPHO/USDT:USDT",
+    # Meme coins — 0% WR, too volatile
+    "SHIB/USDT:USDT", "DOGE/USDT:USDT", "PEPE/USDT:USDT",
+    "BONK/USDT:USDT", "WIF/USDT:USDT",  "FLOKI/USDT:USDT",
+    "NEIRO/USDT:USDT","MEME/USDT:USDT", "PEOPLE/USDT:USDT",
 }
 
 
@@ -72,7 +76,7 @@ def is_stock_token(symbol: str) -> bool:
 def main():
 
     print("=" * 55)
-    print("🚀 Elite Futures Scanner V6.0")
+    print("🚀 Elite Futures Scanner V6.1")
     print("=" * 55)
 
     market_loader  = MarketDataLoader()
