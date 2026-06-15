@@ -32,16 +32,21 @@ class MultiFrameEngine:
     STOCH_OS_4H       = 20   # new: stoch RSI oversold on 4H
 
     def analyze_4h(self, df: pd.DataFrame) -> dict:
-        latest = df.iloc[-1]
+        if len(df) < 2:
+            return {"direction": "NEUTRAL", "adx": 0.0, "rsi": 50.0,
+                    "macd_bull": None, "stoch_k": 50.0}
 
-        price    = float(latest["close"])
-        ema20    = float(latest["ema_20"])
-        ema50    = float(latest["ema_50"])
-        adx      = float(latest["adx"])
-        rsi      = float(latest["rsi"])   if "rsi"      in latest.index else 50.0
-        macd     = float(latest["macd"])  if "macd"     in latest.index else 0.0
-        macd_sig = float(latest["macd_sig"]) if "macd_sig" in latest.index else 0.0
-        stoch_k  = float(latest["stoch_k"])  if "stoch_k"  in latest.index else 50.0
+        live = df.iloc[-1]    # forming 4H candle — live price only
+        prev = df.iloc[-2]    # last closed 4H candle — indicators
+
+        price    = float(live["close"])
+        ema20    = float(prev["ema_20"])
+        ema50    = float(prev["ema_50"])
+        adx      = float(prev["adx"])
+        rsi      = float(prev["rsi"])   if "rsi"      in prev.index else 50.0
+        macd     = float(prev["macd"])  if "macd"     in prev.index else 0.0
+        macd_sig = float(prev["macd_sig"]) if "macd_sig" in prev.index else 0.0
+        stoch_k  = float(prev["stoch_k"])  if "stoch_k"  in prev.index else 50.0
 
         if ema20 > ema50 and price > ema20 and adx >= self.ADX_MIN:
             return {
@@ -61,12 +66,16 @@ class MultiFrameEngine:
 
     def analyze_15m(self, df: pd.DataFrame) -> dict:
         """15M: entry precision — are we aligned on the lower timeframe?"""
-        latest = df.iloc[-1]
+        if len(df) < 2:
+            return {"direction": "NEUTRAL", "adx": 0.0}
 
-        price = float(latest["close"])
-        ema20 = float(latest["ema_20"])
-        ema50 = float(latest["ema_50"])
-        adx   = float(latest["adx"])
+        live = df.iloc[-1]    # forming 15M candle — live price only
+        prev = df.iloc[-2]    # last closed 15M candle — indicators
+
+        price = float(live["close"])
+        ema20 = float(prev["ema_20"])
+        ema50 = float(prev["ema_50"])
+        adx   = float(prev["adx"])
 
         if ema20 > ema50 and price > ema20:
             return {"direction": "BULLISH", "adx": round(adx, 2)}

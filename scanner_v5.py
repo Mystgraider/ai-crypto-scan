@@ -1,5 +1,5 @@
 """
-Elite Futures Scanner V6.1.1
+Elite Futures Scanner V6.1.2
 ==============================
 V6.1.1 Fix (no strategy changes):
   - quality_engine.score() now accepts stoch_k, bb_pct_b, macd_hist
@@ -76,7 +76,7 @@ def is_stock_token(symbol: str) -> bool:
 def main():
 
     print("=" * 55)
-    print("🚀 Elite Futures Scanner V6.1.1")
+    print("🚀 Elite Futures Scanner V6.1.2")
     print("=" * 55)
 
     market_loader  = MarketDataLoader()
@@ -151,7 +151,8 @@ def main():
     skip = {
         "cooldown": 0, "dated": 0, "btc": 0, "trend": 0,
         "funding": 0, "high_beta": 0, "sr_no_ceil": 0,
-        "weak_rs": 0, "mtf": 0, "quality": 0, "risk": 0, "errors": 0
+        "weak_rs": 0, "mtf": 0, "quality": 0, "risk": 0,
+        "d_grade": 0, "errors": 0
     }
 
     for symbol in symbols:
@@ -172,29 +173,40 @@ def main():
             # ── 1H data ───────────────────────────────────────────────
             df_1h  = market_loader.get_1h(symbol)
             df_1h  = Indicators.apply(df_1h)
-            latest = df_1h.iloc[-1]
+
+            if len(df_1h) < 2:
+                skip["errors"] += 1
+                continue
+
+            # V6.1.2 fix: scanner runs every 5min but timeframe is 1H, so
+            # df.iloc[-1] is a STILL-FORMING candle — its indicators
+            # (RSI/MACD/EMA/ADX/Stoch/BB/ATR) repaint until candle close.
+            # Use the last CLOSED candle (iloc[-2]) for all indicators,
+            # and the live candle (iloc[-1]) only for current price/entry.
+            live = df_1h.iloc[-1]    # forming candle — price/entry only
+            prev = df_1h.iloc[-2]    # last closed candle — all indicators
 
             # NaN guard — now includes new indicators
             req = ["close","ema_20","ema_50","atr","adx","rsi","roc","rel_volume",
                    "macd","macd_sig","macd_hist","bb_pct_b","stoch_k","stoch_d"]
-            if latest[req].isnull().any():
+            if prev[req].isnull().any():
                 skip["errors"] += 1
                 continue
 
-            price      = float(latest["close"])
-            ema20      = float(latest["ema_20"])
-            ema50      = float(latest["ema_50"])
-            atr        = float(latest["atr"])
-            adx        = float(latest["adx"])
-            rsi        = float(latest["rsi"])
-            roc        = float(latest["roc"])
-            rel_volume = float(latest["rel_volume"])
-            macd       = float(latest["macd"])
-            macd_sig   = float(latest["macd_sig"])
-            macd_hist  = float(latest["macd_hist"])
-            bb_pct_b   = float(latest["bb_pct_b"])
-            stoch_k    = float(latest["stoch_k"])
-            stoch_d    = float(latest["stoch_d"])
+            price      = float(live["close"])
+            ema20      = float(prev["ema_20"])
+            ema50      = float(prev["ema_50"])
+            atr        = float(prev["atr"])
+            adx        = float(prev["adx"])
+            rsi        = float(prev["rsi"])
+            roc        = float(prev["roc"])
+            rel_volume = float(prev["rel_volume"])
+            macd       = float(prev["macd"])
+            macd_sig   = float(prev["macd_sig"])
+            macd_hist  = float(prev["macd_hist"])
+            bb_pct_b   = float(prev["bb_pct_b"])
+            stoch_k    = float(prev["stoch_k"])
+            stoch_d    = float(prev["stoch_d"])
 
             # ── Trend (V6 — with MACD + Stoch + BB) ───────────────────
             trend = trend_engine.analyze(
@@ -292,7 +304,7 @@ def main():
                     _df_15m_raw = market_loader.get_15m(symbol) if hasattr(market_loader, "get_15m") else None
                     if _df_15m_raw is not None:
                         df_15m = Indicators.apply(_df_15m_raw)
-                        if not df_15m.iloc[-1][["ema_20","ema_50","adx"]].isnull().any():
+                        if len(df_15m) >= 2 and not df_15m.iloc[-2][["ema_20","ema_50","adx"]].isnull().any():
                             trend_15m   = mtf_engine.analyze_15m(df_15m)
                             mtf_15m_dir = trend_15m["direction"]
                 except Exception:
@@ -303,7 +315,7 @@ def main():
                     try:
                         _df_4h_raw = market_loader.get_4h(symbol)
                         df_4h      = Indicators.apply(_df_4h_raw)
-                        if not df_4h.iloc[-1][["ema_20","ema_50","adx"]].isnull().any():
+                        if len(df_4h) >= 2 and not df_4h.iloc[-2][["ema_20","ema_50","adx"]].isnull().any():
                             tf4         = mtf_engine.analyze_4h(df_4h)
                             mtf_4h_dir  = tf4["direction"]
                             mtf_4h_rsi  = tf4.get("rsi", 50.0)
@@ -367,6 +379,16 @@ def main():
             )))
             g = grade_score(composite)
 
+            # V6.1.2: D-grade gate. Validator already requires
+            # trend_score >= min_score AND quality_score >= min_score
+            # individually, but the MTF multiplier (e.g. ALLOWED_WEAK
+            # = 0.92x) can drag the composite below signal_score_c —
+            # landing it in "D". Config intent treats D as effectively
+            # blocked ("below min_score"), so don't fire these.
+            if g == "D":
+                skip["d_grade"] += 1
+                continue
+
             candidates.append({
                 "symbol":          symbol,
                 "direction":       direction,
@@ -415,7 +437,7 @@ def main():
         f"fund:{skip['funding']} beta:{skip['high_beta']} "
         f"mtf:{skip['mtf']} sr:{skip['sr_no_ceil']} "
         f"rs:{skip['weak_rs']} q:{skip['quality']} "
-        f"risk:{skip['risk']} err:{skip['errors']}"
+        f"risk:{skip['risk']} d:{skip['d_grade']} err:{skip['errors']}"
     )
 
     # ── Step 4: AI Ranking ─────────────────────────────────────────────────

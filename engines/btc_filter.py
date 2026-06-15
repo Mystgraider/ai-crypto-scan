@@ -27,23 +27,30 @@ class BTCFilter:
 
     def analyze(self, df_1h: pd.DataFrame, df_4h: pd.DataFrame = None) -> dict:
 
-        latest = df_1h.iloc[-1]
-        price  = float(latest["close"])
-        ema20  = float(latest["ema_20"])
-        ema50  = float(latest["ema_50"])
-        adx    = float(latest["adx"])
-        rsi    = float(latest["rsi"])
+        if len(df_1h) < 2:
+            return self._r("UNKNOWN", 0, 50, allow_long=True, allow_short=True,
+                           reason="Insufficient 1H data")
+
+        live = df_1h.iloc[-1]    # forming candle — live price only
+        prev = df_1h.iloc[-2]    # last closed candle — indicators
+
+        price  = float(live["close"])
+        ema20  = float(prev["ema_20"])
+        ema50  = float(prev["ema_50"])
+        adx    = float(prev["adx"])
+        rsi    = float(prev["rsi"])
 
         # 4H structure check
         btc_4h_bear = False
         btc_4h_bull = False
-        if df_4h is not None and len(df_4h) > 0:
+        if df_4h is not None and len(df_4h) >= 2:
             try:
-                l4   = df_4h.iloc[-1]
+                l4   = df_4h.iloc[-1]    # live 4H price
+                p4_prev = df_4h.iloc[-2] # last closed 4H candle — indicators
                 p4   = float(l4["close"])
-                e20  = float(l4["ema_20"])
-                e50  = float(l4["ema_50"])
-                adx4 = float(l4["adx"])
+                e20  = float(p4_prev["ema_20"])
+                e50  = float(p4_prev["ema_50"])
+                adx4 = float(p4_prev["adx"])
                 btc_4h_bear = e20 < e50 and p4 < e20 and adx4 >= self.ADX_MIN
                 btc_4h_bull = e20 > e50 and p4 > e20 and adx4 >= self.ADX_MIN
             except Exception:
