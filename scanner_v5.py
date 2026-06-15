@@ -1,5 +1,5 @@
 """
-Elite Futures Scanner V6.1.2
+Elite Futures Scanner V6.1.3
 ==============================
 V6.1.1 Fix (no strategy changes):
   - quality_engine.score() now accepts stoch_k, bb_pct_b, macd_hist
@@ -76,7 +76,7 @@ def is_stock_token(symbol: str) -> bool:
 def main():
 
     print("=" * 55)
-    print("🚀 Elite Futures Scanner V6.1.2")
+    print("🚀 Elite Futures Scanner V6.1.3")
     print("=" * 55)
 
     market_loader  = MarketDataLoader()
@@ -112,7 +112,7 @@ def main():
 
             btc_4h = None
             try:
-                _btc_4h_raw = market_loader.get_4h(CONFIG["btc_symbol"], limit=50)
+                _btc_4h_raw = market_loader.get_4h(CONFIG["btc_symbol"], limit=100)
                 btc_4h = Indicators.apply(_btc_4h_raw)
             except Exception:
                 btc_4h = None
