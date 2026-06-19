@@ -1,6 +1,13 @@
 """
-Elite Futures Scanner V6.1.3
+Elite Futures Scanner V6.2
 ==============================
+V6.2 Fixes:
+  - Vol > 2.0x now hard-blocked in main scan loop (was only in QualityEngine
+    at 3.0x). BA/USDT at 3.06x fired Grade S and hit SL — confirmed kill.
+  - Signal tracker now expires OPEN signals >72h as EXPIRED status.
+    Prevents stale signals (6-day-old OPEN) from polluting analytics.
+  - Restored signals history from archive (V6.1.3 had reset signals.csv).
+
 V6.1.1 Fix (no strategy changes):
   - quality_engine.score() now accepts stoch_k, bb_pct_b, macd_hist
     (was crashing with "unexpected keyword argument" on every symbol
@@ -285,6 +292,14 @@ def main():
             rs_max = CONFIG.get("rs_max_ratio", 10.0)
             if rs.get("rs_ratio", 1.0) > rs_max:
                 skip["weak_rs"] += 1
+                continue
+
+            # ── Volume hard cap (config: vol_max_ratio) ────────────────
+            # Vol > 2.0x = coin already moved, chasing = bad outcome
+            # BA/USDT at 3.06x (Grade S!) hit SL — confirmed by live data
+            vol_max = CONFIG.get("vol_max_ratio", 2.0)
+            if rel_volume > vol_max:
+                skip["quality"] += 1
                 continue
 
             # ── Volume Spike ───────────────────────────────────────────
