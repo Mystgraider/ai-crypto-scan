@@ -470,6 +470,26 @@ def main():
 
     for sig in ranked:
 
+        # ── Price Staleness Guard ────────────────────────────────────────
+        # Between candidate detection and alert send, real time has passed
+        # (scan of up to top_coins_limit symbols, MTF calls, AI ranking).
+        # Re-check live price right before firing — if it already ran too
+        # far from the computed entry, the signal is stale (we'd be
+        # chasing, not catching early). Skip rather than send a late entry.
+        try:
+            fresh_price = float(exchange.fetch_ticker(sig["symbol"])["last"])
+            drift_pct = abs(fresh_price - sig["entry"]) / sig["entry"] * 100
+            max_drift = CONFIG.get("max_entry_drift_pct", 0.6)
+            if drift_pct > max_drift:
+                print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "
+                      f"price drifted {drift_pct:.2f}% since detection "
+                      f"(entry {sig['entry']} → now {fresh_price})")
+                continue
+            # Use the freshest price as the actual entry reference
+            sig["entry"] = fresh_price
+        except Exception as e:
+            print(f"  ⚠️  {sig['symbol']} staleness check failed ({e}) — sending with original entry")
+
         confidence = conf_eng.estimate(
             trend_score=sig["trend_score"],
             quality_score=sig["quality_score"],

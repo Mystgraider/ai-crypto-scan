@@ -22,7 +22,12 @@ Ranking weights:
 
 class AISignalRanker:
 
-    GRADE_WEIGHT = {"S": 5, "A": 4, "B": 3, "C": 2, "D": 0}
+    # V6.3: Score paradox — historical data showed Grade B (70-82) 
+    # outperformed Grade A/S (82+) win rate. High composite scores often
+    # mean the move already confirmed (volume/RSI already extended) =
+    # late entry, harder to catch. Weight B highest to prioritize
+    # early-stage setups over already-flown ones.
+    GRADE_WEIGHT = {"S": 3, "A": 3, "B": 5, "C": 1, "D": 0}
 
     OI_BONUS = {
         "CONFIRMED":  12,   # OI rising with price direction = conviction

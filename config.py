@@ -64,7 +64,14 @@ CONFIG = {
 
     # RS cap — if coin already 10x+ vs BTC, it pumped already
     "rs_max_ratio": 8.0,          # tightened: 10x+ = chasing
-    "vol_max_ratio": 2.0,          # new: vol > 2.0x = already moved
+    "vol_max_ratio": 1.5,          # tightened from 2.0: catch moves earlier,
+                                    # before volume fully confirms (was letting
+                                    # signals fire on coins that already flew)
+
+    # Price staleness guard — reject alert if live price has drifted this
+    # much (%) from the computed entry by the time we're about to send.
+    # Prevents "sobrang late na" signals after a long scan cycle.
+    "max_entry_drift_pct": 0.6,
 
     # Funding rate
     "funding_enabled":           True,
