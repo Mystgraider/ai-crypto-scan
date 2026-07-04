@@ -16,6 +16,10 @@ CONFIG = {
     "signal_score_b": 70,      # B grade: 70-82 = best historical WR
     "signal_score_c": 65,      # C grade: below min_score, blocked
 
+    # V6.3: Hard reject composite >= this value outright — score paradox
+    # data shows B (70-82) outperformed A/S; 84+ = likely already-flown.
+    "signal_score_ceiling": 84,
+
     # ADX gate (enforced in trend_engine)
     "adx_min": 20,
 
