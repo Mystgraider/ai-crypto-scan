@@ -90,6 +90,15 @@ class Indicators:
         df["bb_pct_b"]  = (c - df["bb_lower"]) / bb_range   # 0=lower, 1=upper
         df["bb_width"]  = bb_range / bb_mid.replace(0, 1e-10) * 100  # % width
 
+        # ── Squeeze detection (leading indicator) ───────────────────────
+        # Where does current bb_width rank vs its own last 20 bars?
+        # Low percentile = volatility has contracted = coiled spring,
+        # move likely BEFORE it happens, not a confirmation of one
+        # already in progress.
+        df["bb_width_pctile"] = df["bb_width"].rolling(20).apply(
+            lambda w: (w.iloc[-1] <= w).mean(), raw=False
+        )
+
         # ── Stochastic RSI (14, 3, 3) ──────────────────────────────────
         rsi_series      = df["rsi"]
         rsi_min         = rsi_series.rolling(14).min()

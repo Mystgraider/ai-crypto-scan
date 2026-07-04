@@ -273,6 +273,13 @@ def main():
             sr_levels = sr_engine.find_levels(df_1h)
             sr_bonus  = sr_engine.score_bonus(direction, sr_levels)
 
+            # ── Pre-breakout bonus (leading, not confirming) ────────────
+            # Squeeze: bb_width near its own 20-bar low = volatility
+            # coiled, move likely hasn't happened yet.
+            bb_width_pctile = float(df_1h["bb_width_pctile"].iloc[-2]) \
+                if "bb_width_pctile" in df_1h.columns else 1.0
+            squeeze_bonus = 8 if bb_width_pctile <= 0.2 else 0
+
             if direction == "SHORT" and CONFIG["short_requires_resistance"]:
                 if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):
                     skip["sr_no_ceil"] += 1
@@ -390,7 +397,7 @@ def main():
             fund_adj  = funding_result.get("short_score_adj", 0) if direction == "SHORT" else 0
             base      = trend_score * 0.6 + quality_score * 0.4
             composite = min(100.0, max(0.0, round(
-                (base + sr_bonus + oi_adj + fund_adj) * mtf_multiplier, 2
+                (base + sr_bonus + oi_adj + fund_adj + squeeze_bonus) * mtf_multiplier, 2
             )))
             g = grade_score(composite)
 
