@@ -239,6 +239,19 @@ def main():
                     skip["btc"] += 1
                     continue
 
+            # V6.5: Data-driven hard blocks from 88-trade closed-signal
+            # review — BEAR/BEAR_CAUTION regime produced ~0-12% WR (1/18)
+            # vs 32% in BULL. SHORT direction produced 5.6% WR (1/18)
+            # vs 30% for LONG. Gaps are large relative to sample size,
+            # so block outright rather than just downweight, pending
+            # more data.
+            if CONFIG.get("block_bear_regime", True) and btc_regime["regime"] in ("BEAR", "BEAR_CAUTION"):
+                skip["btc"] += 1
+                continue
+            if CONFIG.get("pause_shorts", True) and direction == "SHORT":
+                skip["btc"] += 1
+                continue
+
             if btc_regime["regime"] == "RANGE":
                 if trend_score < CONFIG.get("range_regime_min_score", 85):
                     skip["btc"] += 1
