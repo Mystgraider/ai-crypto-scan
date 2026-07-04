@@ -30,11 +30,15 @@ class PositionSizer:
     }
 
     # Suggested leverage by grade (for futures)
+    # V6.5: lowered for small-capital accounts (₱500-1,000 / ~$9-18) —
+    # liquidation risk from normal volatility hits harder on tiny
+    # accounts than on larger ones, so even "high confidence" signals
+    # get capped conservatively.
     LEVERAGE_TABLE = {
-        "S": 10,
-        "A": 7,
-        "B": 5,
-        "C": 3,
+        "S": 5,
+        "A": 4,
+        "B": 3,
+        "C": 2,
     }
 
     def calculate(
