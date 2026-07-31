@@ -31,6 +31,7 @@ from engines.multiframe_engine   import MultiFrameEngine
 from engines.volume_spike        import VolumeSpikeEngine
 from engines.relative_strength   import RelativeStrengthEngine
 from engines.support_resistance  import SupportResistanceEngine
+from engines.volume_profile      import VolumeProfileEngine
 from engines.position_sizer      import PositionSizer
 from engines.funding_engine      import FundingEngine
 from engines.beta_filter         import BetaFilter
@@ -97,6 +98,7 @@ def main():
     spike_engine   = VolumeSpikeEngine()
     rs_engine      = RelativeStrengthEngine()
     sr_engine      = SupportResistanceEngine()
+    vp_engine      = VolumeProfileEngine()
     sizer          = PositionSizer()
     funding_engine = FundingEngine()
     beta_filter    = BetaFilter()
@@ -293,6 +295,15 @@ def main():
                 if "bb_width_pctile" in df_1h.columns else 1.0
             squeeze_bonus = 8 if bb_width_pctile <= 0.2 else 0
 
+            # ── Volume Profile Zone bonus ────────────────────────────────
+            # High Volume Nodes (HVN) = historical price zones with the
+            # most traded volume — tend to act as stronger reaction
+            # zones than plain swing S/R. Concept observed from external
+            # chart review (volume-box annotations), reimplemented here
+            # as a proper volume profile (POC/HVN/LVN), not copied.
+            vp_profile = vp_engine.build_profile(df_1h)
+            vp_bonus   = vp_engine.score_bonus(direction, price, vp_profile)
+
             if direction == "SHORT" and CONFIG["short_requires_resistance"]:
                 if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):
                     skip["sr_no_ceil"] += 1
@@ -410,7 +421,7 @@ def main():
             fund_adj  = funding_result.get("short_score_adj", 0) if direction == "SHORT" else 0
             base      = trend_score * 0.6 + quality_score * 0.4
             composite = min(100.0, max(0.0, round(
-                (base + sr_bonus + oi_adj + fund_adj + squeeze_bonus) * mtf_multiplier, 2
+                (base + sr_bonus + oi_adj + fund_adj + squeeze_bonus + vp_bonus) * mtf_multiplier, 2
             )))
             g = grade_score(composite)
 
