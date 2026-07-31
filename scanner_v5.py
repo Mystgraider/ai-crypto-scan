@@ -32,6 +32,7 @@ from engines.volume_spike        import VolumeSpikeEngine
 from engines.relative_strength   import RelativeStrengthEngine
 from engines.support_resistance  import SupportResistanceEngine
 from engines.volume_profile      import VolumeProfileEngine
+from engines.rrce_engine         import RRCEEngine
 from engines.position_sizer      import PositionSizer
 from engines.funding_engine      import FundingEngine
 from engines.beta_filter         import BetaFilter
@@ -99,6 +100,7 @@ def main():
     rs_engine      = RelativeStrengthEngine()
     sr_engine      = SupportResistanceEngine()
     vp_engine      = VolumeProfileEngine()
+    rrce_engine    = RRCEEngine()
     sizer          = PositionSizer()
     funding_engine = FundingEngine()
     beta_filter    = BetaFilter()
@@ -304,6 +306,13 @@ def main():
             vp_profile = vp_engine.build_profile(df_1h)
             vp_bonus   = vp_engine.score_bonus(direction, price, vp_profile)
 
+            # ── RRCE bonus ────────────────────────────────────────────
+            # Reaction -> Rejection(Sweep) -> Confirmation(CHOCH/BOS) ->
+            # Entry Zone(FVG/OB/OTE) -> Execution(candle) — the more
+            # stages line up, the higher the confluence bonus.
+            rrce_result = rrce_engine.evaluate(df_1h, direction, price)
+            rrce_bonus  = rrce_result["bonus"]
+
             if direction == "SHORT" and CONFIG["short_requires_resistance"]:
                 if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):
                     skip["sr_no_ceil"] += 1
@@ -421,7 +430,7 @@ def main():
             fund_adj  = funding_result.get("short_score_adj", 0) if direction == "SHORT" else 0
             base      = trend_score * 0.6 + quality_score * 0.4
             composite = min(100.0, max(0.0, round(
-                (base + sr_bonus + oi_adj + fund_adj + squeeze_bonus + vp_bonus) * mtf_multiplier, 2
+                (base + sr_bonus + oi_adj + fund_adj + squeeze_bonus + vp_bonus + rrce_bonus) * mtf_multiplier, 2
             )))
             g = grade_score(composite)
 
