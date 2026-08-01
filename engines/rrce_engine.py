@@ -190,93 +190,7 @@ class RRCEEngine:
 
         return None
 
-    # ── IDM (Inducement) ─────────────────────────────────────────────────
-    def detect_idm(self, df: pd.DataFrame, direction: str, main_sweep_level: float) -> dict | None:
-        """
-        Inducement: a MINOR liquidity grab that happens shortly before
-        the main sweep — a small pool of stops taken out first to
-        "induce" early entries before the real move. Uses a tighter
-        fractal (smaller lookback) than the main swing structure, and
-        only counts if the minor pivot sits between current price and
-        the main sweep level (i.e. it was taken out on the way to the
-        main sweep, not somewhere unrelated).
-        """
-        minor = self.find_swings(df.copy())
-        minor_n = max(2, self.swing_lookback - 3)
-        d = df.copy()
-        d["minor_high"] = d["high"][
-            (d["high"] == d["high"].rolling(2 * minor_n + 1, center=True).max())
-        ]
-        d["minor_low"] = d["low"][
-            (d["low"] == d["low"].rolling(2 * minor_n + 1, center=True).min())
-        ]
-        recent = d.tail(self.structure_window)
-        last = df.iloc[-2]
-
-        if direction == "LONG":
-            minor_lows = recent["minor_low"].dropna()
-            candidates = [lvl for lvl in minor_lows if lvl > main_sweep_level]
-            if not candidates:
-                return None
-            idm_level = max(candidates)  # nearest minor low above the main sweep
-            taken_out = float(last["low"]) < idm_level
-        else:
-            minor_highs = recent["minor_high"].dropna()
-            candidates = [lvl for lvl in minor_highs if lvl < main_sweep_level]
-            if not candidates:
-                return None
-            idm_level = min(candidates)
-            taken_out = float(last["high"]) > idm_level
-
-        if taken_out:
-            return {"idm_level": float(idm_level)}
-        return None
-
-    # ── Multi-swing Fibonacci confluence ─────────────────────────────────
-    def multi_leg_ote(self, df: pd.DataFrame, direction: str, price: float) -> dict:
-        """
-        Instead of a single impulse leg, builds OTE (0.5-0.618) zones
-        from the last several swing legs and checks how many overlap
-        at the current price — confluence of multiple fib grids is a
-        stronger zone than any single one.
-        """
-        d = self.find_swings(df).tail(self.structure_window)
-        highs = d["swing_high"].dropna()
-        lows  = d["swing_low"].dropna()
-
-        legs = []
-        if direction == "LONG":
-            # pair each recent swing low with the swing high that preceded it
-            for lo_idx, lo_val in lows.items():
-                prior_highs = highs[highs.index < lo_idx]
-                if prior_highs.empty:
-                    continue
-                hi_val = float(prior_highs.iloc[-1])
-                if hi_val > lo_val:
-                    legs.append((float(lo_val), hi_val))
-        else:
-            for hi_idx, hi_val in highs.items():
-                prior_lows = lows[lows.index < hi_idx]
-                if prior_lows.empty:
-                    continue
-                lo_val = float(prior_lows.iloc[-1])
-                if hi_val > lo_val:
-                    legs.append((lo_val, float(hi_val)))
-
-        legs = legs[-4:]  # last few legs only — older ones lose relevance
-        hits = 0
-        for lo, hi in legs:
-            rng = hi - lo
-            if rng <= 0:
-                continue
-            fib_50, fib_618 = hi - 0.5 * rng, hi - 0.618 * rng
-            zone_lo, zone_hi = sorted([fib_50, fib_618])
-            if zone_lo <= price <= zone_hi:
-                hits += 1
-
-        return {"legs_checked": len(legs), "confluence_hits": hits}
-
-
+    # ── Full sequence check ──────────────────────────────────────────────
     def evaluate(self, df: pd.DataFrame, direction: str, price: float) -> dict:
         """
         Runs the full RRCE sequence. Returns a dict describing which
@@ -286,21 +200,14 @@ class RRCEEngine:
         don't collapse signal volume to zero while this gets validated.
         """
         result = {
-            "sweep": None, "idm": None, "choch_bos": None, "fvg": [], "ob": None,
-            "in_ote": False, "fib_confluence": None, "candle": None,
-            "stages_passed": 0, "bonus": 0.0,
+            "sweep": None, "choch_bos": None, "fvg": [], "ob": None,
+            "in_ote": False, "candle": None, "stages_passed": 0, "bonus": 0.0,
         }
 
         sweep = self.detect_liquidity_sweep(df, direction)
         result["sweep"] = sweep
         if sweep:
             result["stages_passed"] += 1
-
-            # IDM only evaluated relative to a confirmed main sweep level
-            idm = self.detect_idm(df, direction, sweep["level"])
-            result["idm"] = idm
-            if idm:
-                result["stages_passed"] += 1
 
         cb = self.detect_choch_bos(df, direction)
         result["choch_bos"] = cb
@@ -322,24 +229,16 @@ class RRCEEngine:
                 if result["in_ote"]:
                     result["stages_passed"] += 1
 
-        # Multi-swing fib confluence — stronger than the single-leg OTE
-        # check above; requires at least 2 legs agreeing.
-        fib_conf = self.multi_leg_ote(df, direction, price)
-        result["fib_confluence"] = fib_conf
-        if fib_conf["confluence_hits"] >= 2:
-            result["stages_passed"] += 1
-
         candle = self.candle_confirmation(df, direction)
         result["candle"] = candle
         if candle:
             result["stages_passed"] += 1
 
-        # Bonus scales with how many of the (now up to 8) stages lined
-        # up. Full RRCE + IDM + fib confluence is rare and gets the
-        # largest bonus; partial confluence still gets something small.
-        # Kept comparable in scale to before (max ~15) so this doesn't
-        # dwarf squeeze_bonus/vp_bonus in the composite score.
-        bonus_table = {0: 0, 1: 1, 2: 3, 3: 5, 4: 7, 5: 9, 6: 11, 7: 13, 8: 15}
-        result["bonus"] = bonus_table.get(min(result["stages_passed"], 8), 15)
+        # Bonus scales with how many of the 5 stages lined up — full
+        # RRCE sequence (sweep + choch/bos + zone + ote + candle) is
+        # rare and gets the largest bonus; partial confluence still
+        # gets something small.
+        bonus_table = {0: 0, 1: 2, 2: 5, 3: 8, 4: 11, 5: 15, 6: 15}
+        result["bonus"] = bonus_table.get(min(result["stages_passed"], 6), 15)
 
         return result
