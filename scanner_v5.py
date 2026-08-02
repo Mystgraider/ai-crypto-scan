@@ -505,6 +505,25 @@ def main():
         f"overext:{skip['overextended']} err:{skip['errors']}"
     )
 
+    # V6.7.3: persist skip counters every run (even with 0 candidates)
+    # so signal droughts can be diagnosed after the fact — GH Actions
+    # log storage isn't reliably reachable from outside, so this needs
+    # to live in the repo itself.
+    try:
+        import json as _json
+        from datetime import datetime as _dt, timezone as _tz
+        debug_row = {
+            "ts": _dt.now(_tz.utc).isoformat(),
+            "symbols_scanned": len(symbols),
+            "candidates": len(candidates),
+            **skip,
+        }
+        debug_path = "storage/scan_debug_log.jsonl"
+        with open(debug_path, "a") as f:
+            f.write(_json.dumps(debug_row) + "\n")
+    except Exception as _e:
+        print(f"      ⚠️  debug log write failed: {_e}")
+
     # ── Step 4: AI Ranking ─────────────────────────────────────────────────
     print("\n[4/8] AI Ranking...")
     analytics = AnalyticsEngine().compute()
