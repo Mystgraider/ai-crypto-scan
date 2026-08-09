@@ -20,6 +20,14 @@ CONFIG = {
     # data shows B (70-82) outperformed A/S; 84+ = likely already-flown.
     "signal_score_ceiling": 84,
 
+    # V6.8: SHORT re-enabled for monitoring — was paused in V6.5 after
+    # 88-trade review showed 5.6% WR on SHORT vs 30% on LONG. Sample
+    # was small (18 trades); re-enabling now to gather more data,
+    # especially given the current choppy/bearish market where SHORT
+    # opportunities may be more common than what LONG-only scanning
+    # was catching. Revisit once a comparable SHORT sample size closes.
+    "pause_shorts": False,
+
     # ADX gate (enforced in trend_engine)
     "adx_min": 20,
 
