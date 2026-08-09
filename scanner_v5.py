@@ -232,6 +232,8 @@ def main():
 
             if direction == "NONE":
                 skip["trend"] += 1
+                reason_key = f"trend_reason_{trend.get('filters', 'unknown')}"
+                skip[reason_key] = skip.get(reason_key, 0) + 1
                 continue
 
             # ── BTC Regime Filter ──────────────────────────────────────
