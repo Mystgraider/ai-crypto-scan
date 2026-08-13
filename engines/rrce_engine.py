@@ -1,39 +1,42 @@
 """
-RRCE Engine — V6.9 (Full Multi-Timeframe Rebuild)
+RRCE Engine — V6.9.2 (Multi-Timeframe, Locked)
 ====================================================
-Implements the complete 4-stage RRCE checklist as specified:
+Implements the complete 4-stage RRCE checklist as specified, with
+timeframes locked per explicit instruction:
 
   [1. RANGE]  ->  [2. RETAIL LIQUIDITY]  ->  [3. CONFIRMATION]  ->  [4. EXECUTION]
-   (HTF: 4H)         (MTF: 1H)                (LTF: 15m)            (LTF: 5m)
+      (15m: Setup/Sweep)                        (5m: CHOCH/Confirmation/Entry)
 
 This is a strict sequential validator, not a soft bonus generator — every
-stage must pass, in order, on its designated timeframe, for a setup to
-be considered RRCE-valid. Partial confluence is reported for visibility
-but does NOT count as a valid setup.
+stage must pass, in order, for a setup to be considered RRCE-valid.
+Partial confluence is reported for visibility but does NOT count as a
+valid setup, and (as of V6.9.1) is a hard requirement in the scanner —
+no signal fires unless RRCE is fully valid.
 
-Stage 1 — RANGE (HTF, e.g. 4H):
+Stage 1 — RANGE (15m):
   Mark Range High / Range Low from recent swing structure. Price must
   sit in the Discount zone (lower half of range) for LONG, or the
   Premium zone (upper half) for SHORT.
 
-Stage 2 — RETAIL LIQUIDITY (MTF, e.g. 1H):
+Stage 2 — RETAIL LIQUIDITY (15m):
   Locate a liquidity pool near the relevant range extreme — Equal
   Highs/Lows (two or more swing points clustered within a tight
-  tolerance) or a clear trendline pool. This pool must then be SWEPT
-  (wicked through and closed back on the other side) — this is bait,
-  not confirmation by itself.
+  tolerance). This pool must then be SWEPT (wicked through and closed
+  back on the other side) — this is bait, not confirmation by itself.
 
-Stage 3 — CONFIRMATION (LTF, e.g. 15m):
+Stage 3 — CONFIRMATION (5m):
   After the sweep, wait for CHOCH / MSS (Change of Character / Market
   Structure Shift) — price closing beyond the most recent opposing
   structural point. This break MUST leave behind an FVG (Fair Value
   Gap) — without the imbalance, it isn't treated as institutional
   confirmation, just noise.
 
-Stage 4 — EXECUTION (LTF, e.g. 5m):
-  Entry at the FVG retest / Order Block origin. Stop Loss behind the
-  Stage 2 sweep extreme. Take Profit at the opposite-side liquidity
-  pool (mirrors Stage 2, on the other end of the range).
+Stage 4 — EXECUTION (5m):
+  Entry at the FVG retest / Order Block origin. As of V6.9.2, the
+  Order Block MUST be the exact candle immediately preceding the
+  specific candle that caused the Stage-3 CHOCH break — not just any
+  recent impulsive candle. Stop Loss behind the Stage 2 sweep extreme.
+  Take Profit at the opposite-side liquidity pool.
 """
 
 import pandas as pd
@@ -156,7 +159,9 @@ class RRCEEngine:
 
     def stage3_confirmation(self, df_ltf: pd.DataFrame, direction: str, lookback: int = 60) -> dict | None:
         d = self._find_swings(df_ltf).tail(lookback)
-        last_close = float(df_ltf["close"].iloc[-2])
+        closes = df_ltf["close"]
+        last_close = float(closes.iloc[-2])
+        break_idx = len(df_ltf) - 2  # index of the candle whose CLOSE broke structure
 
         if direction == "LONG":
             swing_highs = d["swing_high"].dropna()
@@ -178,10 +183,41 @@ class RRCEEngine:
         if not fvg:
             return {"passed": False, "reason": "choch_without_fvg", "choch_level": choch_level}
 
-        return {"passed": True, "choch_level": choch_level, "fvg": fvg}
+        return {"passed": True, "choch_level": choch_level, "fvg": fvg, "break_idx": break_idx}
 
     # ── Stage 4: EXECUTION (LTF, finest) ─────────────────────────────────
-    def _order_block(self, df: pd.DataFrame, direction: str, lookback: int = 15) -> dict | None:
+    def _order_block(self, df: pd.DataFrame, direction: str, break_idx: int = None,
+                      lookback: int = 15) -> dict | None:
+        """
+        Valid OB = the last opposite-colored candle immediately before
+        the SPECIFIC candle that caused the CHOCH break (break_idx),
+        not just any impulsive-looking candle in the recent window.
+        Falls back to the old "most recent impulsive move" search only
+        if no break_idx is supplied (defensive — shouldn't normally
+        happen since stage3 always provides it when passed=True).
+        """
+        if break_idx is not None and break_idx >= 2:
+            break_candle = df.iloc[break_idx]
+            prev = df.iloc[break_idx - 1]
+            body = abs(break_candle["close"] - break_candle["open"])
+            window = df.iloc[max(0, break_idx - 10):break_idx]
+            avg_body = (window["close"] - window["open"]).abs().mean() if len(window) else None
+            is_impulsive = avg_body and body > 1.2 * avg_body
+
+            broke_up = break_candle["close"] > break_candle["open"]
+            prev_down = prev["close"] < prev["open"]
+            broke_down = break_candle["close"] < break_candle["open"]
+            prev_up = prev["close"] > prev["open"]
+
+            if direction == "LONG" and prev_down:
+                return {"top": float(prev["high"]), "bottom": float(prev["low"]),
+                        "anchored": True, "impulsive": bool(is_impulsive)}
+            if direction == "SHORT" and prev_up:
+                return {"top": float(prev["high"]), "bottom": float(prev["low"]),
+                        "anchored": True, "impulsive": bool(is_impulsive)}
+            return None  # break candle wasn't preceded by a valid opposite candle — no OB
+
+        # defensive fallback (should not normally trigger)
         d = df.tail(lookback + 3).reset_index(drop=True)
         for i in range(len(d) - 2, 1, -1):
             impulse = d.iloc[i]
@@ -191,15 +227,15 @@ class RRCEEngine:
                 continue
             prev = d.iloc[i - 1]
             if direction == "LONG" and impulse["close"] > impulse["open"] and prev["close"] < prev["open"]:
-                return {"top": float(prev["high"]), "bottom": float(prev["low"])}
+                return {"top": float(prev["high"]), "bottom": float(prev["low"]), "anchored": False}
             if direction == "SHORT" and impulse["close"] < impulse["open"] and prev["close"] > prev["open"]:
-                return {"top": float(prev["high"]), "bottom": float(prev["low"])}
+                return {"top": float(prev["high"]), "bottom": float(prev["low"]), "anchored": False}
         return None
 
     def stage4_execution(self, df_exec: pd.DataFrame, direction: str,
                           fvg: dict, sweep_extreme: float,
-                          opposite_pool_level: float) -> dict:
-        ob = self._order_block(df_exec, direction)
+                          opposite_pool_level: float, break_idx: int = None) -> dict:
+        ob = self._order_block(df_exec, direction, break_idx=break_idx)
 
         if ob:
             entry = (ob["top"] + ob["bottom"]) / 2.0
@@ -256,7 +292,8 @@ class RRCEEngine:
 
         opposite_pool = s1["range_high"] if direction == "LONG" else s1["range_low"]
         s4 = self.stage4_execution(df_ltf_exec, direction, s3["fvg"],
-                                    s2["sweep_extreme"], opposite_pool)
+                                    s2["sweep_extreme"], opposite_pool,
+                                    break_idx=s3.get("break_idx"))
         result["stage4"] = s4
 
         result["valid"] = True

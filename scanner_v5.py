@@ -309,25 +309,22 @@ def main():
             vp_bonus   = vp_engine.score_bonus(direction, price, vp_profile)
 
             # ── RRCE (full multi-timeframe validator) ────────────────────
-            # [1. RANGE](4H) -> [2. RETAIL LIQUIDITY](1H) ->
-            # [3. CONFIRMATION](15m) -> [4. EXECUTION](5m)
-            # Strict sequential gate — every stage must pass, in order,
-            # on its designated timeframe. rrce_bonus is 15 only if ALL
-            # FOUR stages pass; 0 otherwise (no partial credit, per spec).
+            # V6.9.2 timeframe lock (per explicit instruction):
+            #   Setup / Sweep (Range + Retail Liquidity)  -> 15m
+            #   CHOCH / Confirmation / Entry (Confirm+Exec) -> 5m
+            # Strict sequential gate — every stage must pass, in order.
             rrce_bonus = 0.0
             rrce_result = None
             try:
-                _df_rrce_htf_raw = market_loader.get_4h(symbol)
-                _df_rrce_htf = Indicators.apply(_df_rrce_htf_raw)
-                _df_rrce_ltf15_raw = market_loader.get_15m(symbol)
-                _df_rrce_ltf15 = Indicators.apply(_df_rrce_ltf15_raw)
-                _df_rrce_ltf5_raw = market_loader.get_5m(symbol)
-                _df_rrce_ltf5 = Indicators.apply(_df_rrce_ltf5_raw)
+                _df_rrce_15m_raw = market_loader.get_15m(symbol)
+                _df_rrce_15m = Indicators.apply(_df_rrce_15m_raw)
+                _df_rrce_5m_raw = market_loader.get_5m(symbol)
+                _df_rrce_5m = Indicators.apply(_df_rrce_5m_raw)
 
-                if len(_df_rrce_htf) >= 20 and len(_df_rrce_ltf15) >= 20 and len(_df_rrce_ltf5) >= 20:
+                if len(_df_rrce_15m) >= 20 and len(_df_rrce_5m) >= 20:
                     rrce_result = rrce_engine.evaluate(
-                        df_htf=_df_rrce_htf, df_mtf=df_1h,
-                        df_ltf_confirm=_df_rrce_ltf15, df_ltf_exec=_df_rrce_ltf5,
+                        df_htf=_df_rrce_15m, df_mtf=_df_rrce_15m,
+                        df_ltf_confirm=_df_rrce_5m, df_ltf_exec=_df_rrce_5m,
                         direction=direction, price=price,
                     )
                     rrce_bonus = rrce_result["bonus"]
