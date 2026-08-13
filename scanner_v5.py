@@ -163,7 +163,7 @@ def main():
         "cooldown": 0, "dated": 0, "btc": 0, "trend": 0,
         "funding": 0, "high_beta": 0, "sr_no_ceil": 0,
         "weak_rs": 0, "mtf": 0, "quality": 0, "risk": 0,
-        "d_grade": 0, "overextended": 0, "errors": 0
+        "d_grade": 0, "overextended": 0, "rrce_invalid": 0, "errors": 0
     }
 
     for symbol in symbols:
@@ -333,6 +333,15 @@ def main():
                     rrce_bonus = rrce_result["bonus"]
             except Exception as _rrce_e:
                 print(f"      ⚠️  {symbol} RRCE multi-TF fetch/eval failed: {_rrce_e}")
+
+            # V6.9.1: RRCE is now a HARD REQUIREMENT, not just a bonus.
+            # A candidate must pass all 4 stages (Range -> Retail
+            # Liquidity -> Confirmation -> Execution) or it is rejected
+            # outright — no exceptions, regardless of how good the rest
+            # of the score looks.
+            if not rrce_result or not rrce_result.get("valid"):
+                skip["rrce_invalid"] = skip.get("rrce_invalid", 0) + 1
+                continue
 
             if direction == "SHORT" and CONFIG["short_requires_resistance"]:
                 if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):
@@ -523,7 +532,7 @@ def main():
         f"mtf:{skip['mtf']} sr:{skip['sr_no_ceil']} "
         f"rs:{skip['weak_rs']} q:{skip['quality']} "
         f"risk:{skip['risk']} d:{skip['d_grade']} "
-        f"overext:{skip['overextended']} err:{skip['errors']}"
+        f"overext:{skip['overextended']} rrce:{skip['rrce_invalid']} err:{skip['errors']}"
     )
 
     # V6.7.3: persist skip counters every run (even with 0 candidates)
