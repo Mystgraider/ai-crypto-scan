@@ -308,12 +308,31 @@ def main():
             vp_profile = vp_engine.build_profile(df_1h)
             vp_bonus   = vp_engine.score_bonus(direction, price, vp_profile)
 
-            # ── RRCE bonus ────────────────────────────────────────────
-            # Reaction -> Rejection(Sweep) -> Confirmation(CHOCH/BOS) ->
-            # Entry Zone(FVG/OB/OTE) -> Execution(candle) — the more
-            # stages line up, the higher the confluence bonus.
-            rrce_result = rrce_engine.evaluate(df_1h, direction, price)
-            rrce_bonus  = rrce_result["bonus"]
+            # ── RRCE (full multi-timeframe validator) ────────────────────
+            # [1. RANGE](4H) -> [2. RETAIL LIQUIDITY](1H) ->
+            # [3. CONFIRMATION](15m) -> [4. EXECUTION](5m)
+            # Strict sequential gate — every stage must pass, in order,
+            # on its designated timeframe. rrce_bonus is 15 only if ALL
+            # FOUR stages pass; 0 otherwise (no partial credit, per spec).
+            rrce_bonus = 0.0
+            rrce_result = None
+            try:
+                _df_rrce_htf_raw = market_loader.get_4h(symbol)
+                _df_rrce_htf = Indicators.apply(_df_rrce_htf_raw)
+                _df_rrce_ltf15_raw = market_loader.get_15m(symbol)
+                _df_rrce_ltf15 = Indicators.apply(_df_rrce_ltf15_raw)
+                _df_rrce_ltf5_raw = market_loader.get_5m(symbol)
+                _df_rrce_ltf5 = Indicators.apply(_df_rrce_ltf5_raw)
+
+                if len(_df_rrce_htf) >= 20 and len(_df_rrce_ltf15) >= 20 and len(_df_rrce_ltf5) >= 20:
+                    rrce_result = rrce_engine.evaluate(
+                        df_htf=_df_rrce_htf, df_mtf=df_1h,
+                        df_ltf_confirm=_df_rrce_ltf15, df_ltf_exec=_df_rrce_ltf5,
+                        direction=direction, price=price,
+                    )
+                    rrce_bonus = rrce_result["bonus"]
+            except Exception as _rrce_e:
+                print(f"      ⚠️  {symbol} RRCE multi-TF fetch/eval failed: {_rrce_e}")
 
             if direction == "SHORT" and CONFIG["short_requires_resistance"]:
                 if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):

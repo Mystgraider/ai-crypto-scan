@@ -56,3 +56,7 @@ class MarketDataLoader:
     def get_15m(self, symbol: str, limit: int = 100) -> pd.DataFrame:
         """Convenience method for 15M candles — used for entry precision in MTF engine."""
         return self.get_ohlcv(symbol, timeframe="15m", limit=limit)
+
+    def get_5m(self, symbol: str, limit: int = 100) -> pd.DataFrame:
+        """Convenience method for 5M candles — RRCE execution timeframe."""
+        return self.get_ohlcv(symbol, timeframe="5m", limit=limit)
