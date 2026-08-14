@@ -35,6 +35,13 @@ CONFIG = {
     # almost nothing could ever pass both. Testing RRCE-only now.
     "require_trend_gate": False,
 
+    # V6.9.6: stop starting new symbols after this many seconds into
+    # the scan, so a run that's taking too long (e.g. because RRCE now
+    # evaluates far more symbols since require_trend_gate=False) still
+    # commits whatever it found instead of getting killed by the GH
+    # Actions 10-min job timeout with nothing saved.
+    "scan_time_budget_sec": 480,
+
     # ADX gate (enforced in trend_engine)
     "adx_min": 20,
 

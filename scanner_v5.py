@@ -88,6 +88,16 @@ def main():
     print("🚀 Elite Futures Scanner V6.1.3")
     print("=" * 55)
 
+    import time as _time
+    _scan_start_time = _time.time()
+    # V6.9.6: GH Actions workflow timeout is 10 min. Now that
+    # require_trend_gate=False lets far more symbols reach RRCE
+    # (which does 2 extra API fetches per direction tried, up to 4 per
+    # symbol), a full 300-symbol scan risks blowing the timeout with
+    # zero results committed. Stop starting new symbols past this
+    # budget so whatever's already found still gets saved.
+    _scan_time_budget_sec = CONFIG.get("scan_time_budget_sec", 480)
+
     market_loader  = MarketDataLoader()
     exchange       = market_loader.exchange
     trend_engine   = TrendEngine()
@@ -163,10 +173,17 @@ def main():
         "cooldown": 0, "dated": 0, "btc": 0, "trend": 0,
         "funding": 0, "high_beta": 0, "sr_no_ceil": 0,
         "weak_rs": 0, "mtf": 0, "quality": 0, "risk": 0,
-        "d_grade": 0, "overextended": 0, "rrce_invalid": 0, "errors": 0
+        "d_grade": 0, "overextended": 0, "rrce_invalid": 0, "time_budget_stop": 0, "errors": 0
     }
 
     for symbol in symbols:
+
+        if _time.time() - _scan_start_time > _scan_time_budget_sec:
+            print(f"      ⏱️  Time budget ({_scan_time_budget_sec}s) reached — "
+                  f"stopping early with {len(candidates)} candidate(s) found so far, "
+                  f"{symbols.index(symbol)}/{len(symbols)} symbols processed.")
+            skip["time_budget_stop"] = len(symbols) - symbols.index(symbol)
+            break
 
         if symbol == CONFIG["btc_symbol"]:
             continue
@@ -553,7 +570,8 @@ def main():
         f"mtf:{skip['mtf']} sr:{skip['sr_no_ceil']} "
         f"rs:{skip['weak_rs']} q:{skip['quality']} "
         f"risk:{skip['risk']} d:{skip['d_grade']} "
-        f"overext:{skip['overextended']} rrce:{skip['rrce_invalid']} err:{skip['errors']}"
+        f"overext:{skip['overextended']} rrce:{skip['rrce_invalid']} "
+        f"budget_stop:{skip['time_budget_stop']} err:{skip['errors']}"
     )
 
     # V6.7.3: persist skip counters every run (even with 0 candidates)
