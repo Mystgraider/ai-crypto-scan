@@ -63,7 +63,7 @@ class RRCEEngine:
 
     # ── Stage 1: RANGE (HTF) ─────────────────────────────────────────────
     def stage1_range(self, df_htf: pd.DataFrame, direction: str, price: float,
-                      lookback: int = 60) -> dict | None:
+                      lookback: int = 45) -> dict | None:
         d = self._find_swings(df_htf).tail(lookback)
         highs = d["swing_high"].dropna()
         lows  = d["swing_low"].dropna()
@@ -234,7 +234,8 @@ class RRCEEngine:
 
     def stage4_execution(self, df_exec: pd.DataFrame, direction: str,
                           fvg: dict, sweep_extreme: float,
-                          opposite_pool_level: float, break_idx: int = None) -> dict:
+                          opposite_pool_level: float, break_idx: int = None,
+                          max_rr_cap: float = 4.0) -> dict:
         ob = self._order_block(df_exec, direction, break_idx=break_idx)
 
         if ob:
@@ -242,14 +243,41 @@ class RRCEEngine:
         else:
             entry = (fvg["top"] + fvg["bottom"]) / 2.0
 
-        buffer = abs(entry) * 0.001
+        # V6.9.3 fix: SL buffer was a razor-thin 0.1% of price, which
+        # normal candle noise/wicks routinely blew through even on
+        # otherwise-valid setups. Use ATR (if available from the
+        # Indicators pipeline) for a buffer that scales with actual
+        # recent volatility; fall back to a wider 0.3% if ATR isn't
+        # present (e.g. in isolated unit tests).
+        if "atr" in df_exec.columns and not pd.isna(df_exec["atr"].iloc[-2]):
+            buffer = float(df_exec["atr"].iloc[-2]) * 0.3
+        else:
+            buffer = abs(entry) * 0.003
+
         if direction == "LONG":
             sl = sweep_extreme - buffer
         else:
             sl = sweep_extreme + buffer
 
-        tp = opposite_pool_level
-        rr = abs(tp - entry) / abs(entry - sl) if abs(entry - sl) > 0 else 0.0
+        risk = abs(entry - sl)
+
+        # V6.9.3 fix: TP used to target the FULL opposite side of the
+        # Stage-1 range, which is frequently unrealistically far
+        # (backtest showed RR ranging 1.5 to 29+ on the same window,
+        # with SL hit far more often simply because TP was too distant
+        # to reasonably reach before a reversal). Cap the reward at
+        # max_rr_cap * risk — still points toward the opposite pool,
+        # but stops short of demanding the full round-trip.
+        if direction == "LONG":
+            raw_tp = opposite_pool_level
+            capped_tp = entry + max_rr_cap * risk
+            tp = min(raw_tp, capped_tp) if raw_tp > entry else capped_tp
+        else:
+            raw_tp = opposite_pool_level
+            capped_tp = entry - max_rr_cap * risk
+            tp = max(raw_tp, capped_tp) if raw_tp < entry else capped_tp
+
+        rr = abs(tp - entry) / risk if risk > 0 else 0.0
 
         return {
             "entry": round(entry, 8),
