@@ -507,7 +507,7 @@ def main():
                 candidates.append({
                     "symbol":          symbol,
                     "direction":       direction,
-                    "trend_score":     trend_score,
+                    "trend_score":     effective_trend_score,
                     "quality_score":   quality_score,
                     "rs_score":        rs["rs_score"],
                     "rs_label":        rs["rs_label"],
