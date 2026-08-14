@@ -28,6 +28,13 @@ CONFIG = {
     # was catching. Revisit once a comparable SHORT sample size closes.
     "pause_shorts": False,
 
+    # V6.9.4: turn OFF the old indicator-based trend_engine hard gate
+    # (ADX/EMA/MACD/Stoch/BB) so RRCE becomes the sole hard validator.
+    # Debug log showed this gate alone rejecting 80-90%+ of symbols on
+    # its own, and stacking it with the also-strict RRCE gate meant
+    # almost nothing could ever pass both. Testing RRCE-only now.
+    "require_trend_gate": False,
+
     # ADX gate (enforced in trend_engine)
     "adx_min": 20,
 
