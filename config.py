@@ -42,6 +42,15 @@ CONFIG = {
     # Actions 10-min job timeout with nothing saved.
     "scan_time_budget_sec": 480,
 
+    # V6.9.7: turn OFF the blanket BEAR/BEAR_CAUTION hard block. Same
+    # double-gating conflict pattern as the old trend_engine gate —
+    # this was rejecting 523-545 direction-attempts per scan (the new
+    # dominant bottleneck after V6.9.4), even though RRCE's own
+    # Premium/Discount zone logic already accounts for bearish
+    # structure and backtested with positive expectancy on SHORT
+    # (45.9% WR, +1.00 avg R over 89 trades). Letting RRCE decide.
+    "block_bear_regime": False,
+
     # ADX gate (enforced in trend_engine)
     "adx_min": 20,
 
