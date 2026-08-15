@@ -585,6 +585,12 @@ def main():
             "ts": _dt.now(_tz.utc).isoformat(),
             "symbols_scanned": len(symbols),
             "candidates": len(candidates),
+            "btc_regime_label": btc_regime.get("regime"),
+            "btc_regime_allow_long": btc_regime.get("allow_long"),
+            "btc_regime_allow_short": btc_regime.get("allow_short"),
+            "btc_regime_adx": btc_regime.get("adx"),
+            "btc_regime_rsi": btc_regime.get("rsi"),
+            "btc_regime_reason": btc_regime.get("reason"),
             **skip,
         }
         debug_path = "storage/scan_debug_log.jsonl"
