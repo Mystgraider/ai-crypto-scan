@@ -388,6 +388,9 @@ def main():
                 # of the score looks.
                 if not rrce_result or not rrce_result.get("valid"):
                     skip["rrce_invalid"] = skip.get("rrce_invalid", 0) + 1
+                    fail_stage = rrce_result.get("failed_at", "no_data") if rrce_result else "fetch_error"
+                    stage_key = f"rrce_fail_{fail_stage}"
+                    skip[stage_key] = skip.get(stage_key, 0) + 1
                     continue
 
                 if direction == "SHORT" and CONFIG["short_requires_resistance"]:
