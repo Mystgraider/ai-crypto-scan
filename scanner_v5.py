@@ -299,7 +299,16 @@ def main():
                     skip["btc"] += 1
                     continue
 
-                if btc_regime["regime"] == "RANGE":
+                # V6.9.9 fix: the RANGE regime's extra-strict 85
+                # threshold was designed to catch a REAL but weak
+                # trend_score in choppy conditions. When require_trend_
+                # gate=False and trend was NONE, effective_trend_score
+                # is a substituted neutral baseline (70), not a real
+                # measurement — comparing it against 85 was silently
+                # re-blocking almost every RRCE-bypass candidate during
+                # RANGE regime specifically. Only apply this check to
+                # real trend detections.
+                if btc_regime["regime"] == "RANGE" and trend["direction"] != "NONE":
                     if effective_trend_score < CONFIG.get("range_regime_min_score", 85):
                         skip["btc"] += 1
                         continue
