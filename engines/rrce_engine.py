@@ -45,7 +45,7 @@ import numpy as np
 
 class RRCEEngine:
 
-    def __init__(self, swing_lookback: int = 5, eq_tolerance_pct: float = 0.15):
+    def __init__(self, swing_lookback: int = 10, eq_tolerance_pct: float = 0.15):
         self.swing_lookback = swing_lookback
         self.eq_tolerance_pct = eq_tolerance_pct
 
