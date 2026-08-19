@@ -95,18 +95,16 @@ class RRCEEngine:
         }
 
     # ── Stage 2: RETAIL LIQUIDITY (MTF) ──────────────────────────────────
-    def _equal_levels(self, levels: list[float], tolerance_pct: float = None) -> list[dict]:
-        """Groups nearby levels (within tolerance_pct, or the engine's
-        fixed eq_tolerance_pct default) into pools of 2+ — these are
-        Equal Highs/Lows, i.e. resting liquidity."""
-        tol = tolerance_pct if tolerance_pct is not None else self.eq_tolerance_pct
+    def _equal_levels(self, levels: list[float]) -> list[dict]:
+        """Groups nearby levels (within eq_tolerance_pct) into pools of
+        2+ — these are Equal Highs/Lows, i.e. resting liquidity."""
         if len(levels) < 2:
             return []
         levels = sorted(levels)
         pools, current = [], [levels[0]]
         for lvl in levels[1:]:
             ref = current[-1]
-            if ref != 0 and abs(lvl - ref) / abs(ref) * 100 <= tol:
+            if ref != 0 and abs(lvl - ref) / abs(ref) * 100 <= self.eq_tolerance_pct:
                 current.append(lvl)
             else:
                 if len(current) >= 2:
@@ -116,50 +114,28 @@ class RRCEEngine:
             pools.append(current)
         return [{"level": float(np.mean(p)), "touches": len(p)} for p in pools]
 
-    def _dynamic_eq_tolerance(self, df: pd.DataFrame,
-                               atr_multiplier: float = 0.3,
-                               floor_pct: float = 0.05,
-                               ceiling_pct: float = 0.5) -> float:
-        """
-        V6.9.11 (exploratory): scales the Equal-High/Low tolerance with
-        current volatility (ATR%) instead of a fixed 0.15% for every
-        symbol regardless of how much it naturally moves. Community
-        research found this ATR-adaptive approach used in production
-        SMC indicators as an alternative to a fixed percentage, aimed
-        at handling assets with very different volatility profiles
-        (which is exactly our situation — 300 altcoins, not one pair).
-        Falls back to the fixed eq_tolerance_pct if ATR% isn't present.
-        """
-        if "atr_pct" in df.columns and len(df) >= 2 and not pd.isna(df["atr_pct"].iloc[-2]):
-            dynamic = float(df["atr_pct"].iloc[-2]) * atr_multiplier
-            return max(floor_pct, min(dynamic, ceiling_pct))
-        return self.eq_tolerance_pct
-
     def stage2_retail_liquidity(self, df_mtf: pd.DataFrame, direction: str,
                                  range_low: float, range_high: float,
                                  proximity_pct: float = 5.0, lookback: int = 80) -> dict | None:
         d = self._find_swings(df_mtf).tail(lookback)
         last = df_mtf.iloc[-2]  # last CLOSED candle
-        dynamic_tol = self._dynamic_eq_tolerance(df_mtf)
 
         if direction == "LONG":
             lows = d["swing_low"].dropna().tolist()
-            pools = self._equal_levels(lows, tolerance_pct=dynamic_tol)
+            pools = self._equal_levels(lows)
             near_pools = [p for p in pools
                           if abs(p["level"] - range_low) / range_low * 100 <= proximity_pct]
             if not near_pools:
-                return {"passed": False, "reason": "no_equal_lows_near_range_low",
-                        "pools": pools, "tolerance_used": dynamic_tol}
+                return {"passed": False, "reason": "no_equal_lows_near_range_low", "pools": pools}
             pool = min(near_pools, key=lambda p: abs(p["level"] - range_low))
             swept = float(last["low"]) < pool["level"] and float(last["close"]) > pool["level"]
         else:
             highs = d["swing_high"].dropna().tolist()
-            pools = self._equal_levels(highs, tolerance_pct=dynamic_tol)
+            pools = self._equal_levels(highs)
             near_pools = [p for p in pools
                           if abs(p["level"] - range_high) / range_high * 100 <= proximity_pct]
             if not near_pools:
-                return {"passed": False, "reason": "no_equal_highs_near_range_high",
-                        "pools": pools, "tolerance_used": dynamic_tol}
+                return {"passed": False, "reason": "no_equal_highs_near_range_high", "pools": pools}
             pool = min(near_pools, key=lambda p: abs(p["level"] - range_high))
             swept = float(last["high"]) > pool["level"] and float(last["close"]) < pool["level"]
 
@@ -168,7 +144,6 @@ class RRCEEngine:
             "pool_level": pool["level"],
             "pool_touches": pool["touches"],
             "sweep_extreme": float(last["low"] if direction == "LONG" else last["high"]),
-            "tolerance_used": dynamic_tol,
         }
 
     # ── Stage 3: CONFIRMATION (LTF) ──────────────────────────────────────
