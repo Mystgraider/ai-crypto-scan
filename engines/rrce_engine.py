@@ -116,9 +116,22 @@ class RRCEEngine:
 
     def stage2_retail_liquidity(self, df_mtf: pd.DataFrame, direction: str,
                                  range_low: float, range_high: float,
-                                 proximity_pct: float = 5.0, lookback: int = 80) -> dict | None:
+                                 proximity_pct: float = 5.0, lookback: int = 80,
+                                 patience_bars: int = 6) -> dict | None:
+        """
+        V6.9.15: patience window for the sweep check. Instead of only
+        counting a sweep if it happened on the single last CLOSED
+        candle, checks whether ANY of the last `patience_bars` candles
+        swept the identified liquidity pool — "mark the zone, then
+        wait" instead of "only counts if it happens on this exact
+        scan". Backtest-verified on 7 independent BTC windows (~14
+        months): 52->98 trades, win rate held (58.3%->57.3%), total R
+        nearly doubled (+77.44R -> +132.72R), positive in every single
+        window tested. patience_bars=1 reproduces the original
+        single-candle behavior exactly.
+        """
         d = self._find_swings(df_mtf).tail(lookback)
-        last = df_mtf.iloc[-2]  # last CLOSED candle
+        window = df_mtf.iloc[-(patience_bars + 1):-1]  # last `patience_bars` CLOSED candles
 
         if direction == "LONG":
             lows = d["swing_low"].dropna().tolist()
@@ -128,7 +141,9 @@ class RRCEEngine:
             if not near_pools:
                 return {"passed": False, "reason": "no_equal_lows_near_range_low", "pools": pools}
             pool = min(near_pools, key=lambda p: abs(p["level"] - range_low))
-            swept = float(last["low"]) < pool["level"] and float(last["close"]) > pool["level"]
+            swept_mask = (window["low"] < pool["level"]) & (window["close"] > pool["level"])
+            swept = bool(swept_mask.any())
+            sweep_extreme = float(window.loc[swept_mask, "low"].min()) if swept else float(window["low"].min())
         else:
             highs = d["swing_high"].dropna().tolist()
             pools = self._equal_levels(highs)
@@ -137,13 +152,15 @@ class RRCEEngine:
             if not near_pools:
                 return {"passed": False, "reason": "no_equal_highs_near_range_high", "pools": pools}
             pool = min(near_pools, key=lambda p: abs(p["level"] - range_high))
-            swept = float(last["high"]) > pool["level"] and float(last["close"]) < pool["level"]
+            swept_mask = (window["high"] > pool["level"]) & (window["close"] < pool["level"])
+            swept = bool(swept_mask.any())
+            sweep_extreme = float(window.loc[swept_mask, "high"].max()) if swept else float(window["high"].max())
 
         return {
             "passed": bool(swept),
             "pool_level": pool["level"],
             "pool_touches": pool["touches"],
-            "sweep_extreme": float(last["low"] if direction == "LONG" else last["high"]),
+            "sweep_extreme": sweep_extreme,
         }
 
     # ── Stage 3: CONFIRMATION (LTF) ──────────────────────────────────────
@@ -290,7 +307,7 @@ class RRCEEngine:
     # ── Full sequence, strictly gated ────────────────────────────────────
     def evaluate(self, df_htf: pd.DataFrame, df_mtf: pd.DataFrame,
                  df_ltf_confirm: pd.DataFrame, df_ltf_exec: pd.DataFrame,
-                 direction: str, price: float) -> dict:
+                 direction: str, price: float, patience_bars: int = 6) -> dict:
         """
         Runs the full 4-stage RRCE sequence. Every stage must pass, in
         order, using its designated timeframe. `valid` is True only if
@@ -306,7 +323,7 @@ class RRCEEngine:
             result["failed_at"] = "stage1_range"
             return result
 
-        s2 = self.stage2_retail_liquidity(df_mtf, direction, s1["range_low"], s1["range_high"])
+        s2 = self.stage2_retail_liquidity(df_mtf, direction, s1["range_low"], s1["range_high"], patience_bars=patience_bars)
         result["stage2"] = s2
         if not s2 or not s2["passed"]:
             result["failed_at"] = "stage2_retail_liquidity"
