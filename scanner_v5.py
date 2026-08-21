@@ -362,25 +362,28 @@ def main():
                 # V6.9.13 timeframe fix: research into production ICT/SMC
                 # tools (TradingView Ictconcepts/Ictstudent) found the
                 # standard HTF:LTF pairing is 5M->1H or 15M->4H (~12-16x
-                # ratio) — going beyond ~4x the execution TF makes the
-                # HTF context too slow/noisy to be useful. Our V6.9.2
-                # lock paired 15m with ITSELF (1x ratio) for Range/Sweep,
-                # which likely made Stage 1/2 noisier and stricter than
-                # intended. Since Confirmation/Execution stays on 5m
-                # (explicit instruction), Range/Retail Liquidity now use
-                # 1H instead of 15m — matches the "5M->1H" standard
-                # pairing AND was already one of the original spec's
-                # valid options (4H/1H). Reuses the already-fetched
-                # df_1h (no extra API call).
+                # V6.9.16: reverted back to 15m for Range/Retail
+                # Liquidity. The V6.9.13 switch to 1H was reasoned
+                # from general HTF:LTF ratio theory but was NEVER
+                # actually backtested — when we finally tested it
+                # properly (patience_bars=6 on real 1H data across the
+                # same 7 windows), results were meaningfully WORSE and
+                # inconsistent than the 15m config: 46 trades/41.7%WR/
+                # +25.63R with 2 of 7 windows NEGATIVE, vs 15m's 98
+                # trades/57.3%WR/+132.72R positive in every window.
+                # Going back to what was actually proven, not what
+                # theory suggested.
                 rrce_bonus = 0.0
                 rrce_result = None
                 try:
+                    _df_rrce_15m_raw = market_loader.get_15m(symbol)
+                    _df_rrce_15m = Indicators.apply(_df_rrce_15m_raw)
                     _df_rrce_5m_raw = market_loader.get_5m(symbol)
                     _df_rrce_5m = Indicators.apply(_df_rrce_5m_raw)
 
-                    if len(df_1h) >= 20 and len(_df_rrce_5m) >= 20:
+                    if len(_df_rrce_15m) >= 20 and len(_df_rrce_5m) >= 20:
                         rrce_result = rrce_engine.evaluate(
-                            df_htf=df_1h, df_mtf=df_1h,
+                            df_htf=_df_rrce_15m, df_mtf=_df_rrce_15m,
                             df_ltf_confirm=_df_rrce_5m, df_ltf_exec=_df_rrce_5m,
                             direction=direction, price=price,
                         )
