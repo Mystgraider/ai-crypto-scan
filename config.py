@@ -35,6 +35,11 @@ CONFIG = {
     # almost nothing could ever pass both. Testing RRCE-only now.
     "require_trend_gate": False,
 
+    # V6.9.17: bypass Quality Engine's hard blocks too - same indicator-
+    # based (RSI/Volume) philosophy as trend_engine, which we already
+    # found double-gates against RRCE's structural logic.
+    "require_quality_engine": False,
+
     # V6.9.6: stop starting new symbols after this many seconds into
     # the scan, so a run that's taking too long (e.g. because RRCE now
     # evaluates far more symbols since require_trend_gate=False) still
@@ -63,7 +68,7 @@ CONFIG = {
 
     # Multi-timeframe — V5.6: NEUTRAL = ALLOWED (not rejected)
     "mtf_enabled": True,
-    "mtf_reject_counter_trend": True,   # only REJECTED is blocked, NEUTRAL allowed
+    "mtf_reject_counter_trend": False,   # V6.9.17: bypassed - overlapped with RRCE's own structural logic
 
     # S/R
     "short_requires_resistance": True,

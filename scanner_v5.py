@@ -487,6 +487,13 @@ def main():
                     rel_volume=rel_volume, rsi=rsi, direction=direction,
                     stoch_k=stoch_k, bb_pct_b=bb_pct_b, macd_hist=macd_hist,
                 )
+                # V6.9.17: when bypassed, substitute a neutral baseline
+                # instead of letting a real 0.0 (from RSI/volume hard
+                # blocks) silently re-fail the validator's min_score
+                # check below - same fix pattern as effective_trend_score.
+                effective_quality_score = quality_score
+                if not CONFIG.get("require_quality_engine", True) and quality_score < CONFIG["min_score"]:
+                    effective_quality_score = CONFIG["min_score"]
 
                 # ── OI Engine ──────────────────────────────────────────────
                 oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}
@@ -508,7 +515,7 @@ def main():
                 risk = risk_engine.calculate(direction, price, atr)
 
                 # ── Validator ──────────────────────────────────────────────
-                if not validator.validate(direction, effective_trend_score, quality_score, risk):
+                if not validator.validate(direction, effective_trend_score, effective_quality_score, risk):
                     if risk is None:
                         skip["risk"] += 1
                     else:
@@ -518,7 +525,7 @@ def main():
                 # ── Composite Score ────────────────────────────────────────
                 oi_adj    = oi_result["score_adj"]
                 fund_adj  = funding_result.get("short_score_adj", 0) if direction == "SHORT" else 0
-                base      = effective_trend_score * 0.6 + quality_score * 0.4
+                base      = effective_trend_score * 0.6 + effective_quality_score * 0.4
                 composite = min(100.0, max(0.0, round(
                     (base + sr_bonus + oi_adj + fund_adj + squeeze_bonus + vp_bonus + rrce_bonus) * mtf_multiplier, 2
                 )))
@@ -547,7 +554,7 @@ def main():
                     "symbol":          symbol,
                     "direction":       direction,
                     "trend_score":     effective_trend_score,
-                    "quality_score":   quality_score,
+                    "quality_score":   effective_quality_score,
                     "rs_score":        rs["rs_score"],
                     "rs_label":        rs["rs_label"],
                     "rs_ratio":        rs.get("rs_ratio", 1.0),
