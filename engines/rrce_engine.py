@@ -63,7 +63,7 @@ class RRCEEngine:
 
     # ── Stage 1: RANGE (HTF) ─────────────────────────────────────────────
     def stage1_range(self, df_htf: pd.DataFrame, direction: str, price: float,
-                      lookback: int = 45) -> dict | None:
+                      lookback: int = 45, zone_threshold_pct: float = 60.0) -> dict | None:
         d = self._find_swings(df_htf).tail(lookback)
         highs = d["swing_high"].dropna()
         lows  = d["swing_low"].dropna()
@@ -78,11 +78,19 @@ class RRCEEngine:
         midpoint = (range_high + range_low) / 2.0
         position_pct = (price - range_low) / (range_high - range_low) * 100
 
+        # V6.9.18: was a strict 50/50 split. Live evidence across 300
+        # real altcoins showed Stage 1 rejecting 70-95% of attempts in
+        # trending regimes — much stricter than the clean BTC backtest
+        # suggested, since real trends rarely offer an exact 50%
+        # pullback before continuing. Widened to a configurable
+        # threshold (default 60%) — LONG allowed up to the lower 60%
+        # of the range (not just lower 50%), matching how ICT
+        # practitioners commonly extend the "discount" zone band.
         if direction == "LONG":
-            zone_ok = price <= midpoint       # Discount zone
+            zone_ok = position_pct <= zone_threshold_pct
             zone = "discount"
         else:
-            zone_ok = price >= midpoint       # Premium zone
+            zone_ok = position_pct >= (100 - zone_threshold_pct)
             zone = "premium"
 
         return {
