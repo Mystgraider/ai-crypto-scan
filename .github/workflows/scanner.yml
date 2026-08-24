@@ -49,7 +49,7 @@ jobs:
         run: |
           git config user.name "Elite Scanner Bot"
           git config user.email "bot@elitescanner.dev"
-          git add storage/signals.csv storage/cooldown.json storage/circuit_breaker.json storage/scan_debug_log.jsonl || true
+          git add storage/signals.csv storage/cooldown.json storage/circuit_breaker.json storage/scan_debug_log.jsonl storage/experiment_4h_log.jsonl || true
           git diff --staged --quiet || git commit -m "chore: update signals [skip ci]"
           git push || true
 

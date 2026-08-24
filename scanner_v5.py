@@ -111,6 +111,17 @@ def main():
     sr_engine      = SupportResistanceEngine()
     vp_engine      = VolumeProfileEngine()
     rrce_engine    = RRCEEngine()
+
+    # V6.9.20 (EXPERIMENT ONLY): a second, isolated RRCE instance on
+    # 4H/1H timeframes with a wider Equal-High/Low tolerance (0.15%
+    # was tuned for 15m; 4H needs more room since price moves further
+    # between swing points at that scale). This does NOT feed into
+    # candidates, signals.csv, or Telegram — it only writes its own
+    # observation log so we can see if 4H can find setups at all
+    # without risking the verified 15m/5m live system.
+    experiment_4h_engine = RRCEEngine(swing_lookback=10, eq_tolerance_pct=0.6)
+    experiment_4h_log = []
+
     sizer          = PositionSizer()
     funding_engine = FundingEngine()
     beta_filter    = BetaFilter()
@@ -392,6 +403,30 @@ def main():
                 except Exception as _rrce_e:
                     print(f"      ⚠️  {symbol} RRCE multi-TF fetch/eval failed: {_rrce_e}")
 
+                # ── EXPERIMENT (V6.9.20, isolated, log-only) ─────────────
+                # 4H Range/Sweep + 1H Confirmation/Execution, wider EQH/
+                # EQL tolerance. Wrapped in its own try/except so any
+                # failure here can NEVER affect the real pipeline above.
+                # Does not touch skip[], candidates, or continue/break.
+                try:
+                    _exp_4h_raw = market_loader.get_4h(symbol)
+                    _exp_4h = Indicators.apply(_exp_4h_raw)
+                    _exp_1h = Indicators.apply(df_1h.copy())
+                    if len(_exp_4h) >= 20 and len(_exp_1h) >= 20:
+                        _exp_result = experiment_4h_engine.evaluate(
+                            df_htf=_exp_4h, df_mtf=_exp_4h,
+                            df_ltf_confirm=_exp_1h, df_ltf_exec=_exp_1h,
+                            direction=direction, price=price,
+                        )
+                        experiment_4h_log.append({
+                            "symbol": symbol, "direction": direction,
+                            "valid": _exp_result.get("valid"),
+                            "failed_at": _exp_result.get("failed_at"),
+                            "stage1_position_pct": (_exp_result.get("stage1") or {}).get("position_pct"),
+                        })
+                except Exception as _exp_e:
+                    experiment_4h_log.append({"symbol": symbol, "direction": direction, "error": str(_exp_e)})
+
                 # V6.9.1: RRCE is now a HARD REQUIREMENT, not just a bonus.
                 # A candidate must pass all 4 stages (Range -> Retail
                 # Liquidity -> Confirmation -> Execution) or it is rejected
@@ -641,6 +676,21 @@ def main():
             f.write(_json.dumps(debug_row) + "\n")
     except Exception as _e:
         print(f"      ⚠️  debug log write failed: {_e}")
+
+    # V6.9.20: write the isolated 4H experiment log to its OWN file —
+    # never touches scan_debug_log.jsonl or signals.csv.
+    try:
+        exp_valid = sum(1 for r in experiment_4h_log if r.get("valid"))
+        exp_row = {
+            "ts": _dt.now(_tz.utc).isoformat(),
+            "total_checked": len(experiment_4h_log),
+            "valid_count": exp_valid,
+            "results": experiment_4h_log,
+        }
+        with open("storage/experiment_4h_log.jsonl", "a") as f:
+            f.write(_json.dumps(exp_row) + "\n")
+    except Exception as _e:
+        print(f"      ⚠️  experiment log write failed: {_e}")
 
     # ── Step 4: AI Ranking ─────────────────────────────────────────────────
     print("\n[4/8] AI Ranking...")
