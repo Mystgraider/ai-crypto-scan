@@ -169,6 +169,7 @@ def main():
     print(f"\n[3/8] Scanning {len(symbols)} symbols...")
 
     candidates = []
+    stage1_position_samples = []  # V6.9.19: real position_pct values on Stage 1 failures
     skip = {
         "cooldown": 0, "dated": 0, "btc": 0, "trend": 0,
         "funding": 0, "high_beta": 0, "sr_no_ceil": 0,
@@ -401,6 +402,14 @@ def main():
                     fail_stage = rrce_result.get("failed_at", "no_data") if rrce_result else "fetch_error"
                     stage_key = f"rrce_fail_{fail_stage}"
                     skip[stage_key] = skip.get(stage_key, 0) + 1
+
+                    # V6.9.19: track actual position_pct on Stage 1
+                    # failures so we can see the REAL distribution
+                    # instead of guessing what threshold to use.
+                    if fail_stage == "stage1_range" and rrce_result:
+                        s1_data = rrce_result.get("stage1")
+                        if s1_data and "position_pct" in s1_data:
+                            stage1_position_samples.append(s1_data["position_pct"])
                     continue
 
                 if direction == "SHORT" and CONFIG["short_requires_resistance"]:
@@ -620,6 +629,11 @@ def main():
             "btc_regime_adx": btc_regime.get("adx"),
             "btc_regime_rsi": btc_regime.get("rsi"),
             "btc_regime_reason": btc_regime.get("reason"),
+            "stage1_position_pct_count": len(stage1_position_samples),
+            "stage1_position_pct_min": round(min(stage1_position_samples), 1) if stage1_position_samples else None,
+            "stage1_position_pct_max": round(max(stage1_position_samples), 1) if stage1_position_samples else None,
+            "stage1_position_pct_avg": round(sum(stage1_position_samples)/len(stage1_position_samples), 1) if stage1_position_samples else None,
+            "stage1_position_pct_median": round(sorted(stage1_position_samples)[len(stage1_position_samples)//2], 1) if stage1_position_samples else None,
             **skip,
         }
         debug_path = "storage/scan_debug_log.jsonl"
