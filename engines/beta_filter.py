@@ -42,7 +42,14 @@ PREFERRED_SHORT = {
 
 class BetaFilter:
 
-    HIGH_BETA_THRESHOLD   = 1.5
+    # V6.9.22: raised from 1.5. Live debug log showed this blocking
+    # 245 of 274 SHORT attempts in a single scan — most altcoins are
+    # structurally 2-4x more volatile than BTC just by nature of
+    # smaller market caps, so 1.5x was catching almost everything, not
+    # just genuinely dangerous outliers. Concept (protect against
+    # violent SHORT squeezes) stays; bar raised to actually
+    # discriminate high-risk coins from normal altcoin volatility.
+    HIGH_BETA_THRESHOLD   = 2.5
     MEDIUM_BETA_THRESHOLD = 0.8
 
     def calculate_beta(
