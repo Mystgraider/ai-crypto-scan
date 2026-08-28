@@ -70,8 +70,31 @@ class RRCEEngine:
         if highs.empty or lows.empty:
             return None
 
-        range_high = float(highs.max())
-        range_low  = float(lows.min())
+        # V6.9.21: measured live data showed the OLD approach (max/min
+        # across the whole lookback envelope) leaves position_pct
+        # averaging 118-126% in trending markets — price constantly
+        # breaks out beyond a stale historical range, so Discount/
+        # Premium becomes meaningless (V6.9.18's 60% widening couldn't
+        # help since real failures cluster far beyond even that).
+        # Fix: anchor the Range to the CURRENT active leg — the most
+        # recent swing high and the most recent swing low — so a fresh
+        # breakout immediately becomes part of the new range instead
+        # of sitting stale above an old one. This matches how ICT
+        # discount/premium is actually meant to be applied (per
+        # dealing range / current leg, not a fixed calendar window).
+        last_high_idx = highs.index[-1]
+        last_low_idx  = lows.index[-1]
+        if last_high_idx > last_low_idx:
+            # most recent leg: swing low -> swing high (up-leg)
+            range_high = float(highs.iloc[-1])
+            prior_lows = lows[lows.index < last_high_idx]
+            range_low = float(prior_lows.iloc[-1]) if not prior_lows.empty else float(lows.min())
+        else:
+            # most recent leg: swing high -> swing low (down-leg)
+            range_low = float(lows.iloc[-1])
+            prior_highs = highs[highs.index < last_low_idx]
+            range_high = float(prior_highs.iloc[-1]) if not prior_highs.empty else float(highs.max())
+
         if range_high <= range_low:
             return None
 
