@@ -181,6 +181,7 @@ def main():
 
     candidates = []
     stage1_position_samples = []  # V6.9.19: real position_pct values on Stage 1 failures
+    stage2_pool_counts = []       # V6.9.23: how many Equal High/Low pools were found (even when unswept)
     skip = {
         "cooldown": 0, "dated": 0, "btc": 0, "trend": 0,
         "funding": 0, "high_beta": 0, "sr_no_ceil": 0,
@@ -445,6 +446,19 @@ def main():
                         s1_data = rrce_result.get("stage1")
                         if s1_data and "position_pct" in s1_data:
                             stage1_position_samples.append(s1_data["position_pct"])
+
+                    # V6.9.23: same discipline for Stage 2 - distinguish
+                    # "no pool found near the range extreme at all" vs
+                    # "a pool exists but hasn't been swept yet", plus
+                    # how many pools existed in total. Pure observation.
+                    if fail_stage == "stage2_retail_liquidity" and rrce_result:
+                        s2_data = rrce_result.get("stage2")
+                        if s2_data:
+                            reason = s2_data.get("reason", "pool_found_not_swept")
+                            skip[f"s2_reason_{reason}"] = skip.get(f"s2_reason_{reason}", 0) + 1
+                            pools = s2_data.get("pools")
+                            if pools is not None:
+                                stage2_pool_counts.append(len(pools))
                     continue
 
                 if direction == "SHORT" and CONFIG["short_requires_resistance"]:
@@ -669,6 +683,8 @@ def main():
             "stage1_position_pct_max": round(max(stage1_position_samples), 1) if stage1_position_samples else None,
             "stage1_position_pct_avg": round(sum(stage1_position_samples)/len(stage1_position_samples), 1) if stage1_position_samples else None,
             "stage1_position_pct_median": round(sorted(stage1_position_samples)[len(stage1_position_samples)//2], 1) if stage1_position_samples else None,
+            "stage2_pool_count_avg": round(sum(stage2_pool_counts)/len(stage2_pool_counts), 2) if stage2_pool_counts else None,
+            "stage2_zero_pool_pct": round(sum(1 for c in stage2_pool_counts if c == 0) / len(stage2_pool_counts) * 100, 1) if stage2_pool_counts else None,
             **skip,
         }
         debug_path = "storage/scan_debug_log.jsonl"
