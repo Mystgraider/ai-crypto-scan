@@ -182,6 +182,16 @@ def main():
     candidates = []
     stage1_position_samples = []  # V6.9.19: real position_pct values on Stage 1 failures
     stage2_pool_counts = []       # V6.9.23: how many Equal High/Low pools were found (even when unswept)
+
+    # V6.9.24: full-pipeline trace for a handful of known-clean, high-
+    # liquidity majors, so we can see the EXACT journey/checkpoint
+    # where each one gets blocked, with real values — not just
+    # aggregate counts. Writes to its own file, no effect on scoring.
+    TRACE_SYMBOLS = {"ETH/USDT:USDT", "SOL/USDT:USDT", "BNB/USDT:USDT", "XRP/USDT:USDT", "LTC/USDT:USDT"}
+    symbol_trace_log = []
+    def _trace(sym, stage, **extra):
+        if sym in TRACE_SYMBOLS:
+            symbol_trace_log.append({"symbol": sym, "stage": stage, **extra})
     skip = {
         "cooldown": 0, "dated": 0, "btc": 0, "trend": 0,
         "funding": 0, "high_beta": 0, "sr_no_ceil": 0,
@@ -202,12 +212,15 @@ def main():
             continue
         if is_dated_futures(symbol):
             skip["dated"] += 1
+            _trace(symbol, "dated_or_stock_token")
             continue
         if is_stock_token(symbol):
             skip["dated"] += 1
+            _trace(symbol, "dated_or_stock_token")
             continue
         if is_on_cooldown(symbol):
             skip["cooldown"] += 1
+            _trace(symbol, "cooldown")
             continue
 
         try:
@@ -266,6 +279,7 @@ def main():
             if CONFIG.get("require_trend_gate", True):
                 if trend["direction"] == "NONE":
                     skip["trend"] += 1
+                    _trace(symbol, "trend_none_and_gate_required")
                     reason_key = f"trend_reason_{trend.get('filters', 'unknown')}"
                     skip[reason_key] = skip.get(reason_key, 0) + 1
                     continue
@@ -294,9 +308,11 @@ def main():
                 if CONFIG["btc_filter_enabled"]:
                     if direction == "LONG"  and not btc_regime["allow_long"]:
                         skip["btc"] += 1
+                        _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
                         continue
                     if direction == "SHORT" and not btc_regime["allow_short"]:
                         skip["btc"] += 1
+                        _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
                         continue
 
                 # V6.5: Data-driven hard blocks from 88-trade closed-signal
@@ -307,9 +323,11 @@ def main():
                 # more data.
                 if CONFIG.get("block_bear_regime", True) and btc_regime["regime"] in ("BEAR", "BEAR_CAUTION"):
                     skip["btc"] += 1
+                    _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
                     continue
                 if CONFIG.get("pause_shorts", True) and direction == "SHORT":
                     skip["btc"] += 1
+                    _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
                     continue
 
                 # V6.9.9 fix: the RANGE regime's extra-strict 85
@@ -324,6 +342,7 @@ def main():
                 if btc_regime["regime"] == "RANGE" and trend["direction"] != "NONE":
                     if effective_trend_score < CONFIG.get("range_regime_min_score", 85):
                         skip["btc"] += 1
+                        _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
                         continue
 
                 # ── Funding Rate ───────────────────────────────────────────
@@ -334,9 +353,11 @@ def main():
                     funding_result["funding_pct_raw"] = fr
                     if direction == "LONG"  and not funding_result["long_ok"]:
                         skip["funding"] += 1
+                        _trace(symbol, "funding_block", direction=direction)
                         continue
                     if direction == "SHORT" and not funding_result["short_ok"]:
                         skip["funding"] += 1
+                        _trace(symbol, "funding_block", direction=direction)
                         continue
 
                 # ── Beta Filter (SHORT only) ───────────────────────────────
@@ -349,6 +370,7 @@ def main():
                     )
                     if not beta_result["short_ok"]:
                         skip["high_beta"] += 1
+                        _trace(symbol, "beta_block", direction=direction)
                         continue
 
                 # ── S/R Levels ─────────────────────────────────────────────
@@ -435,6 +457,7 @@ def main():
                 # of the score looks.
                 if not rrce_result or not rrce_result.get("valid"):
                     skip["rrce_invalid"] = skip.get("rrce_invalid", 0) + 1
+                    _trace(symbol, "rrce_invalid", direction=direction)
                     fail_stage = rrce_result.get("failed_at", "no_data") if rrce_result else "fetch_error"
                     stage_key = f"rrce_fail_{fail_stage}"
                     skip[stage_key] = skip.get(stage_key, 0) + 1
@@ -464,6 +487,7 @@ def main():
                 if direction == "SHORT" and CONFIG["short_requires_resistance"]:
                     if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):
                         skip["sr_no_ceil"] += 1
+                        _trace(symbol, "sr_no_ceiling", direction=direction)
                         continue
 
                 # ── Relative Strength ──────────────────────────────────────
@@ -475,11 +499,13 @@ def main():
 
                 if rs["rs_label"] == "WEAK":
                     skip["weak_rs"] += 1
+                    _trace(symbol, "weak_rs", direction=direction)
                     continue
 
                 rs_max = CONFIG.get("rs_max_ratio", 10.0)
                 if rs.get("rs_ratio", 1.0) > rs_max:
                     skip["weak_rs"] += 1
+                    _trace(symbol, "weak_rs", direction=direction)
                     continue
 
                 # ── Volume hard cap (config: vol_max_ratio) ────────────────
@@ -488,6 +514,7 @@ def main():
                 vol_max = CONFIG.get("vol_max_ratio", 2.0)
                 if rel_volume > vol_max:
                     skip["quality"] += 1
+                    _trace(symbol, "quality_block", direction=direction)
                     continue
 
                 # ── Volume Spike ───────────────────────────────────────────
@@ -538,6 +565,7 @@ def main():
 
                 if CONFIG["mtf_reject_counter_trend"] and mtf_status in ("REJECTED", "SKIPPED"):
                     skip["mtf"] += 1
+                    _trace(symbol, "mtf_block", direction=direction)
                     continue
 
                 # ── Quality Engine (V6 — with Stoch + BB + MACD) ──────────
@@ -576,8 +604,10 @@ def main():
                 if not validator.validate(direction, effective_trend_score, effective_quality_score, risk):
                     if risk is None:
                         skip["risk"] += 1
+                        _trace(symbol, "risk_none", direction=direction)
                     else:
                         skip["quality"] += 1
+                        _trace(symbol, "quality_block", direction=direction)
                     continue
 
                 # ── Composite Score ────────────────────────────────────────
@@ -597,6 +627,7 @@ def main():
                 # blocked ("below min_score"), so don't fire these.
                 if g == "D":
                     skip["d_grade"] += 1
+                    _trace(symbol, "d_grade_block", direction=direction)
                     continue
 
                 # V6.3: Hard ceiling — composite >= 84 means the move likely
@@ -608,6 +639,7 @@ def main():
                     skip["overextended"] = skip.get("overextended", 0) + 1
                     continue
 
+                _trace(symbol, "CANDIDATE_FOUND", direction=direction)
                 candidates.append({
                     "symbol":          symbol,
                     "direction":       direction,
@@ -707,6 +739,14 @@ def main():
             f.write(_json.dumps(exp_row) + "\n")
     except Exception as _e:
         print(f"      ⚠️  experiment log write failed: {_e}")
+
+    # V6.9.24: write the per-symbol full-pipeline trace to its own file
+    try:
+        trace_row = {"ts": _dt.now(_tz.utc).isoformat(), "trace": symbol_trace_log}
+        with open("storage/symbol_trace_log.jsonl", "a") as f:
+            f.write(_json.dumps(trace_row) + "\n")
+    except Exception as _e:
+        print(f"      ⚠️  symbol trace log write failed: {_e}")
 
     # ── Step 4: AI Ranking ─────────────────────────────────────────────────
     print("\n[4/8] AI Ranking...")
