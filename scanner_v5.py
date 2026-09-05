@@ -24,7 +24,6 @@ from loaders.market_data_loader  import MarketDataLoader
 from indicators.indicators       import Indicators
 from engines.trend_engine        import TrendEngine
 from engines.quality_engine      import QualityEngine
-from engines.risk_engine         import RiskEngine
 from engines.validator           import SignalValidator
 from engines.btc_filter          import BTCFilter
 from engines.multiframe_engine   import MultiFrameEngine
@@ -102,7 +101,6 @@ def main():
     exchange       = market_loader.exchange
     trend_engine   = TrendEngine()
     quality_engine = QualityEngine()
-    risk_engine    = RiskEngine()
     validator      = SignalValidator()
     btc_filter     = BTCFilter()
     mtf_engine     = MultiFrameEngine()
@@ -199,6 +197,7 @@ def main():
         "d_grade": 0, "overextended": 0, "rrce_invalid": 0,
         "rrce_stage1_passed": 0, "rrce_stage2_passed": 0,
         "rrce_stage3_passed": 0, "rrce_stage4_valid": 0,
+        "rrce_entry_away": 0, "rrce_entry_invalid": 0,
         "time_budget_stop": 0, "errors": 0
     }
 
@@ -509,6 +508,27 @@ def main():
                             skip[f"s3_reason_{reason}"] = skip.get(f"s3_reason_{reason}", 0) + 1
                     continue
 
+                # RRCE Stage 4 deliberately identifies a pullback entry at
+                # the Order Block/FVG.  Do not discard that information and
+                # enter at an already-extended market price: the alert is
+                # actionable only while the live price remains close enough
+                # to the structural entry, with its structural SL/TP intact.
+                rrce_risk = rrce_engine.live_entry_levels(
+                    direction=direction,
+                    live_price=price,
+                    stage4=rrce_result["stage4"],
+                    max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
+                    min_rr=CONFIG["min_rr"],
+                )
+                if not rrce_risk["valid"]:
+                    if rrce_risk["reason"] == "price_away_from_rrce_entry":
+                        skip["rrce_entry_away"] += 1
+                    else:
+                        skip["rrce_entry_invalid"] += 1
+                    _trace(symbol, "rrce_entry_block", direction=direction,
+                           reason=rrce_risk["reason"])
+                    continue
+
                 if direction == "SHORT" and CONFIG["short_requires_resistance"]:
                     if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):
                         skip["sr_no_ceil"] += 1
@@ -623,7 +643,9 @@ def main():
                         pass
 
                 # ── Risk Engine ────────────────────────────────────────────
-                risk = risk_engine.calculate(direction, price, atr)
+                # The risk levels come from the RRCE sweep/target structure,
+                # validated above against the executable live price.
+                risk = rrce_risk
 
                 # ── Validator ──────────────────────────────────────────────
                 if not validator.validate(direction, effective_trend_score, effective_quality_score, risk):
@@ -715,6 +737,7 @@ def main():
         f"rs:{skip['weak_rs']} q:{skip['quality']} "
         f"risk:{skip['risk']} d:{skip['d_grade']} "
         f"overext:{skip['overextended']} rrce:{skip['rrce_invalid']} "
+        f"rrce_away:{skip['rrce_entry_away']} "
         f"budget_stop:{skip['time_budget_stop']} err:{skip['errors']}"
     )
 

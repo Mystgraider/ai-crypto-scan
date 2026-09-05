@@ -118,6 +118,12 @@ CONFIG = {
     # Prevents "sobrang late na" signals after a long scan cycle.
     "max_entry_drift_pct": 0.6,
 
+    # RRCE finds an Order Block/FVG pullback zone.  Do not turn a confirmed
+    # setup into a chase: only alert when the live price remains this close to
+    # that structural entry.  The final staleness guard above still protects
+    # the price movement that can happen while the alert is being sent.
+    "rrce_entry_max_deviation_pct": 0.4,
+
     # Funding rate
     "funding_enabled":           True,
     "funding_short_block_above":  0.0001,
