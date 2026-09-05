@@ -49,6 +49,66 @@ class RRCEEngine:
         self.swing_lookback = swing_lookback
         self.eq_tolerance_pct = eq_tolerance_pct
 
+    @staticmethod
+    def live_entry_levels(direction: str, live_price: float, stage4: dict,
+                          max_deviation_pct: float, min_rr: float) -> dict:
+        """Validate a live fill against the RRCE pullback zone.
+
+        RRCE's Stage 4 identifies an Order Block/FVG entry, structural stop,
+        and liquidity target.  A batch scanner cannot assume that historical
+        entry is still fillable by the time it sends an alert, so this method
+        rejects prices that have already moved away from the zone.  For an
+        accepted live price, it keeps the structural stop and target, then
+        recalculates the risk/reward using the executable price.
+        """
+        if not stage4:
+            return {"valid": False, "reason": "missing_stage4"}
+
+        planned_entry = float(stage4["entry"])
+        sl = float(stage4["sl"])
+        tp = float(stage4["tp"])
+        if planned_entry <= 0 or live_price <= 0:
+            return {"valid": False, "reason": "invalid_price"}
+
+        deviation_pct = abs(live_price - planned_entry) / planned_entry * 100
+        if deviation_pct > max_deviation_pct:
+            return {
+                "valid": False,
+                "reason": "price_away_from_rrce_entry",
+                "planned_entry": planned_entry,
+                "deviation_pct": round(deviation_pct, 3),
+            }
+
+        if direction == "LONG":
+            valid_structure = sl < live_price < tp
+        elif direction == "SHORT":
+            valid_structure = tp < live_price < sl
+        else:
+            return {"valid": False, "reason": "invalid_direction"}
+
+        if not valid_structure:
+            return {"valid": False, "reason": "invalid_live_structure"}
+
+        risk = abs(live_price - sl)
+        reward = abs(tp - live_price)
+        rr = reward / risk if risk else 0.0
+        if rr < min_rr:
+            return {"valid": False, "reason": "rr_below_minimum", "rr": round(rr, 2)}
+
+        return {
+            "valid": True,
+            "entry": live_price,
+            "sl": sl,
+            "tp1": tp,
+            # RRCE has one structural target.  Preserve the alert schema by
+            # using it for every target rather than inventing ATR targets.
+            "tp2": tp,
+            "tp3": tp,
+            "rr": round(rr, 2),
+            "planned_entry": planned_entry,
+            "deviation_pct": round(deviation_pct, 3),
+        }
+
     # ── shared helper ────────────────────────────────────────────────────
     def _find_swings(self, df: pd.DataFrame, n: int = None) -> pd.DataFrame:
         n = n or self.swing_lookback

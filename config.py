@@ -4,7 +4,12 @@ CONFIG = {
     "exchange": "bitget",
 
     # Scanning
-    "top_coins_limit": 300,
+    # Keep the universe small enough for the 5-minute schedule.  Each symbol
+    # can require several multi-timeframe exchange requests, so scanning 300
+    # symbols regularly ran into the 8-minute scan budget before completing.
+    # The 100 most-liquid USDT futures retain broad market coverage while
+    # allowing a complete run to finish substantially sooner.
+    "top_coins_limit": 100,
     "timeframe": "1h",
     "ohlcv_limit": 100,
     "ohlcv_4h_limit": 50,
@@ -112,6 +117,12 @@ CONFIG = {
     # much (%) from the computed entry by the time we're about to send.
     # Prevents "sobrang late na" signals after a long scan cycle.
     "max_entry_drift_pct": 0.6,
+
+    # RRCE finds an Order Block/FVG pullback zone.  Do not turn a confirmed
+    # setup into a chase: only alert when the live price remains this close to
+    # that structural entry.  The final staleness guard above still protects
+    # the price movement that can happen while the alert is being sent.
+    "rrce_entry_max_deviation_pct": 0.4,
 
     # Funding rate
     "funding_enabled":           True,
