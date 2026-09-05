@@ -196,7 +196,10 @@ def main():
         "cooldown": 0, "dated": 0, "btc": 0, "trend": 0,
         "funding": 0, "high_beta": 0, "sr_no_ceil": 0,
         "weak_rs": 0, "mtf": 0, "quality": 0, "risk": 0,
-        "d_grade": 0, "overextended": 0, "rrce_invalid": 0, "time_budget_stop": 0, "errors": 0
+        "d_grade": 0, "overextended": 0, "rrce_invalid": 0,
+        "rrce_stage1_passed": 0, "rrce_stage2_passed": 0,
+        "rrce_stage3_passed": 0, "rrce_stage4_valid": 0,
+        "time_budget_stop": 0, "errors": 0
     }
 
     for symbol in symbols:
@@ -455,6 +458,26 @@ def main():
                 # Liquidity -> Confirmation -> Execution) or it is rejected
                 # outright — no exceptions, regardless of how good the rest
                 # of the score looks.
+                # Persist pass-through counts as well as failures. The old
+                # log could identify the first failed stage, but could not
+                # quantify how often a setup reached each later stage.
+                if rrce_result:
+                    s1_data = rrce_result.get("stage1")
+                    s2_data = rrce_result.get("stage2")
+                    s3_data = rrce_result.get("stage3")
+                    if s1_data and s1_data.get("passed"):
+                        skip["rrce_stage1_passed"] += 1
+                    if s2_data:
+                        pools = s2_data.get("pools")
+                        if pools is not None:
+                            stage2_pool_counts.append(len(pools))
+                        if s2_data.get("passed"):
+                            skip["rrce_stage2_passed"] += 1
+                    if s3_data and s3_data.get("passed"):
+                        skip["rrce_stage3_passed"] += 1
+                    if rrce_result.get("valid"):
+                        skip["rrce_stage4_valid"] += 1
+
                 if not rrce_result or not rrce_result.get("valid"):
                     skip["rrce_invalid"] = skip.get("rrce_invalid", 0) + 1
                     _trace(symbol, "rrce_invalid", direction=direction)
@@ -479,9 +502,11 @@ def main():
                         if s2_data:
                             reason = s2_data.get("reason", "pool_found_not_swept")
                             skip[f"s2_reason_{reason}"] = skip.get(f"s2_reason_{reason}", 0) + 1
-                            pools = s2_data.get("pools")
-                            if pools is not None:
-                                stage2_pool_counts.append(len(pools))
+                    if fail_stage == "stage3_confirmation" and rrce_result:
+                        s3_data = rrce_result.get("stage3")
+                        if s3_data:
+                            reason = s3_data.get("reason", "unknown")
+                            skip[f"s3_reason_{reason}"] = skip.get(f"s3_reason_{reason}", 0) + 1
                     continue
 
                 if direction == "SHORT" and CONFIG["short_requires_resistance"]:
