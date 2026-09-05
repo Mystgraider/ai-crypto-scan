@@ -53,12 +53,12 @@ class RRCEEngine:
     def _find_swings(self, df: pd.DataFrame, n: int = None) -> pd.DataFrame:
         n = n or self.swing_lookback
         d = df.copy()
-        d["swing_high"] = d["high"][
-            (d["high"] == d["high"].rolling(2 * n + 1, center=True).max())
-        ]
-        d["swing_low"] = d["low"][
-            (d["low"] == d["low"].rolling(2 * n + 1, center=True).min())
-        ]
+        d["swing_high"] = d["high"].where(
+            d["high"] == d["high"].rolling(2 * n + 1, center=True).max()
+        )
+        d["swing_low"] = d["low"].where(
+            d["low"] == d["low"].rolling(2 * n + 1, center=True).min()
+        )
         return d
 
     # ── Stage 1: RANGE (HTF) ─────────────────────────────────────────────
@@ -189,6 +189,11 @@ class RRCEEngine:
 
         return {
             "passed": bool(swept),
+            # Keep the failure detail too. The scanner persists these fields
+            # so a signal drought can distinguish a missing pool from a pool
+            # that was found but not swept during the observation window.
+            "reason": None if swept else "pool_found_not_swept",
+            "pools": pools,
             "pool_level": pool["level"],
             "pool_touches": pool["touches"],
             "sweep_extreme": sweep_extreme,

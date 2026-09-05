@@ -26,9 +26,9 @@ def summarize(path=P):
                 rows += 1
                 last_row = obj
                 for k, v in obj.items():
-                    if k.startswith('rrce_fail_'):
+                    if k.startswith('rrce_fail_') or k.startswith('rrce_stage'):
                         c[k] += int(v) if isinstance(v, int) else 0
-                    if k.startswith('s2_reason_'):
+                    if k.startswith('s2_reason_') or k.startswith('s3_reason_'):
                         c[k] += int(v) if isinstance(v, int) else 0
                 # aggregated fields
                 s1_count = obj.get('stage1_position_pct_count')
@@ -63,10 +63,22 @@ def summarize(path=P):
     else:
         print("No rrce_fail_* keys found in the log (they may be zero or absent).")
 
+    pass_keys = {k: v for k, v in c.items() if k.startswith('rrce_stage')}
+    if pass_keys:
+        print("\nRRCE pass-through counts:")
+        for k, v in sorted(pass_keys.items()):
+            print(f"  {k}: {v}")
+
     s2_keys = {k: v for k, v in c.items() if k.startswith('s2_reason_')}
     if s2_keys:
         print("\nStage2 (retail liquidity) reasons:")
         for k, v in sorted(s2_keys.items(), key=lambda x: x[1], reverse=True):
+            print(f"  {k}: {v}")
+
+    s3_keys = {k: v for k, v in c.items() if k.startswith('s3_reason_')}
+    if s3_keys:
+        print("\nStage3 (confirmation) reasons:")
+        for k, v in sorted(s3_keys.items(), key=lambda x: x[1], reverse=True):
             print(f"  {k}: {v}")
 
     if stage2_pool_counts:
