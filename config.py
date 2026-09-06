@@ -124,6 +124,19 @@ CONFIG = {
     # the price movement that can happen while the alert is being sent.
     "rrce_entry_max_deviation_pct": 0.4,
 
+    # RANGE-regime RRCE tuning. Keep the price-in-range requirement strict,
+    # but give 15m liquidity pools slightly more time and price tolerance in
+    # choppy markets. A valid sweep, CHoCH, FVG, and executable entry remain
+    # mandatory before a trade alert can fire.
+    "rrce_default_patience_bars": 6,
+    "rrce_range_patience_bars":   8,
+    "rrce_default_eq_tolerance_pct": 0.15,
+    "rrce_range_eq_tolerance_pct":   0.20,
+
+    # Persist swept Stage-2 setups while waiting for the 5m CHoCH/FVG. This
+    # is diagnostic/watchlist state only; it never creates a trade signal.
+    "rrce_watchlist_hours": 4,
+
     # Funding rate
     "funding_enabled":           True,
     "funding_short_block_above":  0.0001,
