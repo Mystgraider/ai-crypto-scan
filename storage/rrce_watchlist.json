@@ -1,0 +1,14 @@
+{
+  "XRP/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-06T01:22:42.502497+00:00",
+    "last_seen": "2026-09-06T01:22:42.502497+00:00",
+    "observations": 1,
+    "pool_level": 1.4118,
+    "range_high": 1.4224,
+    "range_low": 1.4118,
+    "regime": "RANGE",
+    "sweep_extreme": 1.4108,
+    "symbol": "XRP/USDT:USDT"
+  }
+}
