@@ -40,6 +40,7 @@ from engines.circuit_breaker     import check as circuit_check
 from alerts.telegram_alerts      import send_telegram_alert, format_signal
 from storage.signal_logger       import save_signal
 from storage.cooldown_manager    import is_on_cooldown, set_cooldown
+from storage.rrce_watchlist      import active_count, record_stage2_setup
 from tracker.signal_tracker      import SignalTracker
 from reports.analytics_engine    import AnalyticsEngine
 from ai.signal_ranker            import AISignalRanker
@@ -108,7 +109,12 @@ def main():
     rs_engine      = RelativeStrengthEngine()
     sr_engine      = SupportResistanceEngine()
     vp_engine      = VolumeProfileEngine()
-    rrce_engine    = RRCEEngine()
+    rrce_engine = RRCEEngine(
+        eq_tolerance_pct=CONFIG["rrce_default_eq_tolerance_pct"]
+    )
+    range_rrce_engine = RRCEEngine(
+        eq_tolerance_pct=CONFIG["rrce_range_eq_tolerance_pct"]
+    )
 
     # V6.9.20 (EXPERIMENT ONLY): a second, isolated RRCE instance on
     # 4H/1H timeframes with a wider Equal-High/Low tolerance (0.15%
@@ -419,10 +425,22 @@ def main():
                     _df_rrce_5m = Indicators.apply(_df_rrce_5m_raw)
 
                     if len(_df_rrce_15m) >= 20 and len(_df_rrce_5m) >= 20:
-                        rrce_result = rrce_engine.evaluate(
+                        # Choppy BTC RANGE conditions get a modestly wider
+                        # equal-level tolerance and two extra 15m candles to
+                        # complete a sweep. All four RRCE stages still gate
+                        # a live alert, so this cannot turn a forming setup
+                        # into a tradable signal by itself.
+                        is_range_regime = btc_regime["regime"] == "RANGE"
+                        active_rrce_engine = range_rrce_engine if is_range_regime else rrce_engine
+                        patience_bars = (
+                            CONFIG["rrce_range_patience_bars"] if is_range_regime
+                            else CONFIG["rrce_default_patience_bars"]
+                        )
+                        rrce_result = active_rrce_engine.evaluate(
                             df_htf=_df_rrce_15m, df_mtf=_df_rrce_15m,
                             df_ltf_confirm=_df_rrce_5m, df_ltf_exec=_df_rrce_5m,
                             direction=direction, price=price,
+                            patience_bars=patience_bars,
                         )
                         rrce_bonus = rrce_result["bonus"]
                 except Exception as _rrce_e:
@@ -472,6 +490,18 @@ def main():
                             stage2_pool_counts.append(len(pools))
                         if s2_data.get("passed"):
                             skip["rrce_stage2_passed"] += 1
+                            try:
+                                watchlist_count = record_stage2_setup(
+                                    symbol=symbol,
+                                    direction=direction,
+                                    regime=btc_regime["regime"],
+                                    stage1=s1_data,
+                                    stage2=s2_data,
+                                    ttl_hours=CONFIG["rrce_watchlist_hours"],
+                                )
+                                skip["rrce_watchlist_active"] = watchlist_count
+                            except Exception as watchlist_error:
+                                print(f"      ⚠️  RRCE watchlist write failed: {watchlist_error}")
                     if s3_data and s3_data.get("passed"):
                         skip["rrce_stage3_passed"] += 1
                     if rrce_result.get("valid"):
@@ -765,6 +795,7 @@ def main():
             "stage1_position_pct_median": round(sorted(stage1_position_samples)[len(stage1_position_samples)//2], 1) if stage1_position_samples else None,
             "stage2_pool_count_avg": round(sum(stage2_pool_counts)/len(stage2_pool_counts), 2) if stage2_pool_counts else None,
             "stage2_zero_pool_pct": round(sum(1 for c in stage2_pool_counts if c == 0) / len(stage2_pool_counts) * 100, 1) if stage2_pool_counts else None,
+            "rrce_watchlist_active": active_count(CONFIG["rrce_watchlist_hours"]),
             **skip,
         }
         debug_path = "storage/scan_debug_log.jsonl"
