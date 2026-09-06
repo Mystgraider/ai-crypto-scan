@@ -1,4 +1,16 @@
 {
+  "AAVE/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-06T22:28:03.428253+00:00",
+    "last_seen": "2026-09-06T22:28:03.428253+00:00",
+    "observations": 1,
+    "pool_level": 133.69,
+    "range_high": 136.02,
+    "range_low": 132.0,
+    "regime": "RANGE",
+    "sweep_extreme": 133.52,
+    "symbol": "AAVE/USDT:USDT"
+  },
   "AR/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-06T18:36:00.428605+00:00",
@@ -33,6 +45,18 @@
     "range_low": 0.01365,
     "regime": "RANGE",
     "sweep_extreme": 0.0138,
+    "symbol": "CHZ/USDT:USDT"
+  },
+  "CHZ/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-06T22:28:30.927127+00:00",
+    "last_seen": "2026-09-06T22:28:30.927127+00:00",
+    "observations": 1,
+    "pool_level": 0.01396,
+    "range_high": 0.01396,
+    "range_low": 0.01365,
+    "regime": "RANGE",
+    "sweep_extreme": 0.01399,
     "symbol": "CHZ/USDT:USDT"
   },
   "KNC/USDT:USDT|SHORT": {
@@ -95,11 +119,23 @@
     "sweep_extreme": 2.135,
     "symbol": "NEO/USDT:USDT"
   },
+  "QTUM/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-06T22:28:44.890308+00:00",
+    "last_seen": "2026-09-06T22:28:44.890308+00:00",
+    "observations": 1,
+    "pool_level": 0.8785,
+    "range_high": 0.8785,
+    "range_low": 0.8631,
+    "regime": "RANGE",
+    "sweep_extreme": 0.8818,
+    "symbol": "QTUM/USDT:USDT"
+  },
   "STG/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-06T20:49:37.972561+00:00",
-    "last_seen": "2026-09-06T20:49:37.972561+00:00",
-    "observations": 1,
+    "last_seen": "2026-09-06T22:28:49.716560+00:00",
+    "observations": 2,
     "pool_level": 0.1696,
     "range_high": 0.1723,
     "range_low": 0.1681,
@@ -110,13 +146,25 @@
   "TLM/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-06T20:50:14.294483+00:00",
-    "last_seen": "2026-09-06T20:50:14.294483+00:00",
-    "observations": 1,
+    "last_seen": "2026-09-06T22:29:13.581832+00:00",
+    "observations": 2,
     "pool_level": 0.0014480000000000003,
     "range_high": 0.001465,
-    "range_low": 0.001434,
+    "range_low": 0.001444,
     "regime": "RANGE",
     "sweep_extreme": 0.001448,
     "symbol": "TLM/USDT:USDT"
+  },
+  "XRP/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-06T22:27:52.764664+00:00",
+    "last_seen": "2026-09-06T22:27:52.764664+00:00",
+    "observations": 1,
+    "pool_level": 1.4253,
+    "range_high": 1.4263,
+    "range_low": 1.3959,
+    "regime": "RANGE",
+    "sweep_extreme": 1.4265,
+    "symbol": "XRP/USDT:USDT"
   }
 }
