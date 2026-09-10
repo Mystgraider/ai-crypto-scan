@@ -1,1 +1,14 @@
-{}
+{
+  "COMP/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-10T17:27:17.468402+00:00",
+    "last_seen": "2026-09-10T17:27:17.468402+00:00",
+    "observations": 1,
+    "pool_level": 19.97,
+    "range_high": 19.97,
+    "range_low": 19.54,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 20.02,
+    "symbol": "COMP/USDT:USDT"
+  }
+}
