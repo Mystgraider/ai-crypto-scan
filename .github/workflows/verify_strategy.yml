@@ -2,6 +2,8 @@ name: Verify Strategy Integrity
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
     paths:
@@ -12,11 +14,17 @@ on:
       - 'engines/live_entry_integrity.py'
       - 'engines/validator.py'
       - 'scanner_v5.py'
+      - 'storage/signal_logger.py'
       - 'ai/signal_ranker.py'
       - 'ai/confidence_engine.py'
+      - 'reports/calibration_engine.py'
+      - 'reports/calibration_report.py'
       - 'tests/test_phase2b_engines.py'
       - 'tests/test_phase2c_decision_pipeline.py'
       - 'tests/test_phase2d_ai_integrity.py'
+      - 'tests/test_phase2d_b0_logging.py'
+      - 'tests/test_phase2d_b1_calibration.py'
+      - 'tests/test_phase2d_b2_reporting.py'
       - 'tests/test_rrce_strategy_integrity.py'
       - 'tests/test_live_entry_integrity.py'
       - '.github/workflows/verify_strategy.yml'
@@ -42,7 +50,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify Phase 1C, Phase 2A, Phase 2B, Phase 2C and Phase 2D-A
+      - name: Verify Phase 1C, Phase 2A, Phase 2B, Phase 2C, Phase 2D-A, Phase 2D-B0, Phase 2D-B1 and Phase 2D-B2
         run: |
           python -m py_compile \
             engines/beta_filter.py \
@@ -52,16 +60,25 @@ jobs:
             engines/live_entry_integrity.py \
             engines/validator.py \
             scanner_v5.py \
+            storage/signal_logger.py \
             ai/signal_ranker.py \
             ai/confidence_engine.py \
+            reports/calibration_engine.py \
+            reports/calibration_report.py \
             tests/test_live_entry_integrity.py \
             tests/test_rrce_strategy_integrity.py \
             tests/test_phase2b_engines.py \
             tests/test_phase2c_decision_pipeline.py \
-            tests/test_phase2d_ai_integrity.py
+            tests/test_phase2d_ai_integrity.py \
+            tests/test_phase2d_b0_logging.py \
+            tests/test_phase2d_b1_calibration.py \
+            tests/test_phase2d_b2_reporting.py
           python -m pytest -q \
             tests/test_live_entry_integrity.py \
             tests/test_rrce_strategy_integrity.py \
             tests/test_phase2b_engines.py \
             tests/test_phase2c_decision_pipeline.py \
-            tests/test_phase2d_ai_integrity.py
+            tests/test_phase2d_ai_integrity.py \
+            tests/test_phase2d_b0_logging.py \
+            tests/test_phase2d_b1_calibration.py \
+            tests/test_phase2d_b2_reporting.py

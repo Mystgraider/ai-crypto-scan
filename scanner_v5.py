@@ -185,8 +185,8 @@ def main():
     print(f"\n[3/8] Scanning {len(symbols)} symbols...")
 
     candidates = []
-    stage1_position_samples = []  # V6.9.19: real position_pct values on Stage 1 failures
-    stage2_pool_counts = []       # V6.9.23: how many Equal High/Low pools were found (even when unswept)
+    stage1_position_samples = []
+    stage2_pool_counts = []
 
     TRACE_SYMBOLS = {"ETH/USDT:USDT", "SOL/USDT:USDT", "BNB/USDT:USDT", "XRP/USDT:USDT", "LTC/USDT:USDT"}
     symbol_trace_log = []
@@ -285,7 +285,6 @@ def main():
 
             for direction in candidate_directions:
 
-                # Do not manufacture a passing score when the legacy trend gate is disabled.
                 effective_trend_score = trend_score
 
                 if CONFIG["btc_filter_enabled"]:
@@ -536,7 +535,6 @@ def main():
                     rel_volume=rel_volume, rsi=rsi, direction=direction,
                     stoch_k=stoch_k, bb_pct_b=bb_pct_b, macd_hist=macd_hist,
                 )
-                # Keep the observed quality score even when the legacy quality gate is disabled.
                 effective_quality_score = quality_score
 
                 oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}
@@ -820,6 +818,9 @@ def main():
             funding_pct=sig["funding_pct"],
             oi_signal=sig["oi_signal"],
             beta_label=sig["beta_label"],
+            ai_rank_score=sig.get("ai_rank_score", sig.get("ai_composite")),
+            ai_rank_raw=sig.get("ai_rank_raw"),
+            confidence=confidence,
         )
 
         set_cooldown(sig["symbol"])
