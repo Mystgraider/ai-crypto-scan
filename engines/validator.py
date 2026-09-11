@@ -26,13 +26,10 @@ class SignalValidator:
 
         min_score = CONFIG["min_score"]
 
-        if trend_score < min_score:
+        if CONFIG.get("require_trend_gate", True) and trend_score < min_score:
             return False
 
-        # Quality score: slightly relaxed — quality engine
-        # already hard-caps overbought/oversold at score 20
-        # so fake signals are caught there, not here
-        if quality_score < min_score:
+        if CONFIG.get("require_quality_engine", True) and quality_score < min_score:
             return False
 
         return True

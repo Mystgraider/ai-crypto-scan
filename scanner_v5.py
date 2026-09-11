@@ -285,10 +285,8 @@ def main():
 
             for direction in candidate_directions:
 
-                if not CONFIG.get("require_trend_gate", True) and trend["direction"] == "NONE":
-                    effective_trend_score = CONFIG["min_score"]
-                else:
-                    effective_trend_score = trend_score
+                # Do not manufacture a passing score when the legacy trend gate is disabled.
+                effective_trend_score = trend_score
 
                 if CONFIG["btc_filter_enabled"]:
                     if direction == "LONG"  and not btc_regime["allow_long"]:
@@ -538,24 +536,31 @@ def main():
                     rel_volume=rel_volume, rsi=rsi, direction=direction,
                     stoch_k=stoch_k, bb_pct_b=bb_pct_b, macd_hist=macd_hist,
                 )
+                # Keep the observed quality score even when the legacy quality gate is disabled.
                 effective_quality_score = quality_score
-                if not CONFIG.get("require_quality_engine", True) and quality_score < CONFIG["min_score"]:
-                    effective_quality_score = CONFIG["min_score"]
 
                 oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}
                 if CONFIG["oi_enabled"]:
                     try:
                         oi_data = oi_engine.fetch_oi(exchange, symbol)
-                        if oi_data["available"]:
-                            price_chg = float(df_1h["close"].pct_change().iloc[-1] * 100)
-                            oi_result = oi_engine.analyze(
-                                current_oi=oi_data["current_oi"],
-                                previous_oi=oi_data["previous_oi"],
-                                price_change=price_chg,
-                                direction=direction,
-                            )
-                    except Exception:
-                        pass
+                        if not oi_data.get("available"):
+                            skip["oi_unavailable"] = skip.get("oi_unavailable", 0) + 1
+                            _trace(symbol, "oi_unavailable", direction=direction,
+                                   reason=oi_data.get("reason", "unknown"))
+                            continue
+
+                        price_chg = float(df_1h["close"].pct_change().iloc[-1] * 100)
+                        oi_result = oi_engine.analyze(
+                            current_oi=oi_data["current_oi"],
+                            previous_oi=oi_data["previous_oi"],
+                            price_change=price_chg,
+                            direction=direction,
+                        )
+                    except Exception as _oi_error:
+                        skip["oi_unavailable"] = skip.get("oi_unavailable", 0) + 1
+                        _trace(symbol, "oi_unavailable", direction=direction,
+                               reason=type(_oi_error).__name__)
+                        continue
 
                 risk = rrce_risk
 
@@ -724,7 +729,7 @@ def main():
                 direction=sig["direction"],
                 live_price=fresh_price,
                 stage4=sig.get("_rrce_stage4"),
-                max_deviation_pct=max_drift,
+                max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
                 min_rr=CONFIG["min_rr"],
             )
             if not live_risk.get("valid"):
@@ -793,7 +798,8 @@ def main():
             f"💸 Funding: <i>{sig['funding_pct']}%</i> | "
             f"OI: <i>{sig['oi_signal']}</i> | "
             f"Beta: <i>{sig['beta_label']}</i>\n"
-            f"🤖 Confidence: <b>{confidence}%</b>\n\n"
+            f"🤖 Confidence: <b>{confidence}%</b> | "
+            f"AI Rank: <b>{sig.get('ai_composite', sig['composite'])}</b>\n\n"
             f"{sizer.format_recommendation(sizing)}"
         )
 
