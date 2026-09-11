@@ -54,9 +54,9 @@ def save_signal(
         "direction":  direction,
         "entry":      entry,
         "sl":         sl,
-        "tp1":        tp1,
-        "tp2":        tp2,
-        "tp3":        tp3,
+        "tp1":         tp1,
+        "tp2":         tp2,
+        "tp3":         tp3,
         "score":      round(score, 2),
         "grade":      grade,
         "rr":         rr,
@@ -86,19 +86,33 @@ def load_signals() -> list[dict]:
         return list(csv.DictReader(f))
 
 
-def update_signal_status(symbol: str, direction: str, entry: float, new_status: str):
+def update_signal_tracking(
+    symbol: str,
+    direction: str,
+    entry: float,
+    new_status: str,
+    new_sl: float | None = None,
+) -> bool:
+    """Update the latest active matching signal.
+
+    Unlike the legacy update_signal_status(), this function supports the
+    intermediate OPEN_TP1/OPEN_TP2 lifecycle states and can persist the
+    breakeven stop after TP1.
+    """
     _ensure_file()
     rows = load_signals()
     updated = False
 
     for row in reversed(rows):
         if (
-            row["symbol"]    == symbol and
-            row["direction"] == direction and
-            float(row["entry"]) == entry and
-            row["status"]    == "OPEN"
+            row["symbol"] == symbol
+            and row["direction"] == direction
+            and float(row["entry"]) == entry
+            and row["status"] in {"OPEN", "OPEN_TP1", "OPEN_TP2"}
         ):
             row["status"] = new_status
+            if new_sl is not None:
+                row["sl"] = new_sl
             updated = True
             break
 
@@ -109,3 +123,8 @@ def update_signal_status(symbol: str, direction: str, entry: float, new_status: 
             writer.writerows(rows)
 
     return updated
+
+
+def update_signal_status(symbol: str, direction: str, entry: float, new_status: str):
+    """Backward-compatible wrapper for older callers."""
+    return update_signal_tracking(symbol, direction, entry, new_status)
