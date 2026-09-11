@@ -821,6 +821,7 @@ def main():
             ai_rank_score=sig.get("ai_rank_score", sig.get("ai_composite")),
             ai_rank_raw=sig.get("ai_rank_raw"),
             confidence=confidence,
+            ai_attribution=sig.get("ai_attribution"),
         )
 
         set_cooldown(sig["symbol"])
