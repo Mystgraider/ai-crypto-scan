@@ -28,6 +28,27 @@ def test_attribution_schema_and_rounding():
     }
 
 
+def test_attribution_preserves_aggregate_independently():
+    # Attribution is a snapshot of existing rank outputs; it must not
+    # recalculate or assume that arbitrary fixture components sum to the rank.
+    result = build_attribution(
+        trend_component=10,
+        quality_component=20,
+        rs_component=30,
+        oi_component=4,
+        rr_component=5,
+        sr_component=2,
+        category_component=1,
+        ai_rank_score=81.5,
+        ai_rank_raw=81.53,
+    )
+
+    assert result["ai_rank_score"] == 81.5
+    assert result["ai_rank_raw"] == 81.53
+    assert sum(result["components"].values()) == 72
+    assert sum(result["components"].values()) != result["ai_rank_score"]
+
+
 def test_attribution_does_not_mutate_inputs():
     result = build_attribution(
         trend_component=10,
