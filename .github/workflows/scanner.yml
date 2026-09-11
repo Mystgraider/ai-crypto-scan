@@ -41,61 +41,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Apply Phase 1C live-entry integrity patch
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('scanner_v5.py')
-          text = path.read_text()
-          marker = 'from engines.live_entry_integrity import revalidate as revalidate_live_entry'
-
-          if marker not in text:
-              old_import = 'from engines.position_sizer      import PositionSizer\n'
-              new_import = old_import + marker + '\n'
-              assert old_import in text, 'position_sizer import anchor not found'
-              text = text.replace(old_import, new_import, 1)
-
-              old_initial = '''                rrce_risk = rrce_engine.live_entry_levels(\n                    direction=direction,\n                    live_price=price,\n                    stage4=rrce_result["stage4"],\n                    max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],\n                    min_rr=CONFIG["min_rr"],\n                )\n'''
-              new_initial = '''                rrce_risk = active_rrce_engine.live_entry_levels(\n                    direction=direction,\n                    live_price=price,\n                    stage4=rrce_result["stage4"],\n                    max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],\n                    min_rr=CONFIG["min_rr"],\n                )\n'''
-              assert text.count(old_initial) == 1, 'initial RRCE live-entry block not found exactly once'
-              text = text.replace(old_initial, new_initial, 1)
-
-              old_candidate = '''                    "rr":              risk["rr"],\n                    "entry":           risk["entry"],\n                    "sl":              risk["sl"],\n                    "tp1":             risk["tp1"],\n                    "tp2":             risk["tp2"],\n                    "tp3":             risk["tp3"],\n                    "rsi":             round(rsi, 2),\n'''
-              new_candidate = '''                    "rr":              risk["rr"],\n                    "entry":           risk["entry"],\n                    "sl":              risk["sl"],\n                    "tp1":             risk["tp1"],\n                    "tp2":             risk["tp2"],\n                    "tp3":             risk["tp3"],\n                    "_rrce_stage4":   rrce_result["stage4"],\n                    "_rrce_engine_mode": "range" if is_range_regime else "default",\n                    "rsi":             round(rsi, 2),\n'''
-              assert text.count(old_candidate) == 1, 'candidate risk field anchor not found exactly once'
-              text = text.replace(old_candidate, new_candidate, 1)
-
-              old_alert = '''        try:\n            fresh_price = float(exchange.fetch_ticker(sig["symbol"])["last"])\n            drift_pct = abs(fresh_price - sig["entry"]) / sig["entry"] * 100\n            max_drift = CONFIG.get("max_entry_drift_pct", 0.6)\n            if drift_pct > max_drift:\n                print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "\n                      f"price drifted {drift_pct:.2f}% since detection "\n                      f"(entry {sig['entry']} → now {fresh_price})")\n                continue\n            sig["entry"] = fresh_price\n        except Exception as e:\n            print(f"  ⚠️  {sig['symbol']} staleness check failed ({e}) — sending with original entry")\n'''
-              new_alert = '''        try:\n            fresh_price = float(exchange.fetch_ticker(sig["symbol"])["last"])\n            drift_pct = abs(fresh_price - sig["entry"]) / sig["entry"] * 100\n            max_drift = CONFIG.get("max_entry_drift_pct", 0.6)\n            if drift_pct > max_drift:\n                print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "\n                      f"price drifted {drift_pct:.2f}% since detection "\n                      f"(entry {sig['entry']} → now {fresh_price})")\n                continue\n\n            live_rrce_engine = (\n                range_rrce_engine\n                if sig.get("_rrce_engine_mode") == "range"\n                else rrce_engine\n            )\n            live_risk = revalidate_live_entry(\n                rrce_engine=live_rrce_engine,\n                direction=sig["direction"],\n                live_price=fresh_price,\n                stage4=sig.get("_rrce_stage4"),\n                max_deviation_pct=max_drift,\n                min_rr=CONFIG["min_rr"],\n            )\n            if not live_risk.get("valid"):\n                print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "\n                      f"live RRCE revalidation failed: {live_risk.get('reason', 'unknown')}")\n                continue\n\n            # Replace the complete executable risk set before sizing, Telegram,\n            # or persistence uses the signal.\n            sig["entry"] = live_risk["entry"]\n            sig["sl"] = live_risk["sl"]\n            sig["tp1"] = live_risk["tp1"]\n            sig["tp2"] = live_risk["tp2"]\n            sig["tp3"] = live_risk["tp3"]\n            sig["rr"] = live_risk["rr"]\n        except Exception as e:\n            print(f"  ⚠️  {sig['symbol']} live entry validation failed ({e}) — skipping signal")\n            continue\n'''
-              assert text.count(old_alert) == 1, 'alert live-price block not found exactly once'
-              text = text.replace(old_alert, new_alert, 1)
-
-              old_before_save = '''        save_signal(\n            symbol=sig["symbol"],'''
-              new_before_save = '''        sig.pop("_rrce_stage4", None)\n        sig.pop("_rrce_engine_mode", None)\n\n        save_signal(\n            symbol=sig["symbol"],'''
-              assert text.count(old_before_save) == 1, 'save_signal anchor not found exactly once'
-              text = text.replace(old_before_save, new_before_save, 1)
-
-              path.write_text(text)
-              print('Phase 1C patch applied.')
-          else:
-              print('Phase 1C patch already present; no changes needed.')
-          PY
-
       - name: Verify Phase 1C syntax and focused tests
         run: |
           python -m py_compile scanner_v5.py engines/live_entry_integrity.py tests/test_live_entry_integrity.py
           python -m pytest -q tests/test_live_entry_integrity.py
-
-      - name: Commit Phase 1C scanner patch
-        run: |
-          git config user.name "Elite Scanner Bot"
-          git config user.email "bot@elitescanner.dev"
-          if ! git diff --quiet -- scanner_v5.py; then
-            git add scanner_v5.py
-            git commit -m "fix: revalidate live RRCE entry levels before alert"
-            git push
-          fi
 
       - name: Run Scanner V5
         run: python scanner_v5.py
