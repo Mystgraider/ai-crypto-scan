@@ -1,0 +1,53 @@
+name: Verify Strategy Integrity
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'engines/beta_filter.py'
+      - 'engines/funding_engine.py'
+      - 'engines/oi_engine.py'
+      - 'engines/rrce_engine.py'
+      - 'engines/live_entry_integrity.py'
+      - 'tests/test_phase2b_engines.py'
+      - 'tests/test_rrce_strategy_integrity.py'
+      - 'tests/test_live_entry_integrity.py'
+      - '.github/workflows/verify_strategy.yml'
+      - 'requirements.txt'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify Phase 1C, Phase 2A and Phase 2B
+        run: |
+          python -m py_compile \
+            engines/beta_filter.py \
+            engines/funding_engine.py \
+            engines/oi_engine.py \
+            engines/rrce_engine.py \
+            engines/live_entry_integrity.py \
+            tests/test_live_entry_integrity.py \
+            tests/test_rrce_strategy_integrity.py \
+            tests/test_phase2b_engines.py
+          python -m pytest -q \
+            tests/test_live_entry_integrity.py \
+            tests/test_rrce_strategy_integrity.py \
+            tests/test_phase2b_engines.py
