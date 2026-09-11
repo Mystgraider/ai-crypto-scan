@@ -1,1 +1,14 @@
-{}
+{
+  "LTC/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-11T03:44:35.594692+00:00",
+    "last_seen": "2026-09-11T03:44:35.594692+00:00",
+    "observations": 1,
+    "pool_level": 52.54,
+    "range_high": 52.97,
+    "range_low": 51.93,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 52.74,
+    "symbol": "LTC/USDT:USDT"
+  }
+}
