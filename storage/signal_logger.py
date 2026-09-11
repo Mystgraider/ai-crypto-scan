@@ -6,13 +6,17 @@ SIGNALS_FILE = "storage/signals.csv"
 
 FIELDNAMES = [
     "timestamp", "symbol", "direction",
-    "entry", "sl", "tp1", "tp2", "tp3",
+    "entry", "initial_sl", "sl", "tp1", "tp2", "tp3",
     "score", "grade", "rr",
     "adx", "rsi", "rel_volume", "spike_tier",
     "mtf_status", "btc_regime", "rs_label",
     "funding_pct", "oi_signal", "beta_label",
-    "status"
+    "status",
+    "tp1_hit_at", "tp2_hit_at", "tp3_hit_at",
+    "exit_at", "exit_price", "realized_r",
 ]
+
+ACTIVE_STATUSES = {"OPEN", "OPEN_TP1", "OPEN_TP2"}
 
 
 def _ensure_file():
@@ -24,59 +28,32 @@ def _ensure_file():
 
 
 def save_signal(
-    symbol:     str,
-    direction:  str,
-    entry:      float,
-    sl:         float,
-    tp1:        float,
-    tp2:        float,
-    tp3:        float,
-    score:      float = 0.0,
-    grade:      str   = "C",
-    rr:         float = 0.0,
-    adx:        float = 0.0,
-    rsi:        float = 0.0,
-    rel_volume: float = 0.0,
-    spike_tier: str   = "",
-    mtf_status: str   = "",
-    btc_regime: str   = "",
-    rs_label:   str   = "",
-    funding_pct: str  = "0",
-    oi_signal:  str   = "",
-    beta_label: str   = "",
-    status:     str   = "OPEN",
+    symbol: str, direction: str, entry: float, sl: float,
+    tp1: float, tp2: float, tp3: float,
+    score: float = 0.0, grade: str = "C", rr: float = 0.0,
+    adx: float = 0.0, rsi: float = 0.0, rel_volume: float = 0.0,
+    spike_tier: str = "", mtf_status: str = "", btc_regime: str = "",
+    rs_label: str = "", funding_pct: str = "0", oi_signal: str = "",
+    beta_label: str = "", status: str = "OPEN",
 ):
     _ensure_file()
-
     row = {
-        "timestamp":  datetime.now(timezone.utc).isoformat(),
-        "symbol":     symbol,
-        "direction":  direction,
-        "entry":      entry,
-        "sl":         sl,
-        "tp1":         tp1,
-        "tp2":         tp2,
-        "tp3":         tp3,
-        "score":      round(score, 2),
-        "grade":      grade,
-        "rr":         rr,
-        "adx":        round(adx, 2),
-        "rsi":        round(rsi, 2),
-        "rel_volume": round(rel_volume, 2),
-        "spike_tier": spike_tier,
-        "mtf_status": mtf_status,
-        "btc_regime": btc_regime,
-        "rs_label":   rs_label,
-        "funding_pct": funding_pct,
-        "oi_signal":  oi_signal,
-        "beta_label": beta_label,
-        "status":     status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "symbol": symbol, "direction": direction,
+        "entry": entry, "initial_sl": sl, "sl": sl,
+        "tp1": tp1, "tp2": tp2, "tp3": tp3,
+        "score": round(score, 2), "grade": grade, "rr": rr,
+        "adx": round(adx, 2), "rsi": round(rsi, 2),
+        "rel_volume": round(rel_volume, 2), "spike_tier": spike_tier,
+        "mtf_status": mtf_status, "btc_regime": btc_regime,
+        "rs_label": rs_label, "funding_pct": funding_pct,
+        "oi_signal": oi_signal, "beta_label": beta_label,
+        "status": status,
+        "tp1_hit_at": "", "tp2_hit_at": "", "tp3_hit_at": "",
+        "exit_at": "", "exit_price": "", "realized_r": "",
     }
-
     with open(SIGNALS_FILE, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        writer.writerow(row)
-
+        csv.DictWriter(f, fieldnames=FIELDNAMES).writerow(row)
     print(f"📝 Logged: {symbol} {direction} @ {entry}")
 
 
@@ -87,32 +64,44 @@ def load_signals() -> list[dict]:
 
 
 def update_signal_tracking(
-    symbol: str,
-    direction: str,
-    entry: float,
-    new_status: str,
-    new_sl: float | None = None,
+    symbol: str, direction: str, entry: float, new_status: str,
+    new_sl: float | None = None, event_at: str | None = None,
+    event_price: float | None = None, realized_r: float | None = None,
 ) -> bool:
-    """Update the latest active matching signal.
-
-    Unlike the legacy update_signal_status(), this function supports the
-    intermediate OPEN_TP1/OPEN_TP2 lifecycle states and can persist the
-    breakeven stop after TP1.
-    """
+    """Persist lifecycle state and event data for the latest active signal."""
     _ensure_file()
     rows = load_signals()
     updated = False
+    event_at = event_at or datetime.now(timezone.utc).isoformat()
 
     for row in reversed(rows):
         if (
-            row["symbol"] == symbol
-            and row["direction"] == direction
-            and float(row["entry"]) == entry
-            and row["status"] in {"OPEN", "OPEN_TP1", "OPEN_TP2"}
+            row.get("symbol") == symbol
+            and row.get("direction") == direction
+            and float(row.get("entry", 0)) == entry
+            and row.get("status") in ACTIVE_STATUSES
         ):
             row["status"] = new_status
+            if not row.get("initial_sl"):
+                row["initial_sl"] = row.get("sl", "")
             if new_sl is not None:
                 row["sl"] = new_sl
+
+            if new_status == "OPEN_TP1" and not row.get("tp1_hit_at"):
+                row["tp1_hit_at"] = event_at
+            elif new_status == "OPEN_TP2" and not row.get("tp2_hit_at"):
+                row["tp2_hit_at"] = event_at
+            elif new_status == "TP3_HIT":
+                row["tp3_hit_at"] = event_at
+                row["exit_at"] = event_at
+            elif new_status in {"SL_HIT", "EXPIRED"}:
+                row["exit_at"] = event_at
+
+            if event_price is not None and new_status in {"TP3_HIT", "SL_HIT"}:
+                row["exit_price"] = event_price
+            if realized_r is not None and new_status in {"TP3_HIT", "SL_HIT", "EXPIRED"}:
+                row["realized_r"] = round(realized_r, 6)
+
             updated = True
             break
 
@@ -121,7 +110,6 @@ def update_signal_tracking(
             writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
             writer.writeheader()
             writer.writerows(rows)
-
     return updated
 
 
