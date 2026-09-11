@@ -41,10 +41,64 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify Phase 1C and Phase 2 strategy integrity
+      - name: Apply Phase 2B scanner compatibility patch
         run: |
-          python -m py_compile scanner_v5.py engines/rrce_engine.py engines/live_entry_integrity.py tests/test_live_entry_integrity.py tests/test_rrce_strategy_integrity.py
-          python -m pytest -q tests/test_live_entry_integrity.py tests/test_rrce_strategy_integrity.py
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("scanner_v5.py")
+          s = p.read_text()
+
+          old_funding = '''                funding_result = {"funding_pct": 0.0, "funding_pct_raw": 0.0, "short_score_adj": 0}
+                if CONFIG["funding_enabled"]:
+                    fr = funding_engine.fetch_funding(exchange, symbol)
+                    funding_result = funding_engine.analyze(fr)
+                    funding_result["funding_pct_raw"] = fr
+                    if direction == "LONG"  and not funding_result["long_ok"]:
+                        skip["funding"] += 1
+                        _trace(symbol, "funding_block", direction=direction)
+                        continue
+                    if direction == "SHORT" and not funding_result["short_ok"]:
+                        skip["funding"] += 1
+                        _trace(symbol, "funding_block", direction=direction)
+                        continue
+'''
+          new_funding = '''                funding_result = {"available": False, "funding_pct": None, "funding_pct_raw": None, "short_score_adj": 0}
+                if CONFIG["funding_enabled"]:
+                    fr = funding_engine.fetch_funding(exchange, symbol)
+                    funding_result = funding_engine.analyze(fr)
+                    funding_result["funding_pct_raw"] = fr if funding_result.get("available") else None
+                    if not funding_result.get("available"):
+                        skip["funding"] += 1
+                        _trace(symbol, "funding_unavailable", direction=direction,
+                               reason=funding_result.get("reason", "unknown"))
+                        continue
+                    if direction == "LONG" and not funding_result["long_ok"]:
+                        skip["funding"] += 1
+                        _trace(symbol, "funding_block", direction=direction)
+                        continue
+                    if direction == "SHORT" and not funding_result["short_ok"]:
+                        skip["funding"] += 1
+                        _trace(symbol, "funding_block", direction=direction)
+                        continue
+'''
+          if s.count(old_funding) != 1:
+              raise SystemExit(f"funding patch expected 1 match, found {s.count(old_funding)}")
+          s = s.replace(old_funding, new_funding)
+
+          old_oi = '                oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}\n'
+          new_oi = '                oi_result = {"available": False, "oi_signal": "UNAVAILABLE", "score_adj": 0, "oi_change_pct": None}\n'
+          if s.count(old_oi) != 1:
+              raise SystemExit(f"OI patch expected 1 match, found {s.count(old_oi)}")
+          s = s.replace(old_oi, new_oi)
+
+          p.write_text(s)
+          PY
+          git diff -- scanner_v5.py
+
+      - name: Verify Phase 1C, Phase 2A and Phase 2B integrity
+        run: |
+          python -m py_compile scanner_v5.py engines/rrce_engine.py engines/live_entry_integrity.py engines/beta_filter.py engines/funding_engine.py engines/oi_engine.py tests/test_live_entry_integrity.py tests/test_rrce_strategy_integrity.py tests/test_phase2b_engines.py
+          python -m pytest -q tests/test_live_entry_integrity.py tests/test_rrce_strategy_integrity.py tests/test_phase2b_engines.py
 
       - name: Run Scanner V5
         run: python scanner_v5.py
@@ -54,8 +108,8 @@ jobs:
         run: |
           git config user.name "Elite Scanner Bot"
           git config user.email "bot@elitescanner.dev"
-          git add storage/signals.csv storage/cooldown.json storage/circuit_breaker.json storage/rrce_watchlist.json storage/scan_debug_log.jsonl storage/experiment_4h_log.jsonl storage/symbol_trace_log.jsonl || true
-          git diff --staged --quiet || git commit -m "chore: update signals [skip ci]"
+          git add scanner_v5.py storage/signals.csv storage/cooldown.json storage/circuit_breaker.json storage/rrce_watchlist.json storage/scan_debug_log.jsonl storage/experiment_4h_log.jsonl storage/symbol_trace_log.jsonl || true
+          git diff --staged --quiet || git commit -m "fix: propagate Phase 2B data availability"
           git push || true
 
   daily_report:
