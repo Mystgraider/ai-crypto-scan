@@ -49,8 +49,6 @@ class SignalTracker:
                     print(f"  ⏰ {s['symbol']} {s['direction']} → EXPIRED (age: {age_h}h)")
                     continue
             except Exception:
-                # Preserve previous behavior: a malformed timestamp must not
-                # prevent price tracking of an otherwise valid signal.
                 pass
             signals.append(s)
 
@@ -77,7 +75,7 @@ class SignalTracker:
                 print(f"  ⚠️  {symbol}: price fetch failed — {e}")
                 continue
 
-            result = self._check(direction, price, sl, tp1, tp2, tp3, status)
+            result = self._check(direction, price, entry, sl, tp1, tp2, tp3, status)
             if not result:
                 continue
 
@@ -107,7 +105,7 @@ class SignalTracker:
     def _short_tp_hit(price, tp):
         return price <= tp
 
-    def _check(self, direction, price, sl, tp1, tp2, tp3, status="OPEN") -> dict | None:
+    def _check(self, direction, price, entry, sl, tp1, tp2, tp3, status="OPEN") -> dict | None:
         """Return the next lifecycle event without mutating persistent state."""
         if direction == "LONG":
             sl_hit = self._long_sl_hit
@@ -124,15 +122,15 @@ class SignalTracker:
             if tp_hit(price, tp3):
                 return {"status": "TP3_HIT"}
             if tp_hit(price, tp2):
-                return {"status": "OPEN_TP2", "sl": sl}
+                return {"status": "OPEN_TP2"}
             if tp_hit(price, tp1):
-                return {"status": "OPEN_TP1", "sl": entry_from_levels(status, sl, tp1)}
+                return {"status": "OPEN_TP1", "sl": entry}
 
         elif status == "OPEN_TP1":
             if tp_hit(price, tp3):
                 return {"status": "TP3_HIT"}
             if tp_hit(price, tp2):
-                return {"status": "OPEN_TP2", "sl": sl}
+                return {"status": "OPEN_TP2"}
 
         elif status == "OPEN_TP2":
             if tp_hit(price, tp3):
@@ -141,12 +139,5 @@ class SignalTracker:
         return None
 
 
-def entry_from_levels(status, sl, tp1):
-    """Compatibility helper placeholder; tracker passes entry through run().
-
-    The actual breakeven value is supplied by run() in the public helper below.
-    This function exists only to keep _check() pure for existing callers.
-    """
-    # For direct _check() tests, callers can validate that TP1 advances state.
-    # Persistence uses the signal's real entry via _check_with_entry().
-    return sl
+if __name__ == "__main__":
+    SignalTracker().run()
