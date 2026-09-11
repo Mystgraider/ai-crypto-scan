@@ -122,7 +122,8 @@ class SignalTracker:
             if tp_hit(price, tp3):
                 return {"status": "TP3_HIT"}
             if tp_hit(price, tp2):
-                return {"status": "OPEN_TP2"}
+                # If price jumped directly to TP2, TP1 is necessarily passed.
+                return {"status": "OPEN_TP2", "sl": entry}
             if tp_hit(price, tp1):
                 return {"status": "OPEN_TP1", "sl": entry}
 
