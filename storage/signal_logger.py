@@ -11,6 +11,7 @@ FIELDNAMES = [
     "adx", "rsi", "rel_volume", "spike_tier",
     "mtf_status", "btc_regime", "rs_label",
     "funding_pct", "oi_signal", "beta_label",
+    "ai_rank_score", "ai_rank_raw", "confidence",
     "status",
     "tp1_hit_at", "tp2_hit_at", "tp3_hit_at",
     "exit_at", "exit_price", "realized_r",
@@ -25,6 +26,21 @@ def _ensure_file():
         with open(SIGNALS_FILE, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
             writer.writeheader()
+        return
+
+    # Migrate older tracked CSV schemas in-place before any append/update.
+    with open(SIGNALS_FILE, "r", newline="") as f:
+        reader = csv.DictReader(f)
+        existing_fields = reader.fieldnames or []
+        if existing_fields == FIELDNAMES:
+            return
+        rows = list(reader)
+
+    with open(SIGNALS_FILE, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({field: row.get(field, "") for field in FIELDNAMES})
 
 
 def save_signal(
@@ -34,7 +50,9 @@ def save_signal(
     adx: float = 0.0, rsi: float = 0.0, rel_volume: float = 0.0,
     spike_tier: str = "", mtf_status: str = "", btc_regime: str = "",
     rs_label: str = "", funding_pct: str = "0", oi_signal: str = "",
-    beta_label: str = "", status: str = "OPEN",
+    beta_label: str = "", ai_rank_score: float | None = None,
+    ai_rank_raw: float | None = None, confidence: float | None = None,
+    status: str = "OPEN",
 ):
     _ensure_file()
     row = {
@@ -48,6 +66,9 @@ def save_signal(
         "mtf_status": mtf_status, "btc_regime": btc_regime,
         "rs_label": rs_label, "funding_pct": funding_pct,
         "oi_signal": oi_signal, "beta_label": beta_label,
+        "ai_rank_score": "" if ai_rank_score is None else round(ai_rank_score, 2),
+        "ai_rank_raw": "" if ai_rank_raw is None else round(ai_rank_raw, 2),
+        "confidence": "" if confidence is None else round(confidence, 2),
         "status": status,
         "tp1_hit_at": "", "tp2_hit_at": "", "tp3_hit_at": "",
         "exit_at": "", "exit_price": "", "realized_r": "",
