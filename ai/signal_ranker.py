@@ -1,67 +1,70 @@
 """
-AI Signal Ranker — V6.0
+AI Signal Ranker — V6.1
 =========================
-Upgrades from V5.x:
-- OI signal now properly weighted in composite score
-- MACD histogram strength as a ranking factor
-- Stoch RSI position bonus
-- BB position quality bonus
-- Funding rate score incorporated
-- Adjusted weights for tighter signal quality
+Ranks eligible candidates separately from the trading composite score.
 
-Ranking weights:
-  35% trend_score     — how strong is the trend
-  22% quality_score   — volume + RSI + Stoch + BB quality
-  18% rs_score        — relative strength vs BTC
-  10% oi_bonus        — OI confirms direction
-   8% rr              — risk/reward ratio
-   5% sr_bonus        — near S/R level bonus
-   2% funding_bonus   — funding rate alignment
+Important:
+- ``composite`` remains the trading/decision score produced by the scanner.
+- ``ai_rank_score`` is a bounded 0-100 ranking score used only to order
+  already-eligible candidates.
+- ``ai_composite`` is retained as a backward-compatible alias of
+  ``ai_rank_score``.
+- AI rank score is NOT a win probability or confidence percentage.
+
+Ranking inputs:
+  35% trend_score
+  22% quality_score
+  18% rs_score
+  10% OI alignment
+   8% risk/reward
+   5% S/R bonus
+  plus small categorical bonuses for funding, MTF and grade.
 """
 
 
 class AISignalRanker:
 
-    # V6.3: Score paradox — historical data showed Grade B (70-82) 
-    # outperformed Grade A/S (82+) win rate. High composite scores often
-    # mean the move already confirmed (volume/RSI already extended) =
-    # late entry, harder to catch. Weight B highest to prioritize
-    # early-stage setups over already-flown ones.
+    # Historical ranking preference. This affects ordering only; it does not
+    # redefine the scanner's trading score or imply a probability of success.
     GRADE_WEIGHT = {"S": 3, "A": 3, "B": 5, "C": 1, "D": 0}
 
     OI_BONUS = {
-        "CONFIRMED":  12,   # OI rising with price direction = conviction
-        "NEUTRAL":     0,
-        "WEAK":       -8,   # OI not supporting move
-        "DIVERGING": -15,   # OI going against direction = danger
+        "CONFIRMED": 12,
+        "NEUTRAL": 0,
+        "WEAK": -8,
+        "DIVERGING": -15,
     }
 
-    def rank(self, candidates: list[dict]) -> list[dict]:
+    @staticmethod
+    def _bounded_score(value: float) -> float:
+        """Return a finite ranking score on an explicit 0-100 scale."""
+        if value != value:  # NaN
+            return 0.0
+        if value == float("inf"):
+            return 100.0
+        if value == float("-inf"):
+            return 0.0
+        return max(0.0, min(100.0, value))
 
+    def rank(self, candidates: list[dict]) -> list[dict]:
         scored = []
 
         for c in candidates:
-
-            trend_score   = float(c.get("trend_score",   0))
+            trend_score = float(c.get("trend_score", 0))
             quality_score = float(c.get("quality_score", 0))
-            rs_score      = float(c.get("rs_score",     50))
-            rr            = float(c.get("rr",            0))
-            sr_bonus      = float(c.get("sr_bonus",      0))
-            grade         = c.get("grade", "D")
-            oi_signal     = c.get("oi_signal", "NEUTRAL")
-            funding_pct   = float(c.get("funding_pct_raw", 0))
-            direction     = c.get("direction", "LONG")
-            mtf_status    = c.get("mtf_status", "ALLOWED")
+            rs_score = float(c.get("rs_score", 50))
+            rr = float(c.get("rr", 0))
+            sr_bonus = float(c.get("sr_bonus", 0))
+            grade = c.get("grade", "D")
+            oi_signal = c.get("oi_signal", "NEUTRAL")
+            funding_pct = float(c.get("funding_pct_raw", 0))
+            direction = c.get("direction", "LONG")
+            mtf_status = c.get("mtf_status", "ALLOWED")
 
             grade_bonus = self.GRADE_WEIGHT.get(grade, 0) * 2
-
-            # OI bonus — now properly factored
             oi_bonus = self.OI_BONUS.get(oi_signal, 0)
-
-            # MTF bonus — CONFIRMED_STRONG gets extra ranking boost
             mtf_bonus = 8 if mtf_status == "CONFIRMED_STRONG" else 0
 
-            # Funding bonus: ideal conditions get small boost
             if direction == "SHORT" and funding_pct <= 0:
                 funding_bonus = 3
             elif direction == "LONG" and funding_pct >= 0:
@@ -69,21 +72,29 @@ class AISignalRanker:
             else:
                 funding_bonus = 0
 
-            composite = (
-                trend_score              * 0.35 +
-                quality_score            * 0.22 +
-                rs_score                 * 0.18 +
-                oi_bonus                 * 0.10 * 10 +   # normalize to ~100 scale
-                min(rr, 5) / 5 * 100     * 0.08 +
-                min(sr_bonus, 15)         * 0.05 +
-                funding_bonus            +
-                mtf_bonus                +
-                grade_bonus
+            raw_score = (
+                trend_score * 0.35
+                + quality_score * 0.22
+                + rs_score * 0.18
+                + oi_bonus * 0.10 * 10
+                + min(rr, 5) / 5 * 100 * 0.08
+                + min(sr_bonus, 15) * 0.05
+                + funding_bonus
+                + mtf_bonus
+                + grade_bonus
             )
 
-            scored.append({**c, "ai_composite": round(composite, 2)})
+            ai_rank_score = round(self._bounded_score(raw_score), 2)
+            scored.append(
+                {
+                    **c,
+                    "ai_rank_score": ai_rank_score,
+                    "ai_rank_raw": round(raw_score, 2),
+                    "ai_composite": ai_rank_score,
+                }
+            )
 
-        scored.sort(key=lambda x: x["ai_composite"], reverse=True)
+        scored.sort(key=lambda x: x["ai_rank_score"], reverse=True)
         return scored
 
     def top_n(self, candidates: list[dict], n: int = 5) -> list[dict]:
