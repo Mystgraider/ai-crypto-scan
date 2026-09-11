@@ -1,23 +1,13 @@
 """
-Beta Filter — V5.8
-====================
-Classifies coins by their volatility relative to BTC.
+Beta Filter — V6.9.25
+=====================
+Classifies coins by statistical beta relative to BTC.
 
-High beta coins bounce harder when BTC bounces.
-For SHORT signals, high beta = dangerous = likely SL hit.
+Beta is calculated as:
+    Cov(asset returns, BTC returns) / Var(BTC returns)
 
-Beta calculation:
-  Compare coin's 20-period price change magnitude vs BTC's.
-  Beta = std(coin returns) / std(BTC returns)
-
-  Beta > 1.5 = HIGH  (1.5x more volatile than BTC) → SHORT blocked
-  Beta 0.8-1.5 = MEDIUM → SHORT allowed
-  Beta < 0.8  = LOW   (less volatile than BTC) → SHORT preferred
-
-Known high-beta coins that should be avoided for SHORT:
-  Meme coins: DOGE, SHIB, PEPE, BONK, WIF, FLOKI
-  Low cap alts: PEOPLE, MOVE, BASED, PLUME, SIGN, HUMA, BZ
-  These are excluded from SHORT regardless of beta calculation
+This is directional market beta, not a volatility ratio. A volatility
+ratio can be useful as a separate metric, but it must not be labeled beta.
 """
 
 import pandas as pd
@@ -25,120 +15,113 @@ import pandas as pd
 
 KNOWN_HIGH_BETA = {
     "DOGE/USDT:USDT", "SHIB/USDT:USDT", "PEPE/USDT:USDT",
-    "BONK/USDT:USDT", "WIF/USDT:USDT",  "FLOKI/USDT:USDT",
+    "BONK/USDT:USDT", "WIF/USDT:USDT", "FLOKI/USDT:USDT",
     "PEOPLE/USDT:USDT", "MOVE/USDT:USDT", "BASED/USDT:USDT",
-    "PLUME/USDT:USDT",  "SIGN/USDT:USDT", "HUMA/USDT:USDT",
-    "MEME/USDT:USDT",   "NEIRO/USDT:USDT","1000SATS/USDT:USDT",
+    "PLUME/USDT:USDT", "SIGN/USDT:USDT", "HUMA/USDT:USDT",
+    "MEME/USDT:USDT", "NEIRO/USDT:USDT", "1000SATS/USDT:USDT",
 }
 
-# Coins consistently profitable for SHORT (lower beta, real fundamentals)
 PREFERRED_SHORT = {
-    "BNB/USDT:USDT",  "ETH/USDT:USDT",  "SOL/USDT:USDT",
-    "BTC/USDT:USDT",  "LINK/USDT:USDT", "AVAX/USDT:USDT",
-    "DOT/USDT:USDT",  "ADA/USDT:USDT",  "MATIC/USDT:USDT",
-    "UNI/USDT:USDT",  "AAVE/USDT:USDT", "MKR/USDT:USDT",
+    "BNB/USDT:USDT", "ETH/USDT:USDT", "SOL/USDT:USDT",
+    "BTC/USDT:USDT", "LINK/USDT:USDT", "AVAX/USDT:USDT",
+    "DOT/USDT:USDT", "ADA/USDT:USDT", "MATIC/USDT:USDT",
+    "UNI/USDT:USDT", "AAVE/USDT:USDT", "MKR/USDT:USDT",
 }
 
 
 class BetaFilter:
 
-    # V6.9.22: raised from 1.5. Live debug log showed this blocking
-    # 245 of 274 SHORT attempts in a single scan — most altcoins are
-    # structurally 2-4x more volatile than BTC just by nature of
-    # smaller market caps, so 1.5x was catching almost everything, not
-    # just genuinely dangerous outliers. Concept (protect against
-    # violent SHORT squeezes) stays; bar raised to actually
-    # discriminate high-risk coins from normal altcoin volatility.
-    HIGH_BETA_THRESHOLD   = 2.5
+    HIGH_BETA_THRESHOLD = 2.5
     MEDIUM_BETA_THRESHOLD = 0.8
 
     def calculate_beta(
         self,
         coin_closes: list[float],
-        btc_closes:  list[float],
-        periods:     int = 20,
+        btc_closes: list[float],
+        periods: int = 20,
     ) -> float:
-        """Calculate realized beta of coin vs BTC."""
-
+        """Calculate statistical beta = Cov(asset, BTC) / Var(BTC)."""
+        if periods < 2:
+            return 1.0
         if len(coin_closes) < periods + 1 or len(btc_closes) < periods + 1:
-            return 1.0  # assume neutral if not enough data
-
-        coin_returns = pd.Series(coin_closes[-periods:]).pct_change().dropna()
-        btc_returns  = pd.Series(btc_closes[-periods:]).pct_change().dropna()
-
-        btc_std = btc_returns.std()
-
-        if btc_std == 0:
             return 1.0
 
-        return round(coin_returns.std() / btc_std, 3)
+        coin = pd.Series(coin_closes[-(periods + 1):], dtype="float64")
+        btc = pd.Series(btc_closes[-(periods + 1):], dtype="float64")
+        returns = pd.concat(
+            [coin.pct_change().rename("coin"), btc.pct_change().rename("btc")],
+            axis=1,
+        ).dropna()
+
+        if len(returns) < 2:
+            return 1.0
+
+        btc_variance = returns["btc"].var()
+        if pd.isna(btc_variance) or btc_variance <= 0:
+            return 1.0
+
+        covariance = returns["coin"].cov(returns["btc"])
+        if pd.isna(covariance):
+            return 1.0
+
+        return round(float(covariance / btc_variance), 3)
 
     def classify(self, symbol: str, beta: float) -> dict:
-        """
-        Classify coin beta and determine if SHORT is allowed.
-        """
-
-        # Known high-beta override
+        """Classify coin beta and determine if SHORT is allowed."""
         if symbol in KNOWN_HIGH_BETA:
             return {
-                "beta":         beta,
-                "beta_label":   "HIGH",
-                "short_ok":     False,
-                "preferred":    False,
-                "reason":       f"Known high-beta coin — SHORT blocked",
+                "beta": beta,
+                "beta_label": "HIGH",
+                "short_ok": False,
+                "preferred": False,
+                "reason": "Known high-beta coin — SHORT blocked",
             }
 
-        # Preferred LOW beta coins
         if symbol in PREFERRED_SHORT:
             return {
-                "beta":         beta,
-                "beta_label":   "LOW",
-                "short_ok":     True,
-                "preferred":    True,
-                "reason":       "Preferred low-beta coin — SHORT allowed",
+                "beta": beta,
+                "beta_label": "LOW",
+                "short_ok": True,
+                "preferred": True,
+                "reason": "Preferred short-list coin — SHORT allowed",
             }
 
-        # Dynamic beta classification
         if beta >= self.HIGH_BETA_THRESHOLD:
             return {
-                "beta":         beta,
-                "beta_label":   "HIGH",
-                "short_ok":     False,
-                "preferred":    False,
-                "reason":       f"Beta {beta} >= {self.HIGH_BETA_THRESHOLD} — SHORT blocked",
+                "beta": beta,
+                "beta_label": "HIGH",
+                "short_ok": False,
+                "preferred": False,
+                "reason": f"Beta {beta} >= {self.HIGH_BETA_THRESHOLD} — SHORT blocked",
             }
 
         if beta >= self.MEDIUM_BETA_THRESHOLD:
             return {
-                "beta":         beta,
-                "beta_label":   "MEDIUM",
-                "short_ok":     True,
-                "preferred":    False,
-                "reason":       f"Beta {beta} — SHORT allowed with caution",
+                "beta": beta,
+                "beta_label": "MEDIUM",
+                "short_ok": True,
+                "preferred": False,
+                "reason": f"Beta {beta} — SHORT allowed with caution",
             }
 
         return {
-            "beta":         beta,
-            "beta_label":   "LOW",
-            "short_ok":     True,
-            "preferred":    True,
-            "reason":       f"Beta {beta} < {self.MEDIUM_BETA_THRESHOLD} — SHORT preferred",
+            "beta": beta,
+            "beta_label": "LOW",
+            "short_ok": True,
+            "preferred": True,
+            "reason": f"Beta {beta} < {self.MEDIUM_BETA_THRESHOLD} — SHORT preferred",
         }
 
     def evaluate(
         self,
-        symbol:      str,
-        direction:   str,
+        symbol: str,
+        direction: str,
         coin_closes: list[float],
-        btc_closes:  list[float],
+        btc_closes: list[float],
     ) -> dict:
         """Full evaluation — calculate beta and classify."""
-
-        beta   = self.calculate_beta(coin_closes, btc_closes)
+        beta = self.calculate_beta(coin_closes, btc_closes)
         result = self.classify(symbol, beta)
-
-        # For LONG signals, beta doesn't matter as much
         if direction == "LONG":
-            result["short_ok"] = True  # beta doesn't block longs
-
+            result["short_ok"] = True
         return result
