@@ -1,4 +1,4 @@
-from pathlib import Path
+import csv
 
 import storage.signal_logger as signal_logger
 
@@ -28,6 +28,11 @@ def _base_kwargs():
     }
 
 
+def _read_rows(path):
+    with path.open(newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
 def test_save_signal_persists_ai_calibration_fields(tmp_path, monkeypatch):
     path = tmp_path / "signals.csv"
     monkeypatch.setattr(signal_logger, "SIGNALS_FILE", str(path))
@@ -39,7 +44,7 @@ def test_save_signal_persists_ai_calibration_fields(tmp_path, monkeypatch):
         confidence=78.5,
     )
 
-    rows = signal_logger._read_rows()
+    rows = _read_rows(path)
     assert len(rows) == 1
     row = rows[0]
     assert row["score"] == "84.0"
@@ -60,7 +65,7 @@ def test_legacy_csv_schema_is_migrated_before_append(tmp_path, monkeypatch):
 
     signal_logger.save_signal(**_base_kwargs())
 
-    rows = signal_logger._read_rows()
+    rows = _read_rows(path)
     assert len(rows) == 2
     assert rows[0]["symbol"] == "BTC/USDT:USDT"
     assert rows[0]["ai_rank_score"] == ""
@@ -75,7 +80,7 @@ def test_legacy_ai_fields_are_optional_for_backward_compatibility(tmp_path, monk
 
     signal_logger.save_signal(**_base_kwargs())
 
-    rows = signal_logger._read_rows()
+    rows = _read_rows(path)
     assert rows[0]["ai_rank_score"] == ""
     assert rows[0]["ai_rank_raw"] == ""
     assert rows[0]["confidence"] == ""
