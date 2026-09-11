@@ -1,0 +1,190 @@
+name: Apply Phase 2C Decision Pipeline Integrity
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  patch:
+    if: ${{ !startsWith(github.event.head_commit.message, '[phase2c]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Apply surgical Phase 2C patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          scanner = Path('scanner_v5.py')
+          text = scanner.read_text()
+
+          old = '''                if not CONFIG.get("require_trend_gate", True) and trend["direction"] == "NONE":
+                    effective_trend_score = CONFIG["min_score"]
+                else:
+                    effective_trend_score = trend_score
+'''
+          new = '''                # Never manufacture a passing score when the legacy indicator gate is disabled.
+                # RRCE remains the structural hard gate; trend_score stays the real observed score.
+                effective_trend_score = trend_score
+'''
+          if old not in text:
+              raise SystemExit('scanner: effective trend score block not found')
+          text = text.replace(old, new, 1)
+
+          old = '''                oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}
+                if CONFIG["oi_enabled"]:
+                    try:
+                        oi_data = oi_engine.fetch_oi(exchange, symbol)
+                        if oi_data["available"]:
+                            price_chg = float(df_1h["close"].pct_change().iloc[-1] * 100)
+                            oi_result = oi_engine.analyze(
+                                current_oi=oi_data["current_oi"],
+                                previous_oi=oi_data["previous_oi"],
+                                price_change=price_chg,
+                                direction=direction,
+                            )
+                    except Exception:
+                        pass
+'''
+          new = '''                oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}
+                if CONFIG["oi_enabled"]:
+                    try:
+                        oi_data = oi_engine.fetch_oi(exchange, symbol)
+                        if not oi_data.get("available"):
+                            skip["oi_unavailable"] = skip.get("oi_unavailable", 0) + 1
+                            _trace(symbol, "oi_unavailable", direction=direction,
+                                   reason=oi_data.get("reason", "unknown"))
+                            continue
+
+                        price_chg = float(df_1h["close"].pct_change().iloc[-1] * 100)
+                        oi_result = oi_engine.analyze(
+                            current_oi=oi_data["current_oi"],
+                            previous_oi=oi_data["previous_oi"],
+                            price_change=price_chg,
+                            direction=direction,
+                        )
+                    except Exception as _oi_error:
+                        skip["oi_unavailable"] = skip.get("oi_unavailable", 0) + 1
+                        _trace(symbol, "oi_unavailable", direction=direction,
+                               reason=type(_oi_error).__name__)
+                        continue
+'''
+          if old not in text:
+              raise SystemExit('scanner: OI block not found')
+          text = text.replace(old, new, 1)
+
+          old = '''                max_deviation_pct=max_drift,
+                min_rr=CONFIG["min_rr"],
+'''
+          new = '''                max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
+                min_rr=CONFIG["min_rr"],
+'''
+          if old not in text:
+              raise SystemExit('scanner: live RRCE deviation argument not found')
+          text = text.replace(old, new, 1)
+
+          old = '''            f"🤖 Confidence: <b>{confidence}%</b>\\n\\n"
+            f"{sizer.format_recommendation(sizing)}"
+'''
+          new = '''            f"🤖 Confidence: <b>{confidence}%</b> | "
+            f"AI Rank: <b>{sig.get('ai_composite', sig['composite'])}</b>\\n\\n"
+            f"{sizer.format_recommendation(sizing)}"
+'''
+          if old not in text:
+              raise SystemExit('scanner: confidence message block not found')
+          text = text.replace(old, new, 1)
+
+          scanner.write_text(text)
+
+          validator = Path('engines/validator.py')
+          text = validator.read_text()
+          old = '''        min_score = CONFIG["min_score"]
+
+        if trend_score < min_score:
+            return False
+
+        # Quality score: slightly relaxed — quality engine
+        # already hard-caps overbought/oversold at score 20
+        # so fake signals are caught there, not here
+        if quality_score < min_score:
+            return False
+
+        return True
+'''
+          new = '''        min_score = CONFIG["min_score"]
+
+        # These are optional legacy indicator gates. When disabled, do not
+        # fabricate a passing score; simply do not apply that gate.
+        if CONFIG.get("require_trend_gate", True) and trend_score < min_score:
+            return False
+
+        if CONFIG.get("require_quality_engine", True) and quality_score < min_score:
+            return False
+
+        return True
+'''
+          if old not in text:
+              raise SystemExit('validator: gate block not found')
+          text = text.replace(old, new, 1)
+          validator.write_text(text)
+          PY
+
+      - name: Add Phase 2C focused tests
+        run: |
+          cat > tests/test_phase2c_decision_pipeline.py <<'PY'
+          from config import CONFIG
+          from engines.validator import SignalValidator
+
+          def test_disabled_legacy_gates_do_not_fabricate_score():
+              original_trend = CONFIG.get("require_trend_gate")
+              original_quality = CONFIG.get("require_quality_engine")
+              CONFIG["require_trend_gate"] = False
+              CONFIG["require_quality_engine"] = False
+              try:
+                  assert SignalValidator().validate("LONG", 10, 10, {"rr": 2.0}) is True
+              finally:
+                  CONFIG["require_trend_gate"] = original_trend
+                  CONFIG["require_quality_engine"] = original_quality
+
+          def test_enabled_trend_gate_still_rejects_low_score():
+              original_trend = CONFIG.get("require_trend_gate")
+              original_quality = CONFIG.get("require_quality_engine")
+              CONFIG["require_trend_gate"] = True
+              CONFIG["require_quality_engine"] = False
+              try:
+                  assert SignalValidator().validate("LONG", 69, 10, {"rr": 2.0}) is False
+              finally:
+                  CONFIG["require_trend_gate"] = original_trend
+                  CONFIG["require_quality_engine"] = original_quality
+
+          def test_enabled_quality_gate_still_rejects_low_score():
+              original_trend = CONFIG.get("require_trend_gate")
+              original_quality = CONFIG.get("require_quality_engine")
+              CONFIG["require_trend_gate"] = False
+              CONFIG["require_quality_engine"] = True
+              try:
+                  assert SignalValidator().validate("LONG", 10, 69, {"rr": 2.0}) is False
+              finally:
+                  CONFIG["require_trend_gate"] = original_trend
+                  CONFIG["require_quality_engine"] = original_quality
+          PY
+
+      - name: Verify Phase 2C
+        run: |
+          python -m py_compile scanner_v5.py engines/validator.py tests/test_phase2c_decision_pipeline.py
+          python -m pytest -q tests/test_live_entry_integrity.py tests/test_rrce_strategy_integrity.py tests/test_phase2b_engines.py tests/test_phase2c_decision_pipeline.py
+
+      - name: Commit and push Phase 2C
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scanner_v5.py engines/validator.py tests/test_phase2c_decision_pipeline.py .github/workflows/apply_phase2c.yml
+          git rm --cached .github/workflows/apply_phase2c.yml
+          git commit -m "[phase2c] fix decision pipeline gate integrity"
+          git push
