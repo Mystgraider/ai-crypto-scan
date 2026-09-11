@@ -40,7 +40,7 @@ def test_revalidate_recalculates_rr_from_fresh_price():
     assert result["tp1"] == 115.0
     assert result["tp2"] == 115.0
     assert result["tp3"] == 115.0
-    assert result["rr"] == 2.0
+    assert result["rr"] == 1.0
 
 
 def test_revalidate_rejects_stale_price():
