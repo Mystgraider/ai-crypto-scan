@@ -26,6 +26,7 @@ on:
       - 'tests/test_phase2d_ai_integrity.py'
       - 'tests/test_phase2d_d1_attribution.py'
       - 'tests/test_phase2d_d2_logging_attribution.py'
+      - 'tests/test_phase2d_d2_scanner_wiring.py'
       - 'tests/test_phase2d_b0_logging.py'
       - 'tests/test_phase2d_b1_calibration.py'
       - 'tests/test_phase2d_b2_reporting.py'
@@ -79,6 +80,7 @@ jobs:
             tests/test_phase2d_ai_integrity.py \
             tests/test_phase2d_d1_attribution.py \
             tests/test_phase2d_d2_logging_attribution.py \
+            tests/test_phase2d_d2_scanner_wiring.py \
             tests/test_phase2d_b0_logging.py \
             tests/test_phase2d_b1_calibration.py \
             tests/test_phase2d_b2_reporting.py \
@@ -91,6 +93,7 @@ jobs:
             tests/test_phase2d_ai_integrity.py \
             tests/test_phase2d_d1_attribution.py \
             tests/test_phase2d_d2_logging_attribution.py \
+            tests/test_phase2d_d2_scanner_wiring.py \
             tests/test_phase2d_b0_logging.py \
             tests/test_phase2d_b1_calibration.py \
             tests/test_phase2d_b2_reporting.py \
