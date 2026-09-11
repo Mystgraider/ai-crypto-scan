@@ -66,9 +66,13 @@ class TuningAdvisor:
         weakest = ai["weakest"]
         net_r_gap = round(strongest["net_r"] - weakest["net_r"], 4)
         win_rate_gap = round(strongest["win_rate_pct"] - weakest["win_rate_pct"], 2)
+
+        # Thresholds are strict: a gap must be greater than the configured
+        # minimum to justify investigation. Exactly-at-threshold evidence is
+        # treated as insufficient separation, avoiding borderline tuning.
         meaningful = (
-            net_r_gap >= self.min_net_r_gap
-            or win_rate_gap >= self.min_win_rate_gap_pct
+            net_r_gap > self.min_net_r_gap
+            or win_rate_gap > self.min_win_rate_gap_pct
         )
 
         action = "INVESTIGATE_COMPONENTS" if meaningful else "NO_TUNING"
