@@ -12,8 +12,11 @@ on:
       - 'engines/live_entry_integrity.py'
       - 'engines/validator.py'
       - 'scanner_v5.py'
+      - 'ai/signal_ranker.py'
+      - 'ai/confidence_engine.py'
       - 'tests/test_phase2b_engines.py'
       - 'tests/test_phase2c_decision_pipeline.py'
+      - 'tests/test_phase2d_ai_integrity.py'
       - 'tests/test_rrce_strategy_integrity.py'
       - 'tests/test_live_entry_integrity.py'
       - '.github/workflows/verify_strategy.yml'
@@ -39,7 +42,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify Phase 1C, Phase 2A, Phase 2B and Phase 2C
+      - name: Verify Phase 1C, Phase 2A, Phase 2B, Phase 2C and Phase 2D-A
         run: |
           python -m py_compile \
             engines/beta_filter.py \
@@ -49,12 +52,16 @@ jobs:
             engines/live_entry_integrity.py \
             engines/validator.py \
             scanner_v5.py \
+            ai/signal_ranker.py \
+            ai/confidence_engine.py \
             tests/test_live_entry_integrity.py \
             tests/test_rrce_strategy_integrity.py \
             tests/test_phase2b_engines.py \
-            tests/test_phase2c_decision_pipeline.py
+            tests/test_phase2c_decision_pipeline.py \
+            tests/test_phase2d_ai_integrity.py
           python -m pytest -q \
             tests/test_live_entry_integrity.py \
             tests/test_rrce_strategy_integrity.py \
             tests/test_phase2b_engines.py \
-            tests/test_phase2c_decision_pipeline.py
+            tests/test_phase2c_decision_pipeline.py \
+            tests/test_phase2d_ai_integrity.py
