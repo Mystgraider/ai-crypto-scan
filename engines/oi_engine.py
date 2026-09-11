@@ -1,8 +1,11 @@
 """
-Open Interest Engine — V5.8.3
-===============================
-Fixed: float(None) crash — Bitget OI API returns different structure.
-Now fully fail-safe: any error = NEUTRAL (never crashes scanner).
+Open Interest Engine — V6.9.25
+==============================
+Calculates OI confirmation when data is available.
+
+Unavailable OI is explicitly marked unavailable. It is not represented as
+NEUTRAL because NEUTRAL means the market was actually observed and did not
+meet a directional OI condition.
 """
 
 
@@ -10,35 +13,33 @@ class OIEngine:
 
     def analyze(
         self,
-        current_oi:   float,
-        previous_oi:  float,
+        current_oi: float,
+        previous_oi: float,
         price_change: float,
-        direction:    str,
+        direction: str,
     ) -> dict:
-
-        if previous_oi == 0 or current_oi == 0:
-            return self._result("NEUTRAL", 0, 0.0)
+        if previous_oi <= 0 or current_oi <= 0:
+            return self._unavailable("invalid_oi_values")
 
         oi_change_pct = ((current_oi - previous_oi) / previous_oi) * 100
-
-        oi_rising  = oi_change_pct >  0.5
+        oi_rising = oi_change_pct > 0.5
         oi_falling = oi_change_pct < -0.5
-        price_down = price_change   < -0.1
-        price_up   = price_change   >  0.1
+        price_down = price_change < -0.1
+        price_up = price_change > 0.1
 
         if direction == "SHORT":
             if price_down and oi_rising:
                 return self._result("CONFIRMED", 10, oi_change_pct)
-            elif price_down and oi_falling:
+            if price_down and oi_falling:
                 return self._result("WEAK", -5, oi_change_pct)
-            elif price_up and oi_rising:
+            if price_up and oi_rising:
                 return self._result("DIVERGING", -10, oi_change_pct)
-        else:  # LONG
+        else:
             if price_up and oi_rising:
                 return self._result("CONFIRMED", 10, oi_change_pct)
-            elif price_up and oi_falling:
+            if price_up and oi_falling:
                 return self._result("WEAK", -5, oi_change_pct)
-            elif price_down and oi_rising:
+            if price_down and oi_rising:
                 return self._result("DIVERGING", -10, oi_change_pct)
 
         return self._result("NEUTRAL", 0, oi_change_pct)
@@ -46,22 +47,26 @@ class OIEngine:
     @staticmethod
     def _result(label, score_adj, oi_change_pct):
         return {
-            "oi_signal":     label,
-            "score_adj":     score_adj,
+            "available": True,
+            "oi_signal": label,
+            "score_adj": score_adj,
             "oi_change_pct": round(oi_change_pct, 2),
         }
 
-    def fetch_oi(self, exchange, symbol: str) -> dict:
-        """
-        Fetch OI from exchange. Fully fail-safe.
-        Returns available=False on any error — scanner continues normally.
-        """
-        try:
-            # fetch_open_interest returns a dict
-            oi_data = exchange.fetch_open_interest(symbol)
+    @staticmethod
+    def _unavailable(reason):
+        return {
+            "available": False,
+            "oi_signal": "UNAVAILABLE",
+            "score_adj": 0,
+            "oi_change_pct": None,
+            "reason": reason,
+        }
 
-            # Bitget and OKX both return openInterestValue but
-            # sometimes it's nested in 'info' or returned as None
+    def fetch_oi(self, exchange, symbol: str) -> dict:
+        """Fetch current and previous OI, preserving explicit availability."""
+        try:
+            oi_data = exchange.fetch_open_interest(symbol)
             current_oi = (
                 oi_data.get("openInterestValue") or
                 oi_data.get("openInterest") or
@@ -69,13 +74,23 @@ class OIEngine:
                 oi_data.get("info", {}).get("oi") or
                 None
             )
-
             if current_oi is None:
-                return {"current_oi": 0, "previous_oi": 0, "available": False}
+                return {
+                    "current_oi": 0,
+                    "previous_oi": 0,
+                    "available": False,
+                    "reason": "current_oi_missing",
+                }
 
             current_oi = float(current_oi)
+            if current_oi <= 0:
+                return {
+                    "current_oi": current_oi,
+                    "previous_oi": 0,
+                    "available": False,
+                    "reason": "invalid_current_oi",
+                }
 
-            # Try to get history for previous value
             try:
                 history = exchange.fetch_open_interest_history(
                     symbol, timeframe="1h", limit=2
@@ -86,18 +101,49 @@ class OIEngine:
                         history[-2].get("openInterest") or
                         None
                     )
-                    previous_oi = float(prev_raw) if prev_raw is not None else current_oi
+                    if prev_raw is not None:
+                        previous_oi = float(prev_raw)
+                    else:
+                        return {
+                            "current_oi": current_oi,
+                            "previous_oi": 0,
+                            "available": False,
+                            "reason": "previous_oi_missing",
+                        }
                 else:
-                    previous_oi = current_oi
+                    return {
+                        "current_oi": current_oi,
+                        "previous_oi": 0,
+                        "available": False,
+                        "reason": "oi_history_unavailable",
+                    }
             except Exception:
-                previous_oi = current_oi
+                return {
+                    "current_oi": current_oi,
+                    "previous_oi": 0,
+                    "available": False,
+                    "reason": "oi_history_fetch_error",
+                }
+
+            if previous_oi <= 0:
+                return {
+                    "current_oi": current_oi,
+                    "previous_oi": previous_oi,
+                    "available": False,
+                    "reason": "invalid_previous_oi",
+                }
 
             return {
-                "current_oi":  current_oi,
+                "current_oi": current_oi,
                 "previous_oi": previous_oi,
-                "available":   True,
+                "available": True,
             }
 
-        except Exception:
-            # Silent fail — OI is a bonus, not required
-            return {"current_oi": 0, "previous_oi": 0, "available": False}
+        except Exception as e:
+            print(f"  ⚠️  OI fetch failed {symbol}: {e}")
+            return {
+                "current_oi": 0,
+                "previous_oi": 0,
+                "available": False,
+                "reason": "fetch_error",
+            }
