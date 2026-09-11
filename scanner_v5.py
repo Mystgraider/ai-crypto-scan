@@ -33,6 +33,7 @@ from engines.support_resistance  import SupportResistanceEngine
 from engines.volume_profile      import VolumeProfileEngine
 from engines.rrce_engine         import RRCEEngine
 from engines.position_sizer      import PositionSizer
+from engines.live_entry_integrity import revalidate as revalidate_live_entry
 from engines.funding_engine      import FundingEngine
 from engines.beta_filter         import BetaFilter
 from engines.oi_engine           import OIEngine
@@ -442,7 +443,7 @@ def main():
                             skip[f"s3_reason_{reason}"] = skip.get(f"s3_reason_{reason}", 0) + 1
                     continue
 
-                rrce_risk = rrce_engine.live_entry_levels(
+                rrce_risk = active_rrce_engine.live_entry_levels(
                     direction=direction,
                     live_price=price,
                     stage4=rrce_result["stage4"],
@@ -604,6 +605,8 @@ def main():
                     "tp1":             risk["tp1"],
                     "tp2":             risk["tp2"],
                     "tp3":             risk["tp3"],
+                    "_rrce_stage4":   rrce_result["stage4"],
+                    "_rrce_engine_mode": "range" if is_range_regime else "default",
                     "rsi":             round(rsi, 2),
                     "adx":             round(adx, 2),
                     "rel_volume":      round(rel_volume, 2),
@@ -617,7 +620,7 @@ def main():
                     "btc_regime":      btc_regime["regime"],
                     "funding_pct":     str(funding_result.get("funding_pct", 0)),
                     "funding_pct_raw": funding_result.get("funding_pct_raw", 0.0),
-                    "oi_signal":       oi_result["oi_signal"],
+                    "oi_signal":      oi_result["oi_signal"],
                     "beta_label":      beta_result.get("beta_label", "N/A"),
                 })
 
@@ -686,7 +689,7 @@ def main():
         with open("storage/symbol_trace_log.jsonl", "a") as f:
             f.write(_json.dumps(trace_row) + "\n")
     except Exception as _e:
-        print(f"      ⚠️  symbol trace log write failed: {_e}")
+        print(f"      ⚠️  trace log write failed: {_e}")
 
     print("\n[4/8] AI Ranking...")
     analytics = AnalyticsEngine().compute()
@@ -710,9 +713,36 @@ def main():
                       f"price drifted {drift_pct:.2f}% since detection "
                       f"(entry {sig['entry']} → now {fresh_price})")
                 continue
-            sig["entry"] = fresh_price
+
+            live_rrce_engine = (
+                range_rrce_engine
+                if sig.get("_rrce_engine_mode") == "range"
+                else rrce_engine
+            )
+            live_risk = revalidate_live_entry(
+                rrce_engine=live_rrce_engine,
+                direction=sig["direction"],
+                live_price=fresh_price,
+                stage4=sig.get("_rrce_stage4"),
+                max_deviation_pct=max_drift,
+                min_rr=CONFIG["min_rr"],
+            )
+            if not live_risk.get("valid"):
+                print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "
+                      f"live RRCE revalidation failed: {live_risk.get('reason', 'unknown')}")
+                continue
+
+            # Replace the complete executable risk set before sizing, Telegram,
+            # or persistence uses the signal.
+            sig["entry"] = live_risk["entry"]
+            sig["sl"] = live_risk["sl"]
+            sig["tp1"] = live_risk["tp1"]
+            sig["tp2"] = live_risk["tp2"]
+            sig["tp3"] = live_risk["tp3"]
+            sig["rr"] = live_risk["rr"]
         except Exception as e:
-            print(f"  ⚠️  {sig['symbol']} staleness check failed ({e}) — sending with original entry")
+            print(f"  ⚠️  {sig['symbol']} live entry validation failed ({e}) — skipping signal")
+            continue
 
         confidence = conf_eng.estimate(
             trend_score=sig["trend_score"],
@@ -768,6 +798,9 @@ def main():
         )
 
         send_telegram_alert(message)
+
+        sig.pop("_rrce_stage4", None)
+        sig.pop("_rrce_engine_mode", None)
 
         save_signal(
             symbol=sig["symbol"],        direction=sig["direction"],
