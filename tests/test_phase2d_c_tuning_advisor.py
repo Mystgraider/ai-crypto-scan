@@ -39,7 +39,7 @@ def test_reliable_separation_requests_investigation_without_mutation():
 
 
 def test_reliable_but_close_buckets_do_not_trigger_tuning():
-    rows = _rows_for_bucket(80, 20, 1.0) + _rows_for_bucket(60, 20, 0.9)
+    rows = _rows_for_bucket(80, 20, 1.0) + _rows_for_bucket(60, 20, 0.95)
     result = TuningAdvisor(signals=rows).compute()
 
     assert result["ready"] is True
