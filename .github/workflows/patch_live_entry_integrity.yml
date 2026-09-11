@@ -30,28 +30,109 @@ jobs:
           assert 'from engines.live_entry_integrity import revalidate as revalidate_live_entry' not in text
           text = text.replace(old_import, new_import, 1)
 
-          old_initial = '''                rrce_risk = rrce_engine.live_entry_levels(\n                    direction=direction,\n                    live_price=price,\n                    stage4=rrce_result["stage4"],\n                    max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],\n                    min_rr=CONFIG["min_rr"],\n                )\n'''
-          new_initial = '''                rrce_risk = active_rrce_engine.live_entry_levels(\n                    direction=direction,\n                    live_price=price,\n                    stage4=rrce_result["stage4"],\n                    max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],\n                    min_rr=CONFIG["min_rr"],\n                )\n'''
+          old_initial = '''                rrce_risk = rrce_engine.live_entry_levels(
+                    direction=direction,
+                    live_price=price,
+                    stage4=rrce_result["stage4"],
+                    max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
+                    min_rr=CONFIG["min_rr"],
+                )
+'''
+          new_initial = '''                rrce_risk = active_rrce_engine.live_entry_levels(
+                    direction=direction,
+                    live_price=price,
+                    stage4=rrce_result["stage4"],
+                    max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
+                    min_rr=CONFIG["min_rr"],
+                )
+'''
           assert text.count(old_initial) == 1, 'initial RRCE live-entry block not found exactly once'
           text = text.replace(old_initial, new_initial, 1)
 
-          old_candidate = '''                    "rr":              risk["rr"],\n                    "entry":           risk["entry"],\n                    "sl":              risk["sl"],\n                    "tp1":             risk["tp1"],\n                    "tp2":             risk["tp2"],\n                    "tp3":             risk["tp3"],\n                    "rsi":             round(rsi, 2),\n'''
-          new_candidate = '''                    "rr":              risk["rr"],\n                    "entry":           risk["entry"],\n                    "sl":              risk["sl"],\n                    "tp1":             risk["tp1"],\n                    "tp2":             risk["tp2"],\n                    "tp3":             risk["tp3"],\n                    "_rrce_stage4":   rrce_result["stage4"],\n                    "_rrce_engine_mode": "range" if is_range_regime else "default",\n                    "rsi":             round(rsi, 2),\n'''
+          old_candidate = '''                    "rr":              risk["rr"],
+                    "entry":           risk["entry"],
+                    "sl":              risk["sl"],
+                    "tp1":             risk["tp1"],
+                    "tp2":             risk["tp2"],
+                    "tp3":             risk["tp3"],
+                    "rsi":             round(rsi, 2),
+'''
+          new_candidate = '''                    "rr":              risk["rr"],
+                    "entry":           risk["entry"],
+                    "sl":              risk["sl"],
+                    "tp1":             risk["tp1"],
+                    "tp2":             risk["tp2"],
+                    "tp3":             risk["tp3"],
+                    "_rrce_stage4":   rrce_result["stage4"],
+                    "_rrce_engine_mode": "range" if is_range_regime else "default",
+                    "rsi":             round(rsi, 2),
+'''
           assert text.count(old_candidate) == 1, 'candidate risk field anchor not found exactly once'
           text = text.replace(old_candidate, new_candidate, 1)
 
-          old_alert = '''        try:\n            fresh_price = float(exchange.fetch_ticker(sig["symbol"])["last"])\n            drift_pct = abs(fresh_price - sig["entry"]) / sig["entry"] * 100\n            max_drift = CONFIG.get("max_entry_drift_pct", 0.6)\n            if drift_pct > max_drift:\n                print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "\n                      f"price drifted {drift_pct:.2f}% since detection "\n                      f"(entry {sig['entry']} → now {fresh_price})")\n                continue\n            sig["entry"] = fresh_price\n        except Exception as e:\n            print(f"  ⚠️  {sig['symbol']} staleness check failed ({e}) — sending with original entry")\n'''
-          new_alert = '''        try:\n            fresh_price = float(exchange.fetch_ticker(sig["symbol"])["last"])\n            drift_pct = abs(fresh_price - sig["entry"]) / sig["entry"] * 100\n            max_drift = CONFIG.get("max_entry_drift_pct", 0.6)\n            if drift_pct > max_drift:\n                print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "\n                      f"price drifted {drift_pct:.2f}% since detection "\n                      f"(entry {sig['entry']} → now {fresh_price})")\n                continue\n\n            live_rrce_engine = (\n                range_rrce_engine\n                if sig.get("_rrce_engine_mode") == "range"\n                else rrce_engine\n            )\n            live_risk = revalidate_live_entry(\n                rrce_engine=live_rrce_engine,\n                direction=sig["direction"],\n                live_price=fresh_price,\n                stage4=sig.get("_rrce_stage4"),\n                max_deviation_pct=max_drift,\n                min_rr=CONFIG["min_rr"],\n            )\n            if not live_risk.get("valid"):\n                print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "\n                      f"live RRCE revalidation failed: {live_risk.get('reason', 'unknown')}")\n                continue\n\n            # Replace the complete executable risk set atomically before any\n            # sizing, Telegram formatting, or persistence uses the signal.\n            sig["entry"] = live_risk["entry"]\n            sig["sl"] = live_risk["sl"]\n            sig["tp1"] = live_risk["tp1"]\n            sig["tp2"] = live_risk["tp2"]\n            sig["tp3"] = live_risk["tp3"]\n            sig["rr"] = live_risk["rr"]\n        except Exception as e:\n            print(f"  ⚠️  {sig['symbol']} live entry validation failed ({e}) — skipping signal")\n            continue\n'''
+          old_alert = '''        try:
+            fresh_price = float(exchange.fetch_ticker(sig["symbol"])["last"])
+            drift_pct = abs(fresh_price - sig["entry"]) / sig["entry"] * 100
+            max_drift = CONFIG.get("max_entry_drift_pct", 0.6)
+            if drift_pct > max_drift:
+                print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "
+                      f"price drifted {drift_pct:.2f}% since detection "
+                      f"(entry {sig['entry']} → now {fresh_price})")
+                continue
+            sig["entry"] = fresh_price
+        except Exception as e:
+            print(f"  ⚠️  {sig['symbol']} staleness check failed ({e}) — sending with original entry")
+'''
+          new_alert = '''        try:
+            fresh_price = float(exchange.fetch_ticker(sig["symbol"])["last"])
+            drift_pct = abs(fresh_price - sig["entry"]) / sig["entry"] * 100
+            max_drift = CONFIG.get("max_entry_drift_pct", 0.6)
+            if drift_pct > max_drift:
+                print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "
+                      f"price drifted {drift_pct:.2f}% since detection "
+                      f"(entry {sig['entry']} → now {fresh_price})")
+                continue
+
+            live_rrce_engine = (
+                range_rrce_engine
+                if sig.get("_rrce_engine_mode") == "range"
+                else rrce_engine
+            )
+            live_risk = revalidate_live_entry(
+                rrce_engine=live_rrce_engine,
+                direction=sig["direction"],
+                live_price=fresh_price,
+                stage4=sig.get("_rrce_stage4"),
+                max_deviation_pct=max_drift,
+                min_rr=CONFIG["min_rr"],
+            )
+            if not live_risk.get("valid"):
+                print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "
+                      f"live RRCE revalidation failed: {live_risk.get('reason', 'unknown')}")
+                continue
+
+            # Replace the complete executable risk set before sizing, Telegram,
+            # or persistence uses the signal.
+            sig["entry"] = live_risk["entry"]
+            sig["sl"] = live_risk["sl"]
+            sig["tp1"] = live_risk["tp1"]
+            sig["tp2"] = live_risk["tp2"]
+            sig["tp3"] = live_risk["tp3"]
+            sig["rr"] = live_risk["rr"]
+        except Exception as e:
+            print(f"  ⚠️  {sig['symbol']} live entry validation failed ({e}) — skipping signal")
+            continue
+'''
           assert text.count(old_alert) == 1, 'alert live-price block not found exactly once'
           text = text.replace(old_alert, new_alert, 1)
 
-          old_save = '''            rs_label=sig["rs_label"],\n            funding_pct=sig["funding_pct"],\n'''
-          new_save = '''            rs_label=sig["rs_label"],\n            funding_pct=sig["funding_pct"],\n'''
-          assert text.count(old_save) == 1, 'save anchor changed unexpectedly'
-          text = text.replace(old_save, new_save, 1)
+          old_before_save = '''        save_signal(
+            symbol=sig["symbol"],'''
+          new_before_save = '''        sig.pop("_rrce_stage4", None)
+        sig.pop("_rrce_engine_mode", None)
 
-          # Temporary candidate-only fields must never reach persistence.\n          old_before_save = '''        save_signal(\n            symbol=sig["symbol"],'''
-          new_before_save = '''        sig.pop("_rrce_stage4", None)\n        sig.pop("_rrce_engine_mode", None)\n\n        save_signal(\n            symbol=sig["symbol"],'''
+        save_signal(
+            symbol=sig["symbol"],'''
           assert text.count(old_before_save) == 1, 'save_signal anchor not found exactly once'
           text = text.replace(old_before_save, new_before_save, 1)
 
