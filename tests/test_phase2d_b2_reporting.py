@@ -28,8 +28,8 @@ def test_report_identifies_reliable_strongest_and_weakest_buckets():
 
 def test_confidence_interpretation_is_diagnostic_only():
     rows = []
-    rows.extend(signal("TP3_HIT", 80, 90, realized_r=1.0) for _ in range(20))
-    rows.extend(signal("SL_HIT", 80, 90, realized_r=-1.0) for _ in range(20))
+    rows.extend(signal("TP3_HIT", 80, 80, realized_r=1.0) for _ in range(20))
+    rows.extend(signal("SL_HIT", 80, 80, realized_r=-1.0) for _ in range(20))
 
     result = CalibrationReport(rows, min_sample=20).compute()
     confidence = result["interpretation"]["confidence"]
