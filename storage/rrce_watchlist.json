@@ -1,14 +1,1 @@
-{
-  "MANA/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-09-10T19:57:56.064067+00:00",
-    "last_seen": "2026-09-10T19:57:56.064067+00:00",
-    "observations": 1,
-    "pool_level": 0.072098,
-    "range_high": 0.072098,
-    "range_low": 0.070696,
-    "regime": "BEAR_CAUTION",
-    "sweep_extreme": 0.072241,
-    "symbol": "MANA/USDT:USDT"
-  }
-}
+{}
