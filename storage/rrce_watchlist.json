@@ -47,41 +47,17 @@
     "sweep_extreme": 0.1397,
     "symbol": "ARB/USDT:USDT"
   },
-  "AVAX/USDT:USDT|LONG": {
+  "AXS/USDT:USDT|LONG": {
     "direction": "LONG",
-    "first_seen": "2026-09-12T15:39:23.840913+00:00",
-    "last_seen": "2026-09-12T17:49:37.392337+00:00",
-    "observations": 2,
-    "pool_level": 7.416666666666667,
-    "range_high": 7.455,
-    "range_low": 7.406,
-    "regime": "RANGE",
-    "sweep_extreme": 7.397,
-    "symbol": "AVAX/USDT:USDT"
-  },
-  "CRV/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-09-12T17:49:48.289852+00:00",
-    "last_seen": "2026-09-12T17:49:48.289852+00:00",
+    "first_seen": "2026-09-12T23:18:51.634833+00:00",
+    "last_seen": "2026-09-12T23:18:51.634833+00:00",
     "observations": 1,
-    "pool_level": 0.33770000000000006,
-    "range_high": 0.3377,
-    "range_low": 0.333,
+    "pool_level": 0.9212,
+    "range_high": 0.934,
+    "range_low": 0.922,
     "regime": "RANGE",
-    "sweep_extreme": 0.3384,
-    "symbol": "CRV/USDT:USDT"
-  },
-  "DASH/USDT:USDT|LONG": {
-    "direction": "LONG",
-    "first_seen": "2026-09-12T17:49:39.075734+00:00",
-    "last_seen": "2026-09-12T17:49:39.075734+00:00",
-    "observations": 1,
-    "pool_level": 55.91,
-    "range_high": 56.56,
-    "range_low": 55.93,
-    "regime": "RANGE",
-    "sweep_extreme": 55.71,
-    "symbol": "DASH/USDT:USDT"
+    "sweep_extreme": 0.921,
+    "symbol": "AXS/USDT:USDT"
   },
   "DYDX/USDT:USDT|LONG": {
     "direction": "LONG",
@@ -98,13 +74,13 @@
   "ENS/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-12T21:39:24.488041+00:00",
-    "last_seen": "2026-09-12T21:39:24.488041+00:00",
-    "observations": 1,
-    "pool_level": 5.784,
+    "last_seen": "2026-09-12T23:19:38.401464+00:00",
+    "observations": 2,
+    "pool_level": 5.779,
     "range_high": 5.878,
-    "range_low": 5.784,
+    "range_low": 5.774,
     "regime": "RANGE",
-    "sweep_extreme": 5.774,
+    "sweep_extreme": 5.77,
     "symbol": "ENS/USDT:USDT"
   },
   "ETC/USDT:USDT|LONG": {
@@ -143,28 +119,16 @@
     "sweep_extreme": 0.07434,
     "symbol": "HBAR/USDT:USDT"
   },
-  "HBAR/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-09-12T17:51:04.821764+00:00",
-    "last_seen": "2026-09-12T17:51:04.821764+00:00",
-    "observations": 1,
-    "pool_level": 0.07471,
-    "range_high": 0.07481,
-    "range_low": 0.07439,
-    "regime": "RANGE",
-    "sweep_extreme": 0.07472,
-    "symbol": "HBAR/USDT:USDT"
-  },
   "ID/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-12T21:40:31.195463+00:00",
-    "last_seen": "2026-09-12T21:40:31.195463+00:00",
-    "observations": 1,
-    "pool_level": 0.03222,
+    "last_seen": "2026-09-12T23:20:47.780014+00:00",
+    "observations": 2,
+    "pool_level": 0.03206666666666667,
     "range_high": 0.03241,
-    "range_low": 0.03222,
+    "range_low": 0.03207,
     "regime": "RANGE",
-    "sweep_extreme": 0.03218,
+    "sweep_extreme": 0.03206,
     "symbol": "ID/USDT:USDT"
   },
   "IOTA/USDT:USDT|LONG": {
@@ -178,6 +142,18 @@
     "regime": "RANGE",
     "sweep_extreme": 0.03995,
     "symbol": "IOTA/USDT:USDT"
+  },
+  "JOE/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-12T23:20:49.652873+00:00",
+    "last_seen": "2026-09-12T23:20:49.652873+00:00",
+    "observations": 1,
+    "pool_level": 0.03024,
+    "range_high": 0.03067,
+    "range_low": 0.03016,
+    "regime": "RANGE",
+    "sweep_extreme": 0.03023,
+    "symbol": "JOE/USDT:USDT"
   },
   "KAIA/USDT:USDT|LONG": {
     "direction": "LONG",
@@ -213,18 +189,6 @@
     "range_low": 5.094e-05,
     "regime": "RANGE",
     "sweep_extreme": 5.069e-05,
-    "symbol": "LUNC/USDT:USDT"
-  },
-  "LUNC/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-09-12T17:50:39.116364+00:00",
-    "last_seen": "2026-09-12T17:50:39.116364+00:00",
-    "observations": 1,
-    "pool_level": 5.1319999999999997e-05,
-    "range_high": 5.133e-05,
-    "range_low": 5.094e-05,
-    "regime": "RANGE",
-    "sweep_extreme": 5.132e-05,
     "symbol": "LUNC/USDT:USDT"
   },
   "MAGIC/USDT:USDT|SHORT": {
