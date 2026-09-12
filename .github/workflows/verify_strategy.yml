@@ -36,6 +36,7 @@ on:
       - 'tests/test_rrce_strategy_integrity.py'
       - 'tests/test_live_entry_integrity.py'
       - '.github/workflows/verify_strategy.yml'
+      - '.github/workflows/scanner.yml'
       - 'requirements.txt'
 
 jobs:
