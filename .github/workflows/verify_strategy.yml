@@ -7,12 +7,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'engines/beta_filter.py'
-      - 'engines/funding_engine.py'
-      - 'engines/oi_engine.py'
-      - 'engines/rrce_engine.py'
-      - 'engines/live_entry_integrity.py'
-      - 'engines/validator.py'
+      - 'engines/**'
+      - 'ai/**'
+      - 'indicators/**'
+      - 'loaders/**'
+      - 'storage/**'
+      - 'tracker/**'
+      - 'reports/**'
+      - 'alerts/**'
       - 'scanner_v5.py'
       - 'storage/signal_logger.py'
       - 'ai/signal_ranker.py'
@@ -39,11 +41,14 @@ on:
       - 'tests/test_live_entry_integrity.py'
       - '.github/workflows/verify_strategy.yml'
       - 'requirements.txt'
+      - 'tests/**'
+      - '.github/workflows/verify_strategy.yml'
+      - '.github/workflows/scanner.yml'
 
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
