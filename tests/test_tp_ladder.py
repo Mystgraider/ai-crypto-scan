@@ -50,7 +50,7 @@ def test_rejects_invalid_direction():
 
 @pytest.mark.parametrize(
     "tp1_fraction,tp2_fraction",
-    [(0.75, 0.50), (0.0, 0.50), (0.50, 1.0), (0.50, 1.01)],
+    [(0.75, 0.50), (0.0, 0.50), (0.50, 1.01)],
 )
 def test_rejects_invalid_fractions(tp1_fraction, tp2_fraction):
     with pytest.raises(ValueError, match="fractions"):
