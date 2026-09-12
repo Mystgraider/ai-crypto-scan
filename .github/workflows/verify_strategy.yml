@@ -60,7 +60,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify Phase 1C, Phase 2A, Phase 2B, Phase 2C, Phase 2D-A, Phase 2D-B0, Phase 2D-B1, Phase 2D-B2, Phase 2D-C, Phase 2D-D1, Phase 2D-D2, Phase 2D-D3A and Phase 2D-D3B
+      - name: Verify Phase 1C, Phase 2A, Phase 2B, Phase 2C, Phase 2D-A, Phase 2D-B0, Phase 2D-B1, Phase 2D-B2, Phase 2D-C, Phase 2D-D1, Phase 2D-D2 and Phase 2D-D3A/D3B
         run: |
           python -m py_compile \
             engines/beta_filter.py \
