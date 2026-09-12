@@ -16,6 +16,7 @@ on:
       - 'scanner_v5.py'
       - 'storage/signal_logger.py'
       - 'ai/signal_ranker.py'
+      - 'ai/attribution.py'
       - 'ai/confidence_engine.py'
       - 'reports/calibration_engine.py'
       - 'reports/calibration_report.py'
@@ -23,6 +24,9 @@ on:
       - 'tests/test_phase2b_engines.py'
       - 'tests/test_phase2c_decision_pipeline.py'
       - 'tests/test_phase2d_ai_integrity.py'
+      - 'tests/test_phase2d_d1_attribution.py'
+      - 'tests/test_phase2d_d2_logging_attribution.py'
+      - 'tests/test_phase2d_d2_scanner_wiring.py'
       - 'tests/test_phase2d_b0_logging.py'
       - 'tests/test_phase2d_b1_calibration.py'
       - 'tests/test_phase2d_b2_reporting.py'
@@ -52,7 +56,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify Phase 1C, Phase 2A, Phase 2B, Phase 2C, Phase 2D-A, Phase 2D-B0, Phase 2D-B1, Phase 2D-B2 and Phase 2D-C
+      - name: Verify Phase 1C, Phase 2A, Phase 2B, Phase 2C, Phase 2D-A, Phase 2D-B0, Phase 2D-B1, Phase 2D-B2, Phase 2D-C, Phase 2D-D1 and Phase 2D-D2
         run: |
           python -m py_compile \
             engines/beta_filter.py \
@@ -64,6 +68,7 @@ jobs:
             scanner_v5.py \
             storage/signal_logger.py \
             ai/signal_ranker.py \
+            ai/attribution.py \
             ai/confidence_engine.py \
             reports/calibration_engine.py \
             reports/calibration_report.py \
@@ -73,6 +78,9 @@ jobs:
             tests/test_phase2b_engines.py \
             tests/test_phase2c_decision_pipeline.py \
             tests/test_phase2d_ai_integrity.py \
+            tests/test_phase2d_d1_attribution.py \
+            tests/test_phase2d_d2_logging_attribution.py \
+            tests/test_phase2d_d2_scanner_wiring.py \
             tests/test_phase2d_b0_logging.py \
             tests/test_phase2d_b1_calibration.py \
             tests/test_phase2d_b2_reporting.py \
@@ -83,6 +91,9 @@ jobs:
             tests/test_phase2b_engines.py \
             tests/test_phase2c_decision_pipeline.py \
             tests/test_phase2d_ai_integrity.py \
+            tests/test_phase2d_d1_attribution.py \
+            tests/test_phase2d_d2_logging_attribution.py \
+            tests/test_phase2d_d2_scanner_wiring.py \
             tests/test_phase2d_b0_logging.py \
             tests/test_phase2d_b1_calibration.py \
             tests/test_phase2d_b2_reporting.py \
