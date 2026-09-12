@@ -34,13 +34,13 @@ class SignalTrackerLifecycleTests(unittest.TestCase):
 
     def test_long_tp2_keeps_signal_active(self):
         result = self.tracker._check(
-            "LONG", 104.2, 100.0, 102.0, 104.0, 106.0, "OPEN_TP1"
+            "LONG", 104.2, 100.0, 100.0, 102.0, 104.0, 106.0, "OPEN_TP1"
         )
         self.assertEqual(result["status"], "OPEN_TP2")
 
     def test_long_tp3_is_terminal(self):
         result = self.tracker._check(
-            "LONG", 106.1, 100.0, 102.0, 104.0, 106.0, "OPEN_TP2"
+            "LONG", 106.1, 100.0, 100.0, 102.0, 104.0, 106.0, "OPEN_TP2"
         )
         self.assertEqual(result["status"], "TP3_HIT")
 
