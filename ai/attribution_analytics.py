@@ -4,8 +4,6 @@ This module analyzes already-persisted attribution snapshots. It does not
 change ranking weights, thresholds, signals, or trading decisions.
 """
 
-from collections import defaultdict
-
 from ai.data_sufficiency import analyze_data_sufficiency
 
 COMPONENTS = ("trend", "quality", "rs", "oi", "rr", "sr", "category")
@@ -38,7 +36,6 @@ def analyze_attribution(signals, *, min_attributed_records=20):
             groups["loser"].append(attribution["components"])
 
     averages = {}
-    differences = {}
     for group, rows in groups.items():
         averages[group] = {
             component: round(
@@ -48,10 +45,15 @@ def analyze_attribution(signals, *, min_attributed_records=20):
             for component in COMPONENTS
         }
 
+    differences = {}
     for component in COMPONENTS:
         winner = averages["winner"][component]
         loser = averages["loser"][component]
-        differences[component] = round(winner - loser, 4) if winner is not None and loser is not None else None
+        differences[component] = (
+            round(winner - loser, 4)
+            if winner is not None and loser is not None
+            else None
+        )
 
     evidence_level = "sufficient" if sufficiency["ready"] else "insufficient"
     return {
