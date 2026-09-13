@@ -67,10 +67,12 @@ def _explicit_execution(signal):
     remaining_r = _number(signal.get("remaining_position_exit_r"))
     if remaining_pct is not None or remaining_r is not None:
         any_execution = True
-        if remaining_pct is None or remaining_r is None:
+        if remaining_pct is None:
             return None, "incomplete remaining-position evidence"
         if not (0.0 <= remaining_pct <= 100.0):
             return None, "invalid remaining-position quantity"
+        if remaining_pct > 0.0 and remaining_r is None:
+            return None, "incomplete remaining-position evidence"
         if abs((total_qty + remaining_pct) - 100.0) > 1e-9:
             return None, "execution quantities do not account for 100%"
         if remaining_pct > 0.0:
@@ -87,6 +89,8 @@ def _explicit_execution(signal):
 
 
 def _terminal_realized_r(signal):
+    if signal.get("status") not in RESOLVED_STATUSES:
+        return None
     raw = _number(signal.get("realized_r"))
     if raw is not None:
         return raw
