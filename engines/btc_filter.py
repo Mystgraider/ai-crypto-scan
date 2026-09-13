@@ -9,9 +9,11 @@ Policy:
   - ``regime`` and ``reason`` remain available to the scanner for context,
     diagnostics, and existing range-specific logic.
   - Extreme BTC conditions remain explicit safety states.
+  - Missing/insufficient BTC market data fails closed: no new LONG/SHORT signals.
 
 This keeps BTC from suppressing independent coin-level setups while
-preserving the existing regime analysis.
+preserving the existing regime analysis and avoiding incomplete BTC context
+becoming an unintended bypass of the market safety layer.
 """
 
 import pandas as pd
@@ -28,8 +30,8 @@ class BTCFilter:
     def analyze(self, df_1h: pd.DataFrame, df_4h: pd.DataFrame = None) -> dict:
 
         if len(df_1h) < 2:
-            return self._r("UNKNOWN", 0, 50, allow_long=True, allow_short=True,
-                           reason="Insufficient 1H data")
+            return self._r("UNKNOWN", 0, 50, allow_long=False, allow_short=False,
+                           reason="Insufficient 1H data — BTC safety state, no signals")
 
         live = df_1h.iloc[-1]
         prev = df_1h.iloc[-2]

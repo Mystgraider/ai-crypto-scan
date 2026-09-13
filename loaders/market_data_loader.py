@@ -25,11 +25,22 @@ class MarketDataLoader:
         tf  = timeframe or CONFIG["timeframe"]
         lim = limit     or CONFIG["ohlcv_limit"]
 
-        data = self.exchange.fetch_ohlcv(
-            symbol,
-            timeframe=tf,
-            limit=lim
-        )
+        try:
+            data = self.exchange.fetch_ohlcv(
+                symbol,
+                timeframe=tf,
+                limit=lim
+            )
+        except Exception:
+            if symbol == CONFIG["btc_symbol"] and tf == "1h":
+                df = pd.DataFrame(
+                    [[pd.Timestamp.utcnow(), float("nan"), float("nan"),
+                      float("nan"), float("nan"), float("nan")]],
+                    columns=["timestamp", "open", "high", "low", "close", "volume"],
+                )
+                df.attrs["btc_data_unavailable"] = True
+                return df
+            raise
 
         df = pd.DataFrame(
             data,

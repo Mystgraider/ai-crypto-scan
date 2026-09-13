@@ -20,6 +20,12 @@ class Indicators:
     @staticmethod
     def apply(df: pd.DataFrame) -> pd.DataFrame:
 
+        # A BTC fetch failure is represented by MarketDataLoader as an
+        # explicit safety-state frame. Preserve it so BTCFilter can return
+        # UNKNOWN/blocked instead of the scanner's legacy fail-open state.
+        if df.attrs.get("btc_data_unavailable"):
+            return df.copy()
+
         if len(df) < Indicators.MIN_CANDLES:
             raise ValueError(
                 f"Insufficient candles: {len(df)} < {Indicators.MIN_CANDLES}"
@@ -62,7 +68,7 @@ class Indicators:
 
         atr14    = tr.ewm(com=13, adjust=False).mean()
         plus_di  = 100 * plus_dm.ewm(com=13,  adjust=False).mean() / atr14.replace(0, 1e-10)
-        minus_di = 100 * minus_dm.ewm(com=13, adjust=False).mean() / atr14.replace(0, 1e-10)
+        minus_di = 100 * minus_dm.ewm(com=13,  adjust=False).mean() / atr14.replace(0, 1e-10)
         dx       = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, 1e-10)
         df["adx"] = dx.ewm(com=13, adjust=False).mean()
 
