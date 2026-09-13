@@ -11,6 +11,18 @@
     "sweep_extreme": 0.959,
     "symbol": "AXS/USDT:USDT"
   },
+  "CHZ/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-13T18:06:08.966642+00:00",
+    "last_seen": "2026-09-13T18:06:08.966642+00:00",
+    "observations": 1,
+    "pool_level": 0.01498,
+    "range_high": 0.0154,
+    "range_low": 0.01453,
+    "regime": "RANGE",
+    "sweep_extreme": 0.015,
+    "symbol": "CHZ/USDT:USDT"
+  },
   "CKB/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-13T15:04:31.890648+00:00",
@@ -38,50 +50,26 @@
   "GALA/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-13T15:02:57.416015+00:00",
-    "last_seen": "2026-09-13T15:02:57.416015+00:00",
-    "observations": 1,
+    "last_seen": "2026-09-13T18:05:34.329690+00:00",
+    "observations": 2,
     "pool_level": 0.001712,
-    "range_high": 0.001712,
+    "range_high": 0.001726,
     "range_low": 0.00166,
     "regime": "RANGE",
-    "sweep_extreme": 0.001713,
+    "sweep_extreme": 0.001717,
     "symbol": "GALA/USDT:USDT"
   },
-  "KAVA/USDT:USDT|LONG": {
+  "TLM/USDT:USDT|LONG": {
     "direction": "LONG",
-    "first_seen": "2026-09-13T11:41:07.779297+00:00",
-    "last_seen": "2026-09-13T11:41:07.779297+00:00",
+    "first_seen": "2026-09-13T18:07:30.699887+00:00",
+    "last_seen": "2026-09-13T18:07:30.699887+00:00",
     "observations": 1,
-    "pool_level": 0.06996,
-    "range_high": 0.07772,
-    "range_low": 0.06909,
+    "pool_level": 0.001398,
+    "range_high": 0.001415,
+    "range_low": 0.001398,
     "regime": "RANGE",
-    "sweep_extreme": 0.06982,
-    "symbol": "KAVA/USDT:USDT"
-  },
-  "LTC/USDT:USDT|LONG": {
-    "direction": "LONG",
-    "first_seen": "2026-09-13T11:40:20.139692+00:00",
-    "last_seen": "2026-09-13T11:40:20.139692+00:00",
-    "observations": 1,
-    "pool_level": 53.435,
-    "range_high": 54.55,
-    "range_low": 53.46,
-    "regime": "RANGE",
-    "sweep_extreme": 53.3,
-    "symbol": "LTC/USDT:USDT"
-  },
-  "SAND/USDT:USDT|LONG": {
-    "direction": "LONG",
-    "first_seen": "2026-09-13T11:40:45.517795+00:00",
-    "last_seen": "2026-09-13T11:40:45.517795+00:00",
-    "observations": 1,
-    "pool_level": 0.03562333333333333,
-    "range_high": 0.03625,
-    "range_low": 0.03567,
-    "regime": "RANGE",
-    "sweep_extreme": 0.03539,
-    "symbol": "SAND/USDT:USDT"
+    "sweep_extreme": 0.001396,
+    "symbol": "TLM/USDT:USDT"
   },
   "TRX/USDT:USDT|SHORT": {
     "direction": "SHORT",
