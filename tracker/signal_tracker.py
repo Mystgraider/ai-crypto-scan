@@ -188,49 +188,60 @@ class SignalTracker:
         high=None,
         low=None,
     ) -> dict | None:
-        """Check lifecycle milestones using close plus intrabar high/low.
+        """Check lifecycle milestones using candle high/low when available.
 
-        When OHLC extremes are available, they are authoritative for whether
-        a price level was touched during the candle. SL remains checked first
-        to preserve the existing conservative behavior when one candle spans
-        both a stop and a target and exact tick ordering is unavailable.
+        OHLC extremes detect intrabar level touches that the candle close can
+        miss. When high/low are omitted, the method preserves its legacy
+        close-only behavior and return shape for existing callers/tests.
+
+        SL remains checked first to preserve the existing conservative
+        behavior when one candle spans both a stop and a target and exact
+        tick ordering is unavailable.
         """
         if direction == "LONG":
             sl_hit = self._long_sl_hit
             tp_hit = self._long_tp_hit
-            candle_high = price if high is None else high
-            candle_low = price if low is None else low
         elif direction == "SHORT":
             sl_hit = self._short_sl_hit
             tp_hit = self._short_tp_hit
-            candle_high = price if high is None else high
-            candle_low = price if low is None else low
         else:
             return None
+
+        has_ohlc = high is not None and low is not None
+        candle_high = price if high is None else high
+        candle_low = price if low is None else low
 
         def level_hit(level):
             if direction == "LONG":
                 return candle_high >= level
             return candle_low <= level
 
+        def result(status_name, event_price=None, sl_value=None):
+            outcome = {"status": status_name}
+            if sl_value is not None:
+                outcome["sl"] = sl_value
+            if has_ohlc:
+                outcome["event_price"] = price if event_price is None else event_price
+            return outcome
+
         if sl_hit(candle_low if direction == "LONG" else candle_high, sl):
-            return {"status": "SL_HIT", "event_price": sl}
+            return result("SL_HIT", sl)
 
         if status == "OPEN":
             if level_hit(tp3):
-                return {"status": "TP3_HIT", "event_price": tp3}
+                return result("TP3_HIT", tp3)
             if level_hit(tp2):
-                return {"status": "OPEN_TP2", "sl": entry, "event_price": tp2}
+                return result("OPEN_TP2", tp2, entry)
             if level_hit(tp1):
-                return {"status": "OPEN_TP1", "sl": entry, "event_price": tp1}
+                return result("OPEN_TP1", tp1, entry)
         elif status == "OPEN_TP1":
             if level_hit(tp3):
-                return {"status": "TP3_HIT", "event_price": tp3}
+                return result("TP3_HIT", tp3)
             if level_hit(tp2):
-                return {"status": "OPEN_TP2", "event_price": tp2}
+                return result("OPEN_TP2", tp2)
         elif status == "OPEN_TP2":
             if level_hit(tp3):
-                return {"status": "TP3_HIT", "event_price": tp3}
+                return result("TP3_HIT", tp3)
 
         return None
 
