@@ -1,96 +1,52 @@
 # Elite Futures Scanner V5
 
-Automated 24/7 crypto futures signal platform with signal generation,
-tracking, analytics, AI ranking, and daily reporting.
+Automated crypto futures signal platform with signal generation, tracking, analytics, AI ranking/confidence, and scheduled reporting.
 
----
+## Architecture
 
-## Folder Structure
-
-```
-scanner_v5/
-├── scanner_v5.py              # Main orchestrator
-├── daily_report_runner.py     # Daily report entry point
-├── config.py                  # Single source of truth for all settings
-├── version.py                 # Version constants
-├── requirements.txt
-│
-├── loaders/
-│   ├── market_loader.py       # Exchange factory (OKX / Bitget)
-│   ├── top_symbols_loader.py  # Top 300 futures by volume
-│   └── market_data_loader.py  # OHLCV fetcher
-│
-├── indicators/
-│   └── indicators.py          # EMA20/50, RSI, ATR, ADX, ROC, RelVol
-│
-├── engines/
-│   ├── trend_engine.py        # Direction + trend score (0-100)
-│   ├── quality_engine.py      # Volume + RSI quality score (0-100)
-│   ├── risk_engine.py         # Entry, SL, TP1/2/3 + RR validation
-│   └── validator.py           # Final signal gate
-│
-├── alerts/
-│   └── telegram_alerts.py     # HTML-formatted Telegram sender
-│
-├── storage/
-│   ├── signal_logger.py       # CSV signal log (signals.csv)
-│   └── cooldown_manager.py    # Per-symbol cooldown (12h default)
-│
-├── tracker/
-│   └── signal_tracker.py      # Checks open signals vs live price
-│
-├── reports/
-│   ├── analytics_engine.py    # Win rate, PF, expectancy
-│   └── daily_report.py        # Sends daily summary to Telegram
-│
-├── ai/
-│   ├── signal_ranker.py       # Ranks candidates by composite score
-│   └── confidence_engine.py   # Signal confidence estimate
-│
-└── .github/workflows/
-    └── scanner.yml            # Every 5min scan + daily report
+```text
+scanner_v5.py
+├── loaders/        market + symbol + OHLCV data
+├── indicators/     EMA / RSI / ATR / ADX / ROC / RelVol
+├── engines/        trend, quality, RRCE, BTC/context, risk, validation
+├── ai/             ranking, confidence, attribution, data sufficiency
+├── storage/        signals, cooldown, execution evidence
+├── tracker/        lifecycle and outcome tracking
+├── reports/        analytics, calibration, canonical outcome, diagnostics
+└── alerts/         Telegram delivery
 ```
 
----
+`ROADMAP.md` is the source of truth for project phase status and the Phase 2D evidence/calibration track.
 
 ## Setup
 
-1. Fork / clone the repo
-2. Add GitHub Secrets:
-   - `BOT_TOKEN` — your Telegram bot token
-   - `CHAT_ID` — your Telegram chat/channel ID
-3. Enable GitHub Actions
-4. Scanner runs automatically every 5 minutes
+1. Fork or clone the repository.
+2. Add GitHub Actions secrets:
+   - `BOT_TOKEN` — Telegram bot token
+   - `CHAT_ID` — Telegram chat/channel ID
+3. Enable GitHub Actions.
+4. The scanner workflow runs on its configured schedule.
 
----
+## Signal contract
 
-## Signal Format (Telegram)
+Signals contain a direction, score/grade, executable entry, structural stop loss, and staged TP1/TP2/TP3 levels. Outcome tracking distinguishes market price milestones from explicit execution evidence.
 
-```
-🚨 ELITE V5 SIGNAL
+## Strategy-integrity boundary
 
-🟢 LONG — BTCUSDT
-🏅 Grade: A  |  Score: 84.5
+The current Phase 2D work is primarily evidence, analytics, outcome-accounting, diagnostics, and test hardening. It does **not** silently retune the trading strategy.
 
-🎯 Entry: 67420.0
-🛑 SL:    66800.0
-✅ TP1:  68260.0
-✅ TP2:  68680.0
-✅ TP3:  69520.0
+The following are strategy-sensitive and require an explicit, separately reviewed change:
 
-📐 RR: 2.1R
-🤖 Confidence: 76%
-```
+- scanner entry/filter decisions
+- ranking logic and AI weights
+- confidence formula
+- score/grade thresholds
+- position sizing
+- risk/SL/TP decision logic
+- lifecycle transition rules
 
----
+See `ROADMAP.md` for the audited roadmap and remaining product work.
 
-## Development Phases
+## Verification
 
-| Phase | Status | Scope |
-|-------|--------|-------|
-| 1 | ✅ Done | Core scanner, indicators, trend, Telegram, TP/SL, logging |
-| 2 | ✅ Done | Cooldown manager, signal tracker |
-| 3 | ✅ Done | Analytics, profit factor, daily report |
-| 4 | 🔜 Next | BTC filter, multi-timeframe, relative strength upgrade |
-| 5 | ✅ Done | AI signal ranker, confidence engine |
-| 6 | 🔜 Next | Dashboard, full web analytics |
+Use the repository `Verify Strategy Integrity` workflow as the primary CI gate. Phase work is considered complete only after the relevant tests and integrity checks pass.
