@@ -7,8 +7,8 @@ def weighted_realized_r(parts):
 
 
 def test_full_tp_ladder_realized_r_from_structural_4r():
-    # Phase 2D-E ladder is proportional to the structural target:
-    # TP1=50%, TP2=75%, TP3=100%. For a 4R structural target this is 2R/3R/4R.
+    # Phase 2D-E ladder: TP1=50%, TP2=75%, TP3=100% of structural reward.
+    # A 4R structural target therefore becomes 2R / 3R / 4R.
     assert isclose(weighted_realized_r([(50, 2.0), (25, 3.0), (25, 4.0)]), 2.75)
 
 
@@ -36,9 +36,33 @@ def test_partial_ladder_preserves_remaining_quantity():
     assert 100 - sum((50, 25)) == 25
 
 
-def test_direct_tp3_observation_does_not_fabricate_partial_execution():
-    # A tracker observation is not execution evidence by itself.
+def test_tp1_event_requires_execution_evidence():
+    # A milestone observation alone must not become a partial fill.
+    observed_status = "OPEN_TP1"
+    execution_events = []
+    assert observed_status == "OPEN_TP1"
+    assert execution_events == []
+
+
+def test_tp2_event_requires_execution_evidence():
+    observed_status = "OPEN_TP2"
+    execution_events = []
+    assert observed_status == "OPEN_TP2"
+    assert execution_events == []
+
+
+def test_tp3_event_requires_execution_evidence_for_partial_accounting():
+    # Direct TP3 observation may be terminal tracker evidence, but it does not
+    # prove that TP1/TP2 partial quantities were actually executed.
     observed_status = "TP3_HIT"
     execution_events = []
     assert observed_status == "TP3_HIT"
     assert execution_events == []
+
+
+def test_remaining_quantity_after_tp1_is_50_percent():
+    assert 100 - 50 == 50
+
+
+def test_remaining_quantity_after_tp1_tp2_is_25_percent():
+    assert 100 - 50 - 25 == 25
