@@ -38,15 +38,14 @@ class RelativeStrengthEngine:
         periods: int = 20,
     ) -> dict:
         """
-        Compare coin return vs BTC return over last N periods.
+        Compare coin return vs BTC return over the last N periods.
 
         Relative performance is measured as the ratio of ending wealth:
 
             rs_ratio = (1 + coin_return) / (1 + btc_return)
 
-        This preserves the meaning of outperformance across bull, bear,
-        and mixed-direction markets without creating a negative RS ratio
-        when the coin and BTC move in opposite directions.
+        The starting candle is N periods before the final candle, so N
+        periods require at least N + 1 closing prices.
         """
         if periods <= 0:
             return self._NEUTRAL.copy()
@@ -54,8 +53,10 @@ class RelativeStrengthEngine:
         if len(coin_closes) < periods + 1 or len(btc_closes) < periods + 1:
             return self._NEUTRAL.copy()
 
-        coin_start = coin_closes[-periods]
-        btc_start = btc_closes[-periods]
+        # N periods means N intervals between the starting and ending close.
+        start_index = -(periods + 1)
+        coin_start = coin_closes[start_index]
+        btc_start = btc_closes[start_index]
         coin_end = coin_closes[-1]
         btc_end = btc_closes[-1]
 
@@ -68,11 +69,11 @@ class RelativeStrengthEngine:
         coin_return = (coin_end - coin_start) / coin_start
         btc_return = (btc_end - btc_start) / btc_start
 
-        btc_growth = 1.0 + btc_return
-        coin_growth = 1.0 + coin_return
-
         if not math.isfinite(coin_return) or not math.isfinite(btc_return):
             return self._NEUTRAL.copy()
+
+        btc_growth = 1.0 + btc_return
+        coin_growth = 1.0 + coin_return
 
         if btc_growth <= 0 or coin_growth <= 0:
             return self._NEUTRAL.copy()
