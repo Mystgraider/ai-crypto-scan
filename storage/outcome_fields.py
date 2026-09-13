@@ -1,7 +1,7 @@
 """Phase 2D-H execution outcome field contract.
 
 These fields are persistence-ready only. They do not imply that a TP milestone
-was actually executed; execution evidence must be supplied explicitly later.
+was actually executed; execution evidence must be supplied explicitly.
 """
 
 EXECUTION_OUTCOME_FIELDS = (
@@ -16,6 +16,9 @@ EXECUTION_OUTCOME_FIELDS = (
     "tp3_realized_r",
     "remaining_position_pct",
     "remaining_position_exit_r",
+    "tp1_executed_at",
+    "tp2_executed_at",
+    "tp3_executed_at",
 )
 
 DEFAULT_EXECUTION_OUTCOME = {field: "" for field in EXECUTION_OUTCOME_FIELDS}
