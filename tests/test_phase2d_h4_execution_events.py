@@ -116,7 +116,7 @@ def test_execution_without_remaining_quantity_does_not_infer_it(tmp_path, monkey
     assert row["remaining_position_pct"] == ""
 
 
-def test_execution_is_rejected_after_terminal_status(tmp_path, monkeypatch):
+def test_execution_can_coexist_with_terminal_lifecycle_status(tmp_path, monkeypatch):
     path = _save(tmp_path, monkeypatch)
     tracker = SignalTracker.__new__(SignalTracker)
 
@@ -124,15 +124,39 @@ def test_execution_is_rejected_after_terminal_status(tmp_path, monkeypatch):
         "BTC/USDT", "LONG", 100.0, "TP3_HIT",
         event_at=EVENT_AT, event_price=106.0, realized_r=3.0,
     )
-    assert not tracker.record_partial_execution(
+    assert tracker.record_partial_execution(
         "BTC/USDT", "LONG", 100.0, "TP3", 25.0, 106.0, 3.0,
-        event_at=EVENT_AT,
+        event_at=EVENT_AT, remaining_position_pct=75.0,
     )
 
     row = _row(path)
     assert row["status"] == "TP3_HIT"
-    assert row["tp3_qty_pct"] == ""
-    assert row["tp3_executed_at"] == ""
+    assert float(row["realized_r"]) == 3.0
+    assert float(row["tp3_qty_pct"]) == 25.0
+    assert float(row["tp3_exit_price"]) == 106.0
+    assert float(row["tp3_realized_r"]) == 3.0
+    assert row["tp3_executed_at"] == EVENT_AT
+    assert float(row["remaining_position_pct"]) == 75.0
+
+
+def test_execution_can_coexist_with_sl_terminal_status(tmp_path, monkeypatch):
+    path = _save(tmp_path, monkeypatch)
+    tracker = SignalTracker.__new__(SignalTracker)
+
+    assert signal_logger.update_signal_tracking(
+        "BTC/USDT", "LONG", 100.0, "SL_HIT",
+        event_at=EVENT_AT, event_price=98.0, realized_r=-1.0,
+    )
+    assert tracker.record_partial_execution(
+        "BTC/USDT", "LONG", 100.0, "TP1", 50.0, 102.0, 2.0,
+        event_at=EVENT_AT, remaining_position_pct=50.0,
+    )
+
+    row = _row(path)
+    assert row["status"] == "SL_HIT"
+    assert float(row["realized_r"]) == -1.0
+    assert float(row["tp1_qty_pct"]) == 50.0
+    assert float(row["tp1_realized_r"]) == 2.0
 
 
 def test_duplicate_execution_level_is_not_overwritten(tmp_path, monkeypatch):
