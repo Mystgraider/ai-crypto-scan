@@ -20,6 +20,9 @@ class Indicators:
     @staticmethod
     def apply(df: pd.DataFrame) -> pd.DataFrame:
 
+        # A BTC fetch failure is represented by MarketDataLoader as an
+        # explicit safety-state frame. Preserve it so BTCFilter can return
+        # UNKNOWN/blocked instead of the scanner's legacy fail-open state.
         if df.attrs.get("btc_data_unavailable"):
             return df.copy()
 
@@ -65,7 +68,7 @@ class Indicators:
 
         atr14    = tr.ewm(com=13, adjust=False).mean()
         plus_di  = 100 * plus_dm.ewm(com=13,  adjust=False).mean() / atr14.replace(0, 1e-10)
-        minus_di = 100 * minus_dm.ewm(com=13, adjust=False).mean() / atr14.replace(0, 1e-10)
+        minus_di = 100 * minus_dm.ewm(com=13,  adjust=False).mean() / atr14.replace(0, 1e-10)
         dx       = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, 1e-10)
         df["adx"] = dx.ewm(com=13, adjust=False).mean()
 
@@ -90,10 +93,14 @@ class Indicators:
         df["bb_lower"]  = bb_mid - 2 * bb_std
         df["bb_mid"]    = bb_mid
         bb_range        = (df["bb_upper"] - df["bb_lower"]).replace(0, 1e-10)
-        df["bb_pct_b"]  = (c - df["bb_lower"]) / bb_range
-        df["bb_width"]  = bb_range / bb_mid.replace(0, 1e-10) * 100
+        df["bb_pct_b"]  = (c - df["bb_lower"]) / bb_range   # 0=lower, 1=upper
+        df["bb_width"]  = bb_range / bb_mid.replace(0, 1e-10) * 100  # % width
 
-        # ── Squeeze detection ──────────────────────────────────────────
+        # ── Squeeze detection (leading indicator) ───────────────────────
+        # Where does current bb_width rank vs its own last 20 bars?
+        # Low percentile = volatility has contracted = coiled spring,
+        # move likely BEFORE it happens, not a confirmation of one
+        # already in progress.
         df["bb_width_pctile"] = df["bb_width"].rolling(20).apply(
             lambda w: (w.iloc[-1] <= w).mean(), raw=False
         )
@@ -103,7 +110,7 @@ class Indicators:
         rsi_min         = rsi_series.rolling(14).min()
         rsi_max         = rsi_series.rolling(14).max()
         stoch_rsi_raw   = (rsi_series - rsi_min) / (rsi_max - rsi_min).replace(0, 1e-10)
-        df["stoch_k"]   = stoch_rsi_raw.rolling(3).mean() * 100
-        df["stoch_d"]   = df["stoch_k"].rolling(3).mean()
+        df["stoch_k"]   = stoch_rsi_raw.rolling(3).mean() * 100   # %K smoothed
+        df["stoch_d"]   = df["stoch_k"].rolling(3).mean()          # %D signal
 
         return df
