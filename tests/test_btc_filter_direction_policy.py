@@ -58,6 +58,17 @@ def test_bear_caution_does_not_block_either_direction():
     assert result["allow_short"] is True
 
 
+def test_insufficient_btc_data_fails_closed():
+    result = BTCFilter().analyze(
+        _frame([100], 100, 100, 15, 55).iloc[:1],
+    )
+
+    assert result["regime"] == "UNKNOWN"
+    assert result["allow_long"] is False
+    assert result["allow_short"] is False
+    assert "no signals" in result["reason"]
+
+
 def test_extreme_oversold_remains_hard_safety_block():
     result = BTCFilter().analyze(
         _frame([95, 94], 96, 100, 30, 24),
