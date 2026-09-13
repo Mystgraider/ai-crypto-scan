@@ -2,11 +2,12 @@
 Daily Report — V6.2
 Shows TODAY's signals only and respects the active/terminal lifecycle.
 
-Uses recorded realized R instead of fixed TP assumptions.
+Uses canonical realized R from Phase 2D-H.5 instead of fixed TP assumptions.
 """
 
 from datetime import datetime, timezone
 from reports.analytics_engine import AnalyticsEngine
+from reports.execution_outcome import calculate_canonical_trade_r
 from storage.signal_logger import load_signals
 from alerts.telegram_alerts import send_telegram_alert
 
@@ -27,11 +28,8 @@ class DailyReport:
         expired_today = [s for s in today_signals if s.get("status") == "EXPIRED"]
 
         def r_value(s):
-            raw = s.get("realized_r", "")
-            try:
-                return float(raw) if raw != "" else None
-            except (TypeError, ValueError):
-                return None
+            outcome = calculate_canonical_trade_r(s)
+            return outcome.realized_r if outcome.resolved else None
 
         wins_today = [s for s in resolved_today if (r_value(s) or 0.0) > 0]
         losses_today = [s for s in resolved_today if (r_value(s) or 0.0) <= 0]

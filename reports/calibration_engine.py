@@ -1,8 +1,8 @@
 """Phase 2D-B1 — historical AI calibration analysis.
 
 This module is intentionally read-only: it measures how stored AI rank,
-confidence, and grade relate to realized outcomes. It does not change any
-scanner formula, weights, thresholds, or signal decisions.
+confidence, and grade relate to canonical realized outcomes. It does not
+change any scanner formula, weights, thresholds, or signal decisions.
 
 Only terminal TP3_HIT / SL_HIT records are treated as resolved outcomes.
 EXPIRED records remain censored and are excluded from win-rate calibration.
@@ -12,6 +12,7 @@ Legacy rows without AI fields are excluded from AI/confidence calibration.
 from collections import OrderedDict
 from statistics import mean
 
+from reports.execution_outcome import calculate_canonical_trade_r
 from storage.signal_logger import load_signals
 
 RESOLVED_STATUSES = {"TP3_HIT", "SL_HIT"}
@@ -39,25 +40,8 @@ def _number(value):
 
 
 def _realized_r(signal):
-    stored = _number(signal.get("realized_r"))
-    if stored is not None:
-        return stored
-
-    if signal.get("status") not in RESOLVED_STATUSES:
-        return None
-
-    entry = _number(signal.get("entry"))
-    exit_price = _number(signal.get("exit_price"))
-    initial_sl = _number(signal.get("initial_sl") or signal.get("sl"))
-    if None in (entry, exit_price, initial_sl):
-        return None
-
-    risk = abs(entry - initial_sl)
-    if risk <= 0:
-        return None
-    if signal.get("direction") == "LONG":
-        return (exit_price - entry) / risk
-    return (entry - exit_price) / risk
+    outcome = calculate_canonical_trade_r(signal)
+    return outcome.realized_r if outcome.resolved else None
 
 
 def _bucket(value, definitions):

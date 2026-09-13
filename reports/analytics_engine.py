@@ -1,3 +1,4 @@
+from reports.execution_outcome import calculate_canonical_trade_r
 from storage.signal_logger import load_signals
 
 ACTIVE_STATUSES = {"OPEN", "OPEN_TP1", "OPEN_TP2"}
@@ -8,35 +9,9 @@ class AnalyticsEngine:
 
     @staticmethod
     def _terminal_r(signal: dict):
-        """Return stored terminal R when available.
-
-        Legacy signals may not have realized_r. For those records, derive
-        terminal R from entry/exit and the original SL when possible. This
-        avoids the old fixed 2.25/3.5/5.5R assumptions.
-        """
-        raw = signal.get("realized_r", "")
-        if raw not in (None, ""):
-            try:
-                return float(raw)
-            except (TypeError, ValueError):
-                pass
-
-        status = signal.get("status")
-        if status not in {"TP3_HIT", "SL_HIT"}:
-            return None
-
-        try:
-            entry = float(signal["entry"])
-            exit_price = float(signal["exit_price"])
-            initial_sl = float(signal.get("initial_sl") or signal["sl"])
-            risk = abs(entry - initial_sl)
-            if risk <= 0:
-                return None
-            if signal.get("direction") == "LONG":
-                return (exit_price - entry) / risk
-            return (entry - exit_price) / risk
-        except (KeyError, TypeError, ValueError, ZeroDivisionError):
-            return None
+        """Return the canonical trade R for a terminal signal."""
+        outcome = calculate_canonical_trade_r(signal)
+        return outcome.realized_r if outcome.resolved else None
 
     def compute(self) -> dict:
         signals = load_signals()
