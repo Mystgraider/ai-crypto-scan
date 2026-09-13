@@ -13,6 +13,7 @@ from math import isfinite
 
 RESOLVED_STATUSES = {"TP3_HIT", "SL_HIT"}
 EXECUTION_LEVELS = ("TP1", "TP2", "TP3")
+VALID_DIRECTIONS = {"LONG", "SHORT"}
 
 
 @dataclass(frozen=True)
@@ -100,6 +101,10 @@ def _terminal_realized_r(signal):
 def _legacy_realized_r(signal):
     if signal.get("status") not in RESOLVED_STATUSES:
         return None
+    direction = signal.get("direction")
+    if direction not in VALID_DIRECTIONS:
+        return None
+
     entry = _number(signal.get("entry"))
     exit_price = _number(signal.get("exit_price"))
     initial_sl = _number(signal.get("initial_sl") or signal.get("sl"))
@@ -108,7 +113,7 @@ def _legacy_realized_r(signal):
     risk = abs(entry - initial_sl)
     if risk <= 0.0:
         return None
-    if signal.get("direction") == "LONG":
+    if direction == "LONG":
         return (exit_price - entry) / risk
     return (entry - exit_price) / risk
 
