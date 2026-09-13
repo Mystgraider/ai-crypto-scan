@@ -137,3 +137,14 @@ def test_non_terminal_stored_realized_r_is_not_authoritative():
     outcome = calculate_canonical_trade_r(signal)
     assert outcome.source == "unresolved"
     assert outcome.realized_r is None
+
+
+def test_malformed_direction_does_not_fall_back_to_short_legacy_r():
+    signal = {
+        **BASE,
+        "direction": "SIDEWAYS",
+        "realized_r": "",
+    }
+    outcome = calculate_canonical_trade_r(signal)
+    assert outcome.source == "unresolved"
+    assert outcome.realized_r is None
