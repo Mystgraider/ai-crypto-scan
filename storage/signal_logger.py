@@ -1,6 +1,7 @@
 import os
 import csv
 import json
+import math
 from datetime import datetime, timezone
 from storage.outcome_fields import DEFAULT_EXECUTION_OUTCOME, EXECUTION_OUTCOME_FIELDS
 
@@ -163,13 +164,15 @@ def record_execution_event(
     qty_pct = float(qty_pct)
     exit_price = float(exit_price)
     realized_r = float(realized_r)
-    if not 0 < qty_pct <= 100:
+    if not math.isfinite(qty_pct) or not 0 < qty_pct <= 100:
         raise ValueError("qty_pct must be between 0 and 100")
-    if exit_price <= 0:
+    if not math.isfinite(exit_price) or exit_price <= 0:
         raise ValueError("exit_price must be positive")
+    if not math.isfinite(realized_r):
+        raise ValueError("realized_r must be finite")
     if remaining_position_pct is not None:
         remaining_position_pct = float(remaining_position_pct)
-        if not 0 <= remaining_position_pct <= 100:
+        if not math.isfinite(remaining_position_pct) or not 0 <= remaining_position_pct <= 100:
             raise ValueError("remaining_position_pct must be between 0 and 100")
 
     _ensure_file()
@@ -202,8 +205,6 @@ def record_execution_event(
             row[r_field] = round(realized_r, 6)
             if remaining_position_pct is not None:
                 row["remaining_position_pct"] = round(remaining_position_pct, 6)
-            elif row.get("remaining_position_pct") == "":
-                row["remaining_position_pct"] = round(100.0 - executed_qty - qty_pct, 6)
 
             with open(SIGNALS_FILE, "w", newline="") as f:
                 writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
