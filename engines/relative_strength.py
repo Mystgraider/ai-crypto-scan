@@ -16,14 +16,26 @@ RS Score 0-100:
 Used by AI ranker to boost strong coins and penalize weak ones.
 """
 
+import math
+
 
 class RelativeStrengthEngine:
+
+    _NEUTRAL = {"rs_score": 50.0, "rs_label": "NEUTRAL", "rs_ratio": 1.0}
+
+    @staticmethod
+    def _is_valid_price(value) -> bool:
+        """Accept only finite, strictly positive numeric prices."""
+        try:
+            return math.isfinite(value) and value > 0
+        except (TypeError, ValueError):
+            return False
 
     def calculate(
         self,
         coin_closes: list[float],
-        btc_closes:  list[float],
-        periods:     int = 20,
+        btc_closes: list[float],
+        periods: int = 20,
     ) -> dict:
         """
         Compare coin return vs BTC return over last N periods.
@@ -36,41 +48,38 @@ class RelativeStrengthEngine:
         and mixed-direction markets without creating a negative RS ratio
         when the coin and BTC move in opposite directions.
         """
+        if periods <= 0:
+            return self._NEUTRAL.copy()
 
         if len(coin_closes) < periods + 1 or len(btc_closes) < periods + 1:
-            return {"rs_score": 50.0, "rs_label": "NEUTRAL", "rs_ratio": 1.0}
+            return self._NEUTRAL.copy()
 
         coin_start = coin_closes[-periods]
         btc_start = btc_closes[-periods]
         coin_end = coin_closes[-1]
         btc_end = btc_closes[-1]
 
-        if coin_start <= 0 or btc_start <= 0:
-            return {"rs_score": 50.0, "rs_label": "NEUTRAL", "rs_ratio": 1.0}
+        if not all(
+            self._is_valid_price(value)
+            for value in (coin_start, coin_end, btc_start, btc_end)
+        ):
+            return self._NEUTRAL.copy()
 
-        # Return over last N periods.
         coin_return = (coin_end - coin_start) / coin_start
-        btc_return  = (btc_end - btc_start) / btc_start
+        btc_return = (btc_end - btc_start) / btc_start
 
-        # Relative performance ratio.
-        # 1.0 = coin and BTC performed equally.
-        # > 1.0 = coin outperformed BTC.
-        # < 1.0 = coin underperformed BTC.
-        # Using ending wealth avoids the old sign-inversion bug when BTC
-        # is negative and the coin is positive (or vice versa).
         btc_growth = 1.0 + btc_return
         coin_growth = 1.0 + coin_return
 
+        if not math.isfinite(coin_return) or not math.isfinite(btc_return):
+            return self._NEUTRAL.copy()
+
         if btc_growth <= 0 or coin_growth <= 0:
-            return {
-                "rs_score": 50.0,
-                "rs_label": "NEUTRAL",
-                "rs_ratio": 1.0,
-                "coin_ret": round(coin_return * 100, 2),
-                "btc_ret": round(btc_return * 100, 2),
-            }
+            return self._NEUTRAL.copy()
 
         rs_ratio = coin_growth / btc_growth
+        if not math.isfinite(rs_ratio):
+            return self._NEUTRAL.copy()
 
         # Normalize ratio to 0-100 score.
         # ratio 2.0 = score 100 (coin's ending wealth is 2x BTC's)
