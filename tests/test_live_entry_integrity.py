@@ -24,7 +24,7 @@ class FakeRRCE:
         }
 
 
-def test_revalidate_recalculates_rr_from_fresh_price():
+def test_revalidate_recalculates_rr_from_fresh_price_and_builds_tp_ladder():
     result = revalidate(
         FakeRRCE(),
         "LONG",
@@ -37,10 +37,32 @@ def test_revalidate_recalculates_rr_from_fresh_price():
     assert result["valid"] is True
     assert result["entry"] == 105.0
     assert result["sl"] == 95.0
-    assert result["tp1"] == 115.0
-    assert result["tp2"] == 115.0
+    assert result["tp1"] == 110.0
+    assert result["tp2"] == 112.5
     assert result["tp3"] == 115.0
+    assert result["structural_tp"] == 115.0
+    assert result["tp1_fraction"] == 0.50
+    assert result["tp2_fraction"] == 0.75
     assert result["rr"] == 1.0
+
+
+def test_revalidate_builds_short_tp_ladder():
+    result = revalidate(
+        FakeRRCE(),
+        "SHORT",
+        95.0,
+        {"entry": 100.0, "sl": 105.0, "tp": 85.0},
+        max_deviation_pct=10.0,
+        min_rr=1.0,
+    )
+
+    assert result["valid"] is True
+    assert result["entry"] == 95.0
+    assert result["sl"] == 105.0
+    assert result["tp1"] == 90.0
+    assert result["tp2"] == 87.5
+    assert result["tp3"] == 85.0
+    assert result["structural_tp"] == 85.0
 
 
 def test_revalidate_rejects_stale_price():
