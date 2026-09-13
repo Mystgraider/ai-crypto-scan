@@ -5,6 +5,13 @@ from datetime import datetime, timezone
 
 SIGNALS_FILE = "storage/signals.csv"
 
+EXECUTION_OUTCOME_FIELDS = [
+    "tp1_qty_pct", "tp2_qty_pct", "tp3_qty_pct",
+    "tp1_exit_price", "tp2_exit_price", "tp3_exit_price",
+    "tp1_realized_r", "tp2_realized_r", "tp3_realized_r",
+    "remaining_position_pct", "remaining_position_exit_r",
+]
+
 FIELDNAMES = [
     "timestamp", "symbol", "direction",
     "entry", "initial_sl", "sl", "tp1", "tp2", "tp3",
@@ -16,6 +23,7 @@ FIELDNAMES = [
     "status",
     "tp1_hit_at", "tp2_hit_at", "tp3_hit_at",
     "exit_at", "exit_price", "realized_r",
+    *EXECUTION_OUTCOME_FIELDS,
 ]
 
 ACTIVE_STATUSES = {"OPEN", "OPEN_TP1", "OPEN_TP2"}
@@ -75,6 +83,7 @@ def save_signal(
         "status": status,
         "tp1_hit_at": "", "tp2_hit_at": "", "tp3_hit_at": "",
         "exit_at": "", "exit_price": "", "realized_r": "",
+        **{field: "" for field in EXECUTION_OUTCOME_FIELDS},
     }
     with open(SIGNALS_FILE, "a", newline="") as f:
         csv.DictWriter(f, fieldnames=FIELDNAMES).writerow(row)
