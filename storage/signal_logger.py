@@ -152,11 +152,13 @@ def record_execution_event(
     event_at: str | None = None,
     remaining_position_pct: float | None = None,
 ) -> bool:
-    """Persist explicit partial-execution evidence without changing lifecycle status.
+    """Persist explicit execution evidence without changing lifecycle status.
 
-    This function records supplied execution evidence only. It never infers a fill
-    from a TP price milestone and it does not calculate realized R. The caller must
-    provide the execution quantity, exit price, and realized-R evidence explicitly.
+    Execution evidence is an independent state stream from the market lifecycle.
+    A TP price milestone records what the market reached; this function records
+    only supplied evidence that a position was actually executed. Therefore an
+    execution event remains recordable even when the lifecycle has already moved
+    to TP3_HIT, SL_HIT, or EXPIRED.
     """
     if execution_level not in {"TP1", "TP2", "TP3"}:
         raise ValueError("execution_level must be TP1, TP2, or TP3")
@@ -188,7 +190,6 @@ def record_execution_event(
             row.get("symbol") == symbol
             and row.get("direction") == direction
             and float(row.get("entry", 0)) == float(entry)
-            and row.get("status") in ACTIVE_STATUSES
         ):
             if row.get(qty_field):
                 return False
