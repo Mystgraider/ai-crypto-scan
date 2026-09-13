@@ -116,6 +116,25 @@ def test_execution_without_remaining_quantity_does_not_infer_it(tmp_path, monkey
     assert row["remaining_position_pct"] == ""
 
 
+def test_execution_is_rejected_after_terminal_status(tmp_path, monkeypatch):
+    path = _save(tmp_path, monkeypatch)
+    tracker = SignalTracker.__new__(SignalTracker)
+
+    assert signal_logger.update_signal_tracking(
+        "BTC/USDT", "LONG", 100.0, "TP3_HIT",
+        event_at=EVENT_AT, event_price=106.0, realized_r=3.0,
+    )
+    assert not tracker.record_partial_execution(
+        "BTC/USDT", "LONG", 100.0, "TP3", 25.0, 106.0, 3.0,
+        event_at=EVENT_AT,
+    )
+
+    row = _row(path)
+    assert row["status"] == "TP3_HIT"
+    assert row["tp3_qty_pct"] == ""
+    assert row["tp3_executed_at"] == ""
+
+
 def test_duplicate_execution_level_is_not_overwritten(tmp_path, monkeypatch):
     path = _save(tmp_path, monkeypatch)
     tracker = SignalTracker.__new__(SignalTracker)
