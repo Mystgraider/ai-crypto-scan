@@ -109,3 +109,31 @@ def test_invalid_explicit_execution_does_not_get_partially_aggregated():
     outcome = calculate_canonical_trade_r(signal)
     assert outcome.source == "terminal_realized_r"
     assert isclose(outcome.realized_r, 3.0)
+
+
+def test_full_execution_with_zero_remaining_does_not_require_remaining_r():
+    signal = {
+        **BASE,
+        "tp1_qty_pct": 100,
+        "tp1_exit_price": 104,
+        "tp1_realized_r": 2,
+        "tp1_executed_at": "2026-09-13T01:00:00Z",
+        "remaining_position_pct": 0,
+        "remaining_position_exit_r": "",
+    }
+    outcome = calculate_canonical_trade_r(signal)
+    assert outcome.source == "explicit_execution"
+    assert isclose(outcome.realized_r, 2.0)
+
+
+def test_non_terminal_stored_realized_r_is_not_authoritative():
+    signal = {
+        "status": "OPEN",
+        "direction": "LONG",
+        "entry": 100.0,
+        "initial_sl": 98.0,
+        "realized_r": 3.0,
+    }
+    outcome = calculate_canonical_trade_r(signal)
+    assert outcome.source == "unresolved"
+    assert outcome.realized_r is None
