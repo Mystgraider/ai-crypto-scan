@@ -1,6 +1,6 @@
 """
 BTC Market Filter — V5.9.6
-============================
+===========================
 BTC is market context, not the sole direction selector.
 
 Policy:
@@ -65,11 +65,14 @@ class BTCFilter:
                 reason=f"BTC RSI {rsi:.1f} extreme oversold — bounce risk, no signals",
             )
 
+        # Preserve the pre-PR-29 extreme-overbought policy: BTC RSI >= 80
+        # blocks LONG but still permits SHORT. Normal BTC regimes remain
+        # fully advisory and do not use this directional restriction.
         if rsi >= self.RSI_EXTREME_HIGH:
             return self._r(
                 "EXTREME_BULL", adx, rsi,
-                allow_long=True, allow_short=True,
-                reason=f"BTC RSI {rsi:.1f} extreme overbought — regime is advisory",
+                allow_long=False, allow_short=True,
+                reason=f"BTC RSI {rsi:.1f} extreme overbought — LONG blocked",
             )
 
         # Normal BTC structure is advisory. A coin-level LONG or SHORT can
