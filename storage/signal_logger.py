@@ -188,7 +188,7 @@ def record_execution_event(
             row.get("symbol") == symbol
             and row.get("direction") == direction
             and float(row.get("entry", 0)) == float(entry)
-            and row.get("status") != "EXPIRED"
+            and row.get("status") in ACTIVE_STATUSES
         ):
             if row.get(qty_field):
                 return False
