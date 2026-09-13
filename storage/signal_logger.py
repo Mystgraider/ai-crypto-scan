@@ -2,6 +2,7 @@ import os
 import csv
 import json
 from datetime import datetime, timezone
+from storage.outcome_fields import DEFAULT_EXECUTION_OUTCOME, EXECUTION_OUTCOME_FIELDS
 
 SIGNALS_FILE = "storage/signals.csv"
 
@@ -16,6 +17,7 @@ FIELDNAMES = [
     "status",
     "tp1_hit_at", "tp2_hit_at", "tp3_hit_at",
     "exit_at", "exit_price", "realized_r",
+    *EXECUTION_OUTCOME_FIELDS,
 ]
 
 ACTIVE_STATUSES = {"OPEN", "OPEN_TP1", "OPEN_TP2"}
@@ -75,6 +77,7 @@ def save_signal(
         "status": status,
         "tp1_hit_at": "", "tp2_hit_at": "", "tp3_hit_at": "",
         "exit_at": "", "exit_price": "", "realized_r": "",
+        **DEFAULT_EXECUTION_OUTCOME,
     }
     with open(SIGNALS_FILE, "a", newline="") as f:
         csv.DictWriter(f, fieldnames=FIELDNAMES).writerow(row)
