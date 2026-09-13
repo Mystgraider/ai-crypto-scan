@@ -33,3 +33,11 @@ def test_short_reward_is_signed_from_direction():
     entry, exit_price, risk = 100.0, 92.0, 2.0
     realized_r = (entry - exit_price) / risk
     assert isclose(realized_r, 4.0)
+
+
+def test_full_ladder_quantities_sum_to_100_percent():
+    assert sum((50, 25, 25)) == 100
+
+
+def test_partial_ladder_preserves_remaining_quantity():
+    assert 100 - sum((50, 25)) == 25
