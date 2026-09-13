@@ -69,6 +69,16 @@ def test_extreme_oversold_remains_hard_safety_block():
     assert result["allow_short"] is False
 
 
+def test_extreme_overbought_preserves_long_block_and_allows_short():
+    result = BTCFilter().analyze(
+        _frame([105, 106], 104, 100, 30, 80),
+    )
+
+    assert result["regime"] == "EXTREME_BULL"
+    assert result["allow_long"] is False
+    assert result["allow_short"] is True
+
+
 def test_range_allows_both_directions():
     result = BTCFilter().analyze(
         _frame([100, 100.5], 100, 100, 15, 55),
