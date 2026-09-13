@@ -28,6 +28,18 @@ class BTCFilter:
     RSI_BLOCK_LONG   = 72
 
     def analyze(self, df_1h: pd.DataFrame, df_4h: pd.DataFrame = None) -> dict:
+        """Analyze BTC regime; unexpected analysis errors fail closed."""
+        try:
+            return self._analyze(df_1h, df_4h)
+        except Exception as exc:
+            return self._r(
+                "UNKNOWN", 0, 50,
+                allow_long=False,
+                allow_short=False,
+                reason=f"BTC filter analysis failed ({type(exc).__name__}) — no signals",
+            )
+
+    def _analyze(self, df_1h: pd.DataFrame, df_4h: pd.DataFrame = None) -> dict:
 
         if len(df_1h) < 2:
             return self._r("UNKNOWN", 0, 50, allow_long=False, allow_short=False,
