@@ -1,4 +1,16 @@
 {
+  "ASTR/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-13T22:39:11.707579+00:00",
+    "last_seen": "2026-09-13T22:39:11.707579+00:00",
+    "observations": 1,
+    "pool_level": 0.006102,
+    "range_high": 0.006487,
+    "range_low": 0.006266,
+    "regime": "RANGE",
+    "sweep_extreme": 0.006101,
+    "symbol": "ASTR/USDT:USDT"
+  },
   "ATOM/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-13T20:43:17.539809+00:00",
@@ -10,18 +22,6 @@
     "regime": "RANGE",
     "sweep_extreme": 1.6158,
     "symbol": "ATOM/USDT:USDT"
-  },
-  "CHZ/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-09-13T18:06:08.966642+00:00",
-    "last_seen": "2026-09-13T18:06:08.966642+00:00",
-    "observations": 1,
-    "pool_level": 0.01498,
-    "range_high": 0.0154,
-    "range_low": 0.01453,
-    "regime": "RANGE",
-    "sweep_extreme": 0.015,
-    "symbol": "CHZ/USDT:USDT"
   },
   "GALA/USDT:USDT|SHORT": {
     "direction": "SHORT",
@@ -35,16 +35,28 @@
     "sweep_extreme": 0.001716,
     "symbol": "GALA/USDT:USDT"
   },
-  "TLM/USDT:USDT|LONG": {
+  "KAVA/USDT:USDT|LONG": {
     "direction": "LONG",
-    "first_seen": "2026-09-13T18:07:30.699887+00:00",
-    "last_seen": "2026-09-13T18:07:30.699887+00:00",
+    "first_seen": "2026-09-13T22:38:29.335299+00:00",
+    "last_seen": "2026-09-13T22:38:29.335299+00:00",
     "observations": 1,
-    "pool_level": 0.001398,
-    "range_high": 0.001415,
-    "range_low": 0.001398,
+    "pool_level": 0.06083,
+    "range_high": 0.07308,
+    "range_low": 0.06083,
     "regime": "RANGE",
-    "sweep_extreme": 0.001396,
-    "symbol": "TLM/USDT:USDT"
+    "sweep_extreme": 0.06035,
+    "symbol": "KAVA/USDT:USDT"
+  },
+  "ROSE/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-13T22:38:26.708903+00:00",
+    "last_seen": "2026-09-13T22:38:26.708903+00:00",
+    "observations": 1,
+    "pool_level": 0.00689,
+    "range_high": 0.006887,
+    "range_low": 0.006748,
+    "regime": "RANGE",
+    "sweep_extreme": 0.007001,
+    "symbol": "ROSE/USDT:USDT"
   }
 }
