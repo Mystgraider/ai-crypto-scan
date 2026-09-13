@@ -181,6 +181,7 @@ def record_execution_event(
     qty_field = f"{execution_level.lower()}_qty_pct"
     price_field = f"{execution_level.lower()}_exit_price"
     r_field = f"{execution_level.lower()}_realized_r"
+    at_field = f"{execution_level.lower()}_executed_at"
 
     for row in reversed(rows):
         if (
@@ -203,6 +204,7 @@ def record_execution_event(
             row[qty_field] = round(qty_pct, 6)
             row[price_field] = round(exit_price, 10)
             row[r_field] = round(realized_r, 6)
+            row[at_field] = event_at
             if remaining_position_pct is not None:
                 row["remaining_position_pct"] = round(remaining_position_pct, 6)
 
