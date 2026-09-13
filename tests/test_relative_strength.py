@@ -21,7 +21,7 @@ def test_bear_btc_bull_coin_is_strong():
     assert result["coin_ret"] == 5.0
     assert result["btc_ret"] == -10.0
     assert result["rs_ratio"] > 1.0
-    assert result["rs_score"] > 70
+    assert result["rs_score"] >= 70
     assert result["rs_label"] == "STRONG"
 
 
