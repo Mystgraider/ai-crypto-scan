@@ -1,0 +1,71 @@
+name: Temporary BTC Exception Hardening
+
+on:
+  push:
+    branches:
+      - fix/btc-filter-exception-fail-closed
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch scanner fail-closed path
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scanner_v5.py")
+          text = path.read_text()
+
+          old = '''        except Exception as e:
+            import traceback
+            print(f"      ⚠️ BTC filter failed: {type(e).__name__}: {e}")
+            print(f"      {traceback.format_exc().splitlines()[-1]}")
+            print(f"      Allowing all signals")
+'''
+
+          new = '''        except Exception as e:
+            import traceback
+            print(f"      ⚠️ BTC filter failed: {type(e).__name__}: {e}")
+            print(f"      {traceback.format_exc().splitlines()[-1]}")
+            print("      BTC safety state: blocking new signals")
+            btc_regime = {
+                "regime": "UNKNOWN",
+                "allow_long": False,
+                "allow_short": False,
+                "adx": 0,
+                "rsi": 50,
+                "reason": "BTC filter unavailable — no signals",
+            }
+'''
+
+          if old not in text:
+              raise SystemExit("Expected BTC exception block not found; refusing to modify scanner_v5.py")
+          if text.count(old) != 1:
+              raise SystemExit(f"Expected exactly one BTC exception block, found {text.count(old)}")
+
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Compile production code
+        run: python -m compileall -q .
+
+      - name: Run BTC filter tests
+        run: python -m pytest tests/test_btc_filter_direction_policy.py -q
+
+      - name: Commit scanner hardening
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scanner_v5.py
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: fail closed when BTC filter fetch fails"
+          git push origin HEAD:fix/btc-filter-exception-fail-closed
