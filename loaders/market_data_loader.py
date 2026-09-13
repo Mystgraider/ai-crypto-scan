@@ -39,6 +39,7 @@ class MarketDataLoader:
                     columns=["timestamp", "open", "high", "low", "close", "volume"],
                 )
                 df.attrs["btc_data_unavailable"] = True
+                df.attrs["btc_market_data"] = True
                 return df
             raise
 
@@ -47,6 +48,9 @@ class MarketDataLoader:
             columns=["timestamp", "open", "high", "low", "close", "volume"]
         )
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+
+        if symbol == CONFIG["btc_symbol"]:
+            df.attrs["btc_market_data"] = True
 
         return df
 
