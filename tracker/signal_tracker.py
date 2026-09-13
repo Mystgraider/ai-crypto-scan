@@ -10,12 +10,16 @@ Lifecycle:
 After TP1, SL moves to breakeven and the signal remains active.
 Phase 1B also records event timestamps/prices and terminal realized R.
 
-Note: realized R is terminal-outcome R, not partial-position P&L.
-Partial exits are not represented by the current signal schema.
+Phase 2D-H.4 adds explicit execution-evidence recording. TP1/TP2/TP3
+price milestones do not imply that an order was actually filled.
 """
 
 from datetime import datetime, timezone, timedelta
-from storage.signal_logger import load_signals, update_signal_tracking
+from storage.signal_logger import (
+    load_signals,
+    update_signal_tracking,
+    record_execution_event,
+)
 from loaders.market_data_loader import MarketDataLoader
 
 SIGNAL_EXPIRY_HOURS = 72
@@ -35,6 +39,31 @@ class SignalTracker:
         if direction == "LONG":
             return (exit_price - entry) / risk
         return (entry - exit_price) / risk
+
+    def record_partial_execution(
+        self,
+        symbol: str,
+        direction: str,
+        entry: float,
+        execution_level: str,
+        qty_pct: float,
+        exit_price: float,
+        realized_r: float,
+        event_at: str | None = None,
+        remaining_position_pct: float | None = None,
+    ) -> bool:
+        """Record explicit execution evidence without inferring or changing status."""
+        return record_execution_event(
+            symbol=symbol,
+            direction=direction,
+            entry=entry,
+            execution_level=execution_level,
+            qty_pct=qty_pct,
+            exit_price=exit_price,
+            realized_r=realized_r,
+            event_at=event_at,
+            remaining_position_pct=remaining_position_pct,
+        )
 
     def run(self):
         all_active = [s for s in load_signals() if s.get("status") in ACTIVE_STATUSES]

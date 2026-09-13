@@ -140,6 +140,80 @@ def update_signal_tracking(
     return updated
 
 
+def record_execution_event(
+    symbol: str,
+    direction: str,
+    entry: float,
+    execution_level: str,
+    qty_pct: float,
+    exit_price: float,
+    realized_r: float,
+    event_at: str | None = None,
+    remaining_position_pct: float | None = None,
+) -> bool:
+    """Persist explicit partial-execution evidence without changing lifecycle status.
+
+    This function records supplied execution evidence only. It never infers a fill
+    from a TP price milestone and it does not calculate realized R. The caller must
+    provide the execution quantity, exit price, and realized-R evidence explicitly.
+    """
+    if execution_level not in {"TP1", "TP2", "TP3"}:
+        raise ValueError("execution_level must be TP1, TP2, or TP3")
+
+    qty_pct = float(qty_pct)
+    exit_price = float(exit_price)
+    realized_r = float(realized_r)
+    if not 0 < qty_pct <= 100:
+        raise ValueError("qty_pct must be between 0 and 100")
+    if exit_price <= 0:
+        raise ValueError("exit_price must be positive")
+    if remaining_position_pct is not None:
+        remaining_position_pct = float(remaining_position_pct)
+        if not 0 <= remaining_position_pct <= 100:
+            raise ValueError("remaining_position_pct must be between 0 and 100")
+
+    _ensure_file()
+    rows = load_signals()
+    event_at = event_at or datetime.now(timezone.utc).isoformat()
+    qty_field = f"{execution_level.lower()}_qty_pct"
+    price_field = f"{execution_level.lower()}_exit_price"
+    r_field = f"{execution_level.lower()}_realized_r"
+
+    for row in reversed(rows):
+        if (
+            row.get("symbol") == symbol
+            and row.get("direction") == direction
+            and float(row.get("entry", 0)) == float(entry)
+            and row.get("status") != "EXPIRED"
+        ):
+            if row.get(qty_field):
+                return False
+
+            executed_qty = sum(
+                float(row[field]) for field in (
+                    "tp1_qty_pct", "tp2_qty_pct", "tp3_qty_pct"
+                ) if row.get(field)
+            )
+            if executed_qty + qty_pct > 100:
+                raise ValueError("cumulative execution quantity cannot exceed 100%")
+
+            row[qty_field] = round(qty_pct, 6)
+            row[price_field] = round(exit_price, 10)
+            row[r_field] = round(realized_r, 6)
+            if remaining_position_pct is not None:
+                row["remaining_position_pct"] = round(remaining_position_pct, 6)
+            elif row.get("remaining_position_pct") == "":
+                row["remaining_position_pct"] = round(100.0 - executed_qty - qty_pct, 6)
+
+            with open(SIGNALS_FILE, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+                writer.writeheader()
+                writer.writerows(rows)
+            return True
+
+    return False
+
+
 def update_signal_status(symbol: str, direction: str, entry: float, new_status: str):
     """Backward-compatible wrapper for older callers."""
     return update_signal_tracking(symbol, direction, entry, new_status)
