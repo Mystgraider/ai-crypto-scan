@@ -19,6 +19,20 @@ class Indicators:
 
     @staticmethod
     def apply(df: pd.DataFrame) -> pd.DataFrame:
+        """Calculate indicators, failing closed for BTC-only processing errors."""
+        is_btc = bool(df.attrs.get("btc_market_data"))
+        try:
+            return Indicators._apply(df)
+        except Exception:
+            if is_btc:
+                fallback = df.copy()
+                fallback.attrs["btc_data_unavailable"] = True
+                fallback.attrs["btc_market_data"] = True
+                return fallback
+            raise
+
+    @staticmethod
+    def _apply(df: pd.DataFrame) -> pd.DataFrame:
 
         # A BTC fetch failure is represented by MarketDataLoader as an
         # explicit safety-state frame. Preserve it so BTCFilter can return
@@ -68,7 +82,7 @@ class Indicators:
 
         atr14    = tr.ewm(com=13, adjust=False).mean()
         plus_di  = 100 * plus_dm.ewm(com=13,  adjust=False).mean() / atr14.replace(0, 1e-10)
-        minus_di = 100 * minus_dm.ewm(com=13,  adjust=False).mean() / atr14.replace(0, 1e-10)
+        minus_di = 100 * minus_dm.ewm(com=13, adjust=False).mean() / atr14.replace(0, 1e-10)
         dx       = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, 1e-10)
         df["adx"] = dx.ewm(com=13, adjust=False).mean()
 
