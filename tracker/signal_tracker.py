@@ -109,40 +109,55 @@ class SignalTracker:
 
             try:
                 df = self.loader.get_ohlcv(symbol, limit=2)
-                price = float(df.iloc[-1]["close"])
+                candle = df.iloc[-1]
+                price = float(candle["close"])
+                high = float(candle["high"])
+                low = float(candle["low"])
             except Exception as e:
                 print(f"  ⚠️  {symbol}: price fetch failed — {e}")
                 continue
 
-            result = self._check(direction, price, entry, sl, tp1, tp2, tp3, status)
+            result = self._check(
+                direction,
+                price,
+                entry,
+                sl,
+                tp1,
+                tp2,
+                tp3,
+                status,
+                high=high,
+                low=low,
+            )
             if not result:
                 continue
 
             new_status = result["status"]
             new_sl = result.get("sl")
+            event_price = result.get("event_price", price)
             terminal = new_status in {"TP3_HIT", "SL_HIT"}
             realized_r = None
             if terminal:
                 if new_status == "TP3_HIT":
-                    realized_r = self._realized_r(direction, entry, initial_sl, price)
+                    realized_r = self._realized_r(direction, entry, initial_sl, event_price)
                 else:
                     # If SL is breakeven after TP1, terminal R is 0 here.
                     # The current schema has no partial-exit quantity, so
                     # partial TP1/TP2 P&L is intentionally not fabricated.
-                    realized_r = self._realized_r(direction, entry, sl, price)
+                    realized_r = self._realized_r(direction, entry, sl, event_price)
 
             updated = update_signal_tracking(
                 symbol, direction, entry, new_status,
                 new_sl=new_sl,
                 event_at=now.isoformat(),
-                event_price=price,
+                event_price=event_price,
                 realized_r=realized_r,
             )
 
             if updated:
                 suffix = f" | SL→{new_sl}" if new_sl is not None else ""
                 r_suffix = f" | R={realized_r:.2f}" if realized_r is not None else ""
-                print(f"  🔄 {symbol} {direction} → {new_status} @ {price:.4f}{suffix}{r_suffix}")
+                print(f"  🔄 {symbol} {direction} → {new_status} @ {event_price:.4f}{suffix}{r_suffix}")
 
     @staticmethod
     def _long_sl_hit(price, sl):
@@ -160,32 +175,62 @@ class SignalTracker:
     def _short_tp_hit(price, tp):
         return price <= tp
 
-    def _check(self, direction, price, entry, sl, tp1, tp2, tp3, status="OPEN") -> dict | None:
+    def _check(
+        self,
+        direction,
+        price,
+        entry,
+        sl,
+        tp1,
+        tp2,
+        tp3,
+        status="OPEN",
+        high=None,
+        low=None,
+    ) -> dict | None:
+        """Check lifecycle milestones using close plus intrabar high/low.
+
+        When OHLC extremes are available, they are authoritative for whether
+        a price level was touched during the candle. SL remains checked first
+        to preserve the existing conservative behavior when one candle spans
+        both a stop and a target and exact tick ordering is unavailable.
+        """
         if direction == "LONG":
             sl_hit = self._long_sl_hit
             tp_hit = self._long_tp_hit
-        else:
+            candle_high = price if high is None else high
+            candle_low = price if low is None else low
+        elif direction == "SHORT":
             sl_hit = self._short_sl_hit
             tp_hit = self._short_tp_hit
+            candle_high = price if high is None else high
+            candle_low = price if low is None else low
+        else:
+            return None
 
-        if sl_hit(price, sl):
-            return {"status": "SL_HIT"}
+        def level_hit(level):
+            if direction == "LONG":
+                return candle_high >= level
+            return candle_low <= level
+
+        if sl_hit(candle_low if direction == "LONG" else candle_high, sl):
+            return {"status": "SL_HIT", "event_price": sl}
 
         if status == "OPEN":
-            if tp_hit(price, tp3):
-                return {"status": "TP3_HIT"}
-            if tp_hit(price, tp2):
-                return {"status": "OPEN_TP2", "sl": entry}
-            if tp_hit(price, tp1):
-                return {"status": "OPEN_TP1", "sl": entry}
+            if level_hit(tp3):
+                return {"status": "TP3_HIT", "event_price": tp3}
+            if level_hit(tp2):
+                return {"status": "OPEN_TP2", "sl": entry, "event_price": tp2}
+            if level_hit(tp1):
+                return {"status": "OPEN_TP1", "sl": entry, "event_price": tp1}
         elif status == "OPEN_TP1":
-            if tp_hit(price, tp3):
-                return {"status": "TP3_HIT"}
-            if tp_hit(price, tp2):
-                return {"status": "OPEN_TP2"}
+            if level_hit(tp3):
+                return {"status": "TP3_HIT", "event_price": tp3}
+            if level_hit(tp2):
+                return {"status": "OPEN_TP2", "event_price": tp2}
         elif status == "OPEN_TP2":
-            if tp_hit(price, tp3):
-                return {"status": "TP3_HIT"}
+            if level_hit(tp3):
+                return {"status": "TP3_HIT", "event_price": tp3}
 
         return None
 
