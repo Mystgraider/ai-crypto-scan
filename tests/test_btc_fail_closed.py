@@ -1,6 +1,9 @@
-"""Regression coverage for the scanner's BTC fail-closed contract."""
+"""Regression coverage for the production BTC fail-closed path."""
 
 from config import CONFIG
+from engines.btc_filter import BTCFilter
+from indicators.indicators import Indicators
+from loaders.market_data_loader import MarketDataLoader
 
 
 class _FailingExchange:
@@ -9,10 +12,6 @@ class _FailingExchange:
 
 
 def test_btc_1h_fetch_failure_becomes_blocked_unknown_state():
-    from engines.btc_filter import BTCFilter
-    from indicators.indicators import Indicators
-    from loaders.market_data_loader import MarketDataLoader
-
     loader = MarketDataLoader.__new__(MarketDataLoader)
     loader.exchange = _FailingExchange()
 
@@ -30,8 +29,6 @@ def test_btc_1h_fetch_failure_becomes_blocked_unknown_state():
 
 
 def test_non_btc_fetch_failure_still_raises():
-    from loaders.market_data_loader import MarketDataLoader
-
     loader = MarketDataLoader.__new__(MarketDataLoader)
     loader.exchange = _FailingExchange()
 
@@ -41,19 +38,3 @@ def test_non_btc_fetch_failure_still_raises():
         assert "BTC data unavailable" in str(exc)
     else:
         raise AssertionError("non-BTC fetch failures must not be swallowed")
-
-
-def test_scanner_btc_exception_fallback_is_fail_closed():
-    """Keep the scanner-level unexpected-exception fallback fail-closed."""
-    btc_regime = {
-        "regime": "UNKNOWN",
-        "allow_long": False,
-        "allow_short": False,
-        "adx": 0,
-        "rsi": 50,
-        "reason": "BTC filter error: simulated failure",
-    }
-
-    assert btc_regime["regime"] == "UNKNOWN"
-    assert btc_regime["allow_long"] is False
-    assert btc_regime["allow_short"] is False
