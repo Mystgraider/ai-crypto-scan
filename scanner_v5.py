@@ -162,7 +162,11 @@ def main():
             import traceback
             print(f"      ⚠️ BTC filter failed: {type(e).__name__}: {e}")
             print(f"      {traceback.format_exc().splitlines()[-1]}")
-            print(f"      Allowing all signals")
+            # Fail closed: unknown BTC state means no signals allowed.
+            btc_regime = {
+                "regime": "UNKNOWN", "allow_long": False, "allow_short": False,
+                "adx": 0, "rsi": 50, "reason": f"BTC filter error: {e}"
+            }
 
     # ── Step 1b: Circuit Breaker ───────────────────────────────────────────
     print("\n[1b] Circuit Breaker...")
@@ -278,10 +282,8 @@ def main():
                     continue
                 candidate_directions = [trend["direction"]]
             else:
-                if trend["direction"] == "NONE":
-                    candidate_directions = ["LONG", "SHORT"]
-                else:
-                    candidate_directions = [trend["direction"]]
+                # Trend is evidence only; discover both directions independently.
+                candidate_directions = ["LONG", "SHORT"]
 
             for direction in candidate_directions:
 
