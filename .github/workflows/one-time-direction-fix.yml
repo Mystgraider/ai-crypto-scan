@@ -1,0 +1,81 @@
+name: One-time direction discovery fix
+
+on:
+  push:
+    branches:
+      - cleanup/strategy-architecture
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fix independent LONG/SHORT discovery
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scanner_v5.py')
+          text = path.read_text()
+          old = '''            if CONFIG.get("require_trend_gate", True):
+                if trend["direction"] == "NONE":
+                    skip["trend"] += 1
+                    _trace(symbol, "trend_none_and_gate_required")
+                    reason_key = f"trend_reason_{trend.get('filters', 'unknown')}"
+                    skip[reason_key] = skip.get(reason_key, 0) + 1
+                    continue
+                candidate_directions = [trend["direction"]]
+            else:
+                if trend["direction"] == "NONE":
+                    candidate_directions = ["LONG", "SHORT"]
+                else:
+                    candidate_directions = [trend["direction"]]
+'''
+          new = '''            if CONFIG.get("require_trend_gate", True):
+                if trend["direction"] == "NONE":
+                    skip["trend"] += 1
+                    _trace(symbol, "trend_none_and_gate_required")
+                    reason_key = f"trend_reason_{trend.get('filters', 'unknown')}"
+                    skip[reason_key] = skip.get(reason_key, 0) + 1
+                    continue
+                candidate_directions = [trend["direction"]]
+            else:
+                # TrendEngine is supporting evidence when its hard gate is disabled.
+                # Do not let its directional hint silently suppress the opposite
+                # RRCE setup. LONG and SHORT must be discovered independently.
+                candidate_directions = ["LONG", "SHORT"]
+'''
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected exactly one candidate-direction block, found {text.count(old)}')
+          path.write_text(text.replace(old, new))
+          PY
+
+      - name: Add regression test
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('tests/test_scanner_direction_discovery.py')
+          p.parent.mkdir(parents=True, exist_ok=True)
+          p.write_text('''from pathlib import Path\n\n\ndef test_disabled_trend_gate_does_not_limit_candidate_direction():\n    text = Path("scanner_v5.py").read_text()\n    assert "candidate_directions = [\"LONG\", \"SHORT\"]" in text\n    assert "else:\\n                if trend[\"direction\"] == \"NONE\":\\n                    candidate_directions = [\"LONG\", \"SHORT\"]\\n                else:\\n                    candidate_directions = [trend[\"direction\"]]" not in text\n''')
+          PY
+
+      - name: Validate
+        run: |
+          python -m py_compile scanner_v5.py
+          pytest -q tests/test_scanner_direction_discovery.py
+
+      - name: Commit fix and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/one-time-direction-fix.yml
+          git add scanner_v5.py tests/test_scanner_direction_discovery.py .github/workflows/one-time-direction-fix.yml
+          git commit -m "fix: restore independent long and short discovery [skip ci]"
+          git push
