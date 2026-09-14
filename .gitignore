@@ -1,6 +1,6 @@
-```
 # Compiled and build artifacts
 *.pyc
+*.pyo
 __pycache__/
 *.o
 *.obj
@@ -37,4 +37,3 @@ htmlcov/
 # System files
 .DS_Store
 Thumbs.db
-```
