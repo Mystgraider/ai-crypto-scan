@@ -11,18 +11,6 @@
     "sweep_extreme": 0.1274,
     "symbol": "ALICE/USDT:USDT"
   },
-  "BCH/USDT:USDT|LONG": {
-    "direction": "LONG",
-    "first_seen": "2026-09-15T16:51:09.180958+00:00",
-    "last_seen": "2026-09-15T16:51:09.180958+00:00",
-    "observations": 1,
-    "pool_level": 220.0,
-    "range_high": 224.91,
-    "range_low": 220.79,
-    "regime": "BEAR_CAUTION",
-    "sweep_extreme": 219.67,
-    "symbol": "BCH/USDT:USDT"
-  },
   "C98/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-15T19:54:09.664177+00:00",
@@ -70,17 +58,5 @@
     "regime": "BEAR_CAUTION",
     "sweep_extreme": 0.2096,
     "symbol": "SUSHI/USDT:USDT"
-  },
-  "TLM/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-09-15T16:53:48.027876+00:00",
-    "last_seen": "2026-09-15T16:53:48.027876+00:00",
-    "observations": 1,
-    "pool_level": 0.00138,
-    "range_high": 0.00138,
-    "range_low": 0.001364,
-    "regime": "BEAR_CAUTION",
-    "sweep_extreme": 0.001385,
-    "symbol": "TLM/USDT:USDT"
   }
 }
