@@ -60,7 +60,8 @@ class OIEngine:
     @staticmethod
     def _unavailable(reason):
         return {
-            "available": False,
+            "available": True,
+            "data_available": False,
             "oi_signal": "UNAVAILABLE",
             "score_adj": 0,
             "oi_change_pct": None,
@@ -69,21 +70,19 @@ class OIEngine:
 
     @staticmethod
     def _soft_unavailable(current_oi=0, previous_oi=0, reason="unknown"):
-        """Return an OI fetch result that must not hard-block signal discovery.
-
-        ``available`` means the scanner may continue; ``data_available``
-        preserves whether usable OI observations actually existed.
-        """
+        """Return an OI fetch result that must not hard-block discovery."""
         return {
             "current_oi": current_oi,
             "previous_oi": previous_oi,
             "available": True,
             "data_available": False,
+            "oi_signal": "UNAVAILABLE",
+            "score_adj": 0,
             "reason": reason,
         }
 
     def fetch_oi(self, exchange, symbol: str) -> dict:
-        """Fetch current/previous OI without making OI availability a gate."""
+        """Fetch OI without making OI availability a hard discovery gate."""
         try:
             oi_data = exchange.fetch_open_interest(symbol)
             current_oi = (
