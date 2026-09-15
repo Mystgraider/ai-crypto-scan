@@ -1,17 +1,11 @@
 """
 BTC Market Filter — V5.9.6
 ============================
-Fixed BEAR_CAUTION: was blocking ALL signals when BTC RSI < 42.
-In a real BEAR market, BTC RSI stays 35-42 for days/weeks.
-This made the system silent for extended periods.
+Fail-closed BTC safety context.
 
-New logic:
-  BEAR_CAUTION: only block LONG signals (not SHORT)
-  BTC RSI 35-42 + bearish structure = still valid for SHORT
-  
-  Only block ALL signals when:
-  - RSI < 25 (extreme oversold = big bounce imminent)
-  - Or 4H structure not confirmed bearish (counter-trend risk)
+BTC is market context only, not a signal generator.
+If BTC market data is unavailable or insufficient, the filter returns
+UNKNOWN and blocks both LONG and SHORT signals.
 """
 
 import pandas as pd
@@ -20,16 +14,22 @@ import pandas as pd
 class BTCFilter:
 
     ADX_MIN          = 20
-    RSI_BLOCK_SHORT  = 42    # block SHORT if BTC RSI < 42 originally
-    RSI_EXTREME_LOW  = 25    # extreme oversold = block ALL (was 22)
+    RSI_BLOCK_SHORT  = 42
+    RSI_EXTREME_LOW  = 25
     RSI_EXTREME_HIGH = 80
     RSI_BLOCK_LONG   = 72
 
     def analyze(self, df_1h: pd.DataFrame, df_4h: pd.DataFrame = None) -> dict:
 
+        # Fail closed for explicit loader fallback or insufficient BTC data.
+        # The loader marks swallowed BTC fetch failures with this attribute.
+        if bool(getattr(df_1h, "attrs", {}).get("btc_data_unavailable", False)):
+            return self._r("UNKNOWN", 0, 50, allow_long=False, allow_short=False,
+                           reason="BTC market data unavailable — no signals")
+
         if len(df_1h) < 2:
-            return self._r("UNKNOWN", 0, 50, allow_long=True, allow_short=True,
-                           reason="Insufficient 1H data")
+            return self._r("UNKNOWN", 0, 50, allow_long=False, allow_short=False,
+                           reason="Insufficient BTC 1H data — no signals")
 
         live = df_1h.iloc[-1]    # forming candle — live price only
         prev = df_1h.iloc[-2]    # last closed candle — indicators
@@ -45,11 +45,11 @@ class BTCFilter:
         btc_4h_bull = False
         if df_4h is not None and len(df_4h) >= 2:
             try:
-                l4   = df_4h.iloc[-1]    # live 4H price
-                p4_prev = df_4h.iloc[-2] # last closed 4H candle — indicators
-                p4   = float(l4["close"])
-                e20  = float(p4_prev["ema_20"])
-                e50  = float(p4_prev["ema_50"])
+                l4 = df_4h.iloc[-1]        # live 4H price
+                p4_prev = df_4h.iloc[-2]   # last closed 4H candle — indicators
+                p4 = float(l4["close"])
+                e20 = float(p4_prev["ema_20"])
+                e50 = float(p4_prev["ema_50"])
                 adx4 = float(p4_prev["adx"])
                 btc_4h_bear = e20 < e50 and p4 < e20 and adx4 >= self.ADX_MIN
                 btc_4h_bull = e20 > e50 and p4 > e20 and adx4 >= self.ADX_MIN
@@ -80,12 +80,8 @@ class BTCFilter:
 
         # BEAR structure
         if ema20 < ema50 and price < ema20 and adx >= self.ADX_MIN:
-
-            # 4H also bearish = full confirmation
             if btc_4h_bear:
                 if rsi < self.RSI_BLOCK_SHORT:
-                    # FIXED: Previously blocked ALL signals when RSI < 42
-                    # Now: only block LONG, allow SHORT (BEAR market)
                     return self._r("BEAR_CAUTION", adx, rsi,
                                    allow_long=False, allow_short=True,
                                    reason=f"BTC BEAR + 4H confirmed. RSI {rsi:.1f} low but SHORT allowed")
@@ -93,7 +89,6 @@ class BTCFilter:
                                allow_long=False, allow_short=True,
                                reason="BTC bearish confirmed 1H + 4H")
 
-            # 1H bear but 4H not confirmed
             if rsi < self.RSI_BLOCK_SHORT:
                 return self._r("BEAR_CAUTION", adx, rsi,
                                allow_long=False, allow_short=False,
@@ -110,10 +105,10 @@ class BTCFilter:
     @staticmethod
     def _r(regime, adx, rsi, allow_long, allow_short, reason=""):
         return {
-            "regime":      regime,
-            "allow_long":  allow_long,
+            "regime": regime,
+            "allow_long": allow_long,
             "allow_short": allow_short,
-            "adx":         round(adx, 2),
-            "rsi":         round(rsi, 2),
-            "reason":      reason,
+            "adx": round(adx, 2),
+            "rsi": round(rsi, 2),
+            "reason": reason,
         }
