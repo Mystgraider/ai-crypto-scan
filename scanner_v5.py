@@ -47,6 +47,7 @@ from reports.analytics_engine    import AnalyticsEngine
 from ai.signal_ranker            import AISignalRanker
 from ai.confidence_engine        import ConfidenceEngine
 from config                      import CONFIG
+from engines.direction_policy    import get_candidate_directions
 
 
 def grade_score(score: float) -> str:
@@ -189,8 +190,8 @@ def main():
     print(f"\n[3/8] Scanning {len(symbols)} symbols...")
 
     candidates = []
-    stage1_position_samples = []  # V6.9.19: real position_pct values on Stage 1 failures
-    stage2_pool_counts = []       # V6.9.23: how many Equal High/Low pools were found (even when unswept)
+    stage1_position_samples = []
+    stage2_pool_counts = []
 
     TRACE_SYMBOLS = {"ETH/USDT:USDT", "SOL/USDT:USDT", "BNB/USDT:USDT", "XRP/USDT:USDT", "LTC/USDT:USDT"}
     symbol_trace_log = []
@@ -273,21 +274,17 @@ def main():
             )
             trend_score = trend["score"]
 
-            if CONFIG.get("require_trend_gate", True):
-                if trend["direction"] == "NONE":
-                    skip["trend"] += 1
-                    _trace(symbol, "trend_none_and_gate_required")
-                    reason_key = f"trend_reason_{trend.get('filters', 'unknown')}"
-                    skip[reason_key] = skip.get(reason_key, 0) + 1
-                    continue
-                candidate_directions = [trend["direction"]]
-            else:
-                # Trend is evidence only; discover both directions independently.
-                candidate_directions = ["LONG", "SHORT"]
+            candidate_directions = get_candidate_directions(
+                trend["direction"],
+                CONFIG.get("require_trend_gate", True),
+            )
+            if not candidate_directions:
+                skip["trend"] += 1
+                _trace(symbol, "no_candidate_directions")
+                continue
 
             for direction in candidate_directions:
 
-                # Do not manufacture a passing score when the legacy trend gate is disabled.
                 effective_trend_score = trend_score
 
                 if CONFIG["btc_filter_enabled"]:
@@ -538,7 +535,6 @@ def main():
                     rel_volume=rel_volume, rsi=rsi, direction=direction,
                     stoch_k=stoch_k, bb_pct_b=bb_pct_b, macd_hist=macd_hist,
                 )
-                # Keep the observed quality score even when the legacy quality gate is disabled.
                 effective_quality_score = quality_score
 
                 oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}
