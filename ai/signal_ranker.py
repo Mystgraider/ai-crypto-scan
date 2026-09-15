@@ -18,8 +18,7 @@ clipping multiple strong candidates to the same score.
 
 
 class AISignalRanker:
-    # Declared component weights. These sum to 98%; the remaining 2% is
-    # reserved for the small categorical adjustments below.
+    # Declared component weights. These sum to 100% of the ranking budget.
     WEIGHT_TREND = 35.0
     WEIGHT_QUALITY = 22.0
     WEIGHT_RS = 18.0
