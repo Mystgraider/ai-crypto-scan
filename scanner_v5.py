@@ -700,10 +700,11 @@ def main():
     conf_eng  = ConfidenceEngine()
 
     ranked = AISignalRanker().rank(candidates)
-    ranked = ranked[:CONFIG["max_signals_per_run"]]
-    print(f"      ✅ {len(ranked)} signal(s) to fire")
+    print(f"      ✅ {len(ranked)} ranked candidate(s) queued for live validation")
 
-    print(f"\n[5/8] Sending {len(ranked)} alert(s)...")
+    print(f"\n[5/8] Sending up to {CONFIG['max_signals_per_run']} validated alert(s)...")
+
+    valid_signal_count = 0
 
     for sig in ranked:
 
@@ -818,9 +819,14 @@ def main():
             funding_pct=sig["funding_pct"],
             oi_signal=sig["oi_signal"],
             beta_label=sig["beta_label"],
+            ai_rank_score=sig.get("ai_rank_score", sig.get("ai_composite")),
+            ai_rank_raw=sig.get("ai_rank_raw"),
+            confidence=confidence,
+            ai_attribution=sig.get("ai_attribution"),
         )
 
         set_cooldown(sig["symbol"])
+        valid_signal_count += 1
 
         print(
             f"  ✅ {sig['symbol']} {sig['direction']} | "
@@ -828,6 +834,13 @@ def main():
             f"RSI:{sig['rsi']} StochK:{sig['stoch_k']} Vol:{sig['rel_volume']}x | "
             f"MTF:{sig['mtf_status']} BTC:{sig['btc_regime']}"
         )
+
+        if valid_signal_count >= CONFIG["max_signals_per_run"]:
+            print(
+                f"      🛑 Max validated signals reached "
+                f"({valid_signal_count}/{CONFIG['max_signals_per_run']})."
+            )
+            break
 
     print("\n[6/8] Running signal tracker...")
     SignalTracker().run()
