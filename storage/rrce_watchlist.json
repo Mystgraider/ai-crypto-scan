@@ -1,4 +1,16 @@
 {
+  "ALICE/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-15T19:53:34.513641+00:00",
+    "last_seen": "2026-09-15T19:53:34.513641+00:00",
+    "observations": 1,
+    "pool_level": 0.1277,
+    "range_high": 0.1292,
+    "range_low": 0.1256,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.1274,
+    "symbol": "ALICE/USDT:USDT"
+  },
   "BCH/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-15T16:51:09.180958+00:00",
@@ -11,17 +23,53 @@
     "sweep_extreme": 219.67,
     "symbol": "BCH/USDT:USDT"
   },
+  "C98/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-15T19:54:09.664177+00:00",
+    "last_seen": "2026-09-15T19:54:09.664177+00:00",
+    "observations": 1,
+    "pool_level": 0.01375,
+    "range_high": 0.01394,
+    "range_low": 0.01351,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.01373,
+    "symbol": "C98/USDT:USDT"
+  },
   "CHZ/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-15T16:52:21.979863+00:00",
-    "last_seen": "2026-09-15T16:52:21.979863+00:00",
-    "observations": 1,
+    "last_seen": "2026-09-15T19:53:55.797280+00:00",
+    "observations": 2,
     "pool_level": 0.01408,
     "range_high": 0.0142,
-    "range_low": 0.01408,
+    "range_low": 0.01382,
     "regime": "BEAR_CAUTION",
-    "sweep_extreme": 0.01401,
+    "sweep_extreme": 0.01397,
     "symbol": "CHZ/USDT:USDT"
+  },
+  "KAVA/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-15T19:54:04.529416+00:00",
+    "last_seen": "2026-09-15T19:54:04.529416+00:00",
+    "observations": 1,
+    "pool_level": 0.06657,
+    "range_high": 0.06657,
+    "range_low": 0.06487,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.06676,
+    "symbol": "KAVA/USDT:USDT"
+  },
+  "SUSHI/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-15T19:53:08.643646+00:00",
+    "last_seen": "2026-09-15T19:53:08.643646+00:00",
+    "observations": 1,
+    "pool_level": 0.2115,
+    "range_high": 0.2148,
+    "range_low": 0.2072,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.2096,
+    "symbol": "SUSHI/USDT:USDT"
   },
   "TLM/USDT:USDT|SHORT": {
     "direction": "SHORT",
