@@ -6,6 +6,10 @@ Calculates OI confirmation when data is available.
 Unavailable OI is explicitly marked unavailable. It is not represented as
 NEUTRAL because NEUTRAL means the market was actually observed and did not
 meet a directional OI condition.
+
+OI is supporting evidence, not a production hard gate. When an exchange
+cannot provide current/history OI, the scanner must be allowed to continue
+with an explicit UNAVAILABLE OI result and zero score adjustment.
 """
 
 
@@ -48,6 +52,7 @@ class OIEngine:
     def _result(label, score_adj, oi_change_pct):
         return {
             "available": True,
+            "data_available": True,
             "oi_signal": label,
             "score_adj": score_adj,
             "oi_change_pct": round(oi_change_pct, 2),
@@ -56,7 +61,8 @@ class OIEngine:
     @staticmethod
     def _unavailable(reason):
         return {
-            "available": False,
+            "available": True,
+            "data_available": False,
             "oi_signal": "UNAVAILABLE",
             "score_adj": 0,
             "oi_change_pct": None,
@@ -64,7 +70,7 @@ class OIEngine:
         }
 
     def fetch_oi(self, exchange, symbol: str) -> dict:
-        """Fetch current and previous OI, preserving explicit availability."""
+        """Fetch OI without making OI availability a signal-discovery gate."""
         try:
             oi_data = exchange.fetch_open_interest(symbol)
             current_oi = (
@@ -75,21 +81,14 @@ class OIEngine:
                 None
             )
             if current_oi is None:
-                return {
-                    "current_oi": 0,
-                    "previous_oi": 0,
-                    "available": False,
-                    "reason": "current_oi_missing",
-                }
+                return self._soft_unavailable(reason="current_oi_missing")
 
             current_oi = float(current_oi)
             if current_oi <= 0:
-                return {
-                    "current_oi": current_oi,
-                    "previous_oi": 0,
-                    "available": False,
-                    "reason": "invalid_current_oi",
-                }
+                return self._soft_unavailable(
+                    current_oi=current_oi,
+                    reason="invalid_current_oi",
+                )
 
             try:
                 history = exchange.fetch_open_interest_history(
@@ -104,46 +103,45 @@ class OIEngine:
                     if prev_raw is not None:
                         previous_oi = float(prev_raw)
                     else:
-                        return {
-                            "current_oi": current_oi,
-                            "previous_oi": 0,
-                            "available": False,
-                            "reason": "previous_oi_missing",
-                        }
+                        return self._soft_unavailable(
+                            current_oi=current_oi,
+                            reason="previous_oi_missing",
+                        )
                 else:
-                    return {
-                        "current_oi": current_oi,
-                        "previous_oi": 0,
-                        "available": False,
-                        "reason": "oi_history_unavailable",
-                    }
+                    return self._soft_unavailable(
+                        current_oi=current_oi,
+                        reason="oi_history_unavailable",
+                    )
             except Exception:
-                return {
-                    "current_oi": current_oi,
-                    "previous_oi": 0,
-                    "available": False,
-                    "reason": "oi_history_fetch_error",
-                }
+                return self._soft_unavailable(
+                    current_oi=current_oi,
+                    reason="oi_history_fetch_error",
+                )
 
             if previous_oi <= 0:
-                return {
-                    "current_oi": current_oi,
-                    "previous_oi": previous_oi,
-                    "available": False,
-                    "reason": "invalid_previous_oi",
-                }
+                return self._soft_unavailable(
+                    current_oi=current_oi,
+                    previous_oi=previous_oi,
+                    reason="invalid_previous_oi",
+                )
 
             return {
                 "current_oi": current_oi,
                 "previous_oi": previous_oi,
                 "available": True,
+                "data_available": True,
             }
 
         except Exception as e:
             print(f"  ⚠️  OI fetch failed {symbol}: {e}")
-            return {
-                "current_oi": 0,
-                "previous_oi": 0,
-                "available": False,
-                "reason": "fetch_error",
-            }
+            return self._soft_unavailable(reason="fetch_error")
+
+    @staticmethod
+    def _soft_unavailable(current_oi=0, previous_oi=0, reason="unknown"):
+        return {
+            "current_oi": current_oi,
+            "previous_oi": previous_oi,
+            "available": True,
+            "data_available": False,
+            "reason": reason,
+        }
