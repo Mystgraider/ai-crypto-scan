@@ -468,16 +468,9 @@ def main():
                 else:
                     rs = {"rs_score": 50.0, "rs_label": "NEUTRAL", "rs_ratio": 1.0}
 
-                if rs["rs_label"] == "WEAK":
-                    skip["weak_rs"] += 1
-                    _trace(symbol, "weak_rs", direction=direction)
-                    continue
-
-                rs_max = CONFIG.get("rs_max_ratio", 10.0)
-                if rs.get("rs_ratio", 1.0) > rs_max:
-                    skip["weak_rs"] += 1
-                    _trace(symbol, "weak_rs", direction=direction)
-                    continue
+                # RS is supporting evidence for ranking, not a hard signal gate.
+                # Keep weak/extreme RS values visible to the ranker instead of
+                # silently rejecting an otherwise structurally valid direction.
 
                 vol_max = CONFIG.get("vol_max_ratio", 2.0)
                 if rel_volume > vol_max:
