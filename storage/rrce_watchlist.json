@@ -1,1 +1,38 @@
-{}
+{
+  "BCH/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-15T16:51:09.180958+00:00",
+    "last_seen": "2026-09-15T16:51:09.180958+00:00",
+    "observations": 1,
+    "pool_level": 220.0,
+    "range_high": 224.91,
+    "range_low": 220.79,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 219.67,
+    "symbol": "BCH/USDT:USDT"
+  },
+  "CHZ/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-15T16:52:21.979863+00:00",
+    "last_seen": "2026-09-15T16:52:21.979863+00:00",
+    "observations": 1,
+    "pool_level": 0.01408,
+    "range_high": 0.0142,
+    "range_low": 0.01408,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.01401,
+    "symbol": "CHZ/USDT:USDT"
+  },
+  "TLM/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-15T16:53:48.027876+00:00",
+    "last_seen": "2026-09-15T16:53:48.027876+00:00",
+    "observations": 1,
+    "pool_level": 0.00138,
+    "range_high": 0.00138,
+    "range_low": 0.001364,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.001385,
+    "symbol": "TLM/USDT:USDT"
+  }
+}
