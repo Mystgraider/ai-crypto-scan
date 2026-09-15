@@ -1,0 +1,80 @@
+name: One-time ranking/live validation fix
+
+on:
+  push:
+    branches:
+      - btc-safety-and-signal-integrity-audit-9066c
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.head_commit.message != 'fix: validate ranked candidates before max signal cap'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+
+      - name: Apply exact scanner fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scanner_v5.py')
+          text = path.read_text(encoding='utf-8')
+
+          old = '''    ranked = AISignalRanker().rank(candidates)\n    ranked = ranked[:CONFIG["max_signals_per_run"]]\n    print(f"      ✅ {len(ranked)} signal(s) to fire")\n\n    print(f"\\n[5/8] Sending {len(ranked)} alert(s)...")\n\n    for sig in ranked:\n'''
+
+          new = '''    ranked = AISignalRanker().rank(candidates)\n    print(f"      ✅ {len(ranked)} ranked candidate(s) queued for live validation")\n\n    print(f"\\n[5/8] Sending up to {CONFIG[\"max_signals_per_run\"]} validated alert(s)...")\n\n    valid_signal_count = 0\n\n    for sig in ranked:\n'''
+
+          if old not in text:
+              raise SystemExit('Expected ranking block not found; refusing to modify scanner.')
+
+          text = text.replace(old, new, 1)
+
+          old2 = '''        set_cooldown(sig["symbol"])\n\n        print(\n'''
+
+          new2 = '''        set_cooldown(sig["symbol"])\n        valid_signal_count += 1\n\n        print(\n'''
+
+          if old2 not in text:
+              raise SystemExit('Expected post-save block not found; refusing to modify scanner.')
+
+          text = text.replace(old2, new2, 1)
+
+          old3 = '''            f"MTF:{sig['mtf_status']} BTC:{sig['btc_regime']}"\n        )\n\n    print("\\n[6/8] Running signal tracker...")\n'''
+
+          new3 = '''            f"MTF:{sig['mtf_status']} BTC:{sig['btc_regime']}"\n        )\n\n        if valid_signal_count >= CONFIG["max_signals_per_run"]:\n            print(\n                f"      🛑 Max validated signals reached "\n                f"({valid_signal_count}/{CONFIG['max_signals_per_run']})."\n            )\n            break\n\n    print("\\n[6/8] Running signal tracker...")\n'''
+
+          if old3 not in text:
+              raise SystemExit('Expected loop tail block not found; refusing to modify scanner.')
+
+          text = text.replace(old3, new3, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Verify exact ordering
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import ast
+
+          path = Path('scanner_v5.py')
+          source = path.read_text(encoding='utf-8')
+          ast.parse(source)
+
+          assert 'ranked = ranked[:CONFIG["max_signals_per_run"]]' not in source
+          assert 'valid_signal_count = 0' in source
+          assert 'valid_signal_count += 1' in source
+          assert 'if valid_signal_count >= CONFIG["max_signals_per_run"]:' in source
+          print('scanner_v5.py syntax and ranking/live-validation ordering checks passed')
+          PY
+
+      - name: Commit scanner fix and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scanner_v5.py
+          git rm .github/workflows/_fix_ranking_live_order.yml
+          git commit -m "fix: validate ranked candidates before max signal cap"
+          git push
