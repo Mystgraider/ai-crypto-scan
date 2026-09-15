@@ -18,14 +18,16 @@ def test_beta_returns_neutral_when_btc_variance_is_zero():
     assert BetaFilter().calculate_beta(coin, btc, periods=20) == 1.0
 
 
-def test_funding_zero_is_available_but_nan_is_unavailable():
+def test_funding_zero_is_available_but_nan_is_soft_unavailable():
     engine = FundingEngine()
     assert engine.analyze(0.0)["available"] is True
     unavailable = engine.analyze(float("nan"))
     assert unavailable["available"] is False
+    assert unavailable["data_available"] is False
     assert unavailable["funding_pct"] is None
-    assert unavailable["long_ok"] is False
-    assert unavailable["short_ok"] is False
+    assert unavailable["long_ok"] is True
+    assert unavailable["short_ok"] is True
+    assert unavailable["short_score_adj"] == 0
 
 
 def test_oi_invalid_values_are_unavailable_not_neutral():
