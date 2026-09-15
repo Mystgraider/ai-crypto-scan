@@ -3,6 +3,10 @@ Market Data Loader — Phase 4 upgrade
 =====================================
 Supports multiple timeframes (1H and 4H).
 Used by main scanner and MultiFrameEngine.
+
+BTC fetch failures are converted into an explicit one-row unavailable
+frame so the BTC safety filter can fail closed without hiding non-BTC
+market-data failures.
 """
 
 import pandas as pd
@@ -22,14 +26,30 @@ class MarketDataLoader:
         limit: int = None
     ) -> pd.DataFrame:
 
-        tf  = timeframe or CONFIG["timeframe"]
-        lim = limit     or CONFIG["ohlcv_limit"]
+        tf = timeframe or CONFIG["timeframe"]
+        lim = limit or CONFIG["ohlcv_limit"]
 
-        data = self.exchange.fetch_ohlcv(
-            symbol,
-            timeframe=tf,
-            limit=lim
-        )
+        try:
+            data = self.exchange.fetch_ohlcv(
+                symbol,
+                timeframe=tf,
+                limit=lim
+            )
+        except Exception:
+            # BTC is a global safety dependency. If its market data is
+            # unavailable, preserve an explicit marker and let BTCFilter
+            # return UNKNOWN with both directions blocked. Never swallow
+            # failures for ordinary coin data.
+            if symbol == CONFIG["btc_symbol"]:
+                fallback = pd.DataFrame(
+                    [[0, 0.0, 0.0, 0.0, 0.0, 0.0]],
+                    columns=["timestamp", "open", "high", "low", "close", "volume"],
+                )
+                fallback["timestamp"] = pd.to_datetime(fallback["timestamp"], unit="ms")
+                fallback.attrs["btc_data_unavailable"] = True
+                fallback.attrs["btc_market_data"] = True
+                return fallback
+            raise
 
         df = pd.DataFrame(
             data,
