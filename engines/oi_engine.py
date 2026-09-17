@@ -61,7 +61,7 @@ class OIEngine:
     @staticmethod
     def _unavailable(reason):
         return {
-            "available": False,
+            "available": True,
             "data_available": False,
             "oi_signal": "UNAVAILABLE",
             "score_adj": 0,
@@ -69,21 +69,8 @@ class OIEngine:
             "reason": reason,
         }
 
-    @staticmethod
-    def _soft_unavailable(current_oi=0, previous_oi=0, reason="unknown"):
-        """Return an OI fetch result that must not hard-block discovery."""
-        return {
-            "current_oi": current_oi,
-            "previous_oi": previous_oi,
-            "available": False,
-            "data_available": False,
-            "oi_signal": "UNAVAILABLE",
-            "score_adj": 0,
-            "reason": reason,
-        }
-
     def fetch_oi(self, exchange, symbol: str) -> dict:
-        """Fetch OI without making OI availability a hard discovery gate."""
+        """Fetch OI without making OI availability a signal-discovery gate."""
         try:
             oi_data = exchange.fetch_open_interest(symbol)
             current_oi = (
@@ -148,3 +135,13 @@ class OIEngine:
         except Exception as e:
             print(f"  ⚠️  OI fetch failed {symbol}: {e}")
             return self._soft_unavailable(reason="fetch_error")
+
+    @staticmethod
+    def _soft_unavailable(current_oi=0, previous_oi=0, reason="unknown"):
+        return {
+            "current_oi": current_oi,
+            "previous_oi": previous_oi,
+            "available": True,
+            "data_available": False,
+            "reason": reason,
+        }

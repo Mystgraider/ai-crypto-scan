@@ -16,9 +16,12 @@ weighted score is calculated. This keeps the ranking scale bounded without
 clipping multiple strong candidates to the same score.
 """
 
+from ai.attribution import build_attribution
+
 
 class AISignalRanker:
-    # Declared component weights. These sum to 100% of the ranking budget.
+    # Declared component weights. These sum to 98%; the remaining 2% is
+    # reserved for the small categorical adjustments below.
     WEIGHT_TREND = 35.0
     WEIGHT_QUALITY = 22.0
     WEIGHT_RS = 18.0
@@ -96,6 +99,17 @@ class AISignalRanker:
                 + category_component
             )
             ai_rank_score = round(self._clamp(raw_score, 0.0, 100.0), 2)
+            attribution = build_attribution(
+                trend_component=trend_component,
+                quality_component=quality_component,
+                rs_component=rs_component,
+                oi_component=oi_component,
+                rr_component=rr_component,
+                sr_component=sr_component,
+                category_component=category_component,
+                ai_rank_score=ai_rank_score,
+                ai_rank_raw=raw_score,
+            )
 
             scored.append(
                 {
@@ -103,6 +117,7 @@ class AISignalRanker:
                     "ai_rank_score": ai_rank_score,
                     "ai_rank_raw": round(raw_score, 2),
                     "ai_composite": ai_rank_score,
+                    "ai_attribution": attribution,
                 }
             )
 
