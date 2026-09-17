@@ -1,6 +1,3 @@
-from config import CONFIG
-
-
 class TrendEngine:
     """
     Trend direction + score engine — V6.0
@@ -12,39 +9,17 @@ class TrendEngine:
     - Finer ADX scoring tiers
     - Stronger EMA gap scoring (less fake signals in weak trends)
 
-    When require_trend_gate=True, the historical directional result is
-    returned and the scanner may use it as a hard gate.
-
-    When require_trend_gate=False, TrendEngine is supporting evidence only.
-    In that mode its directional hint MUST NOT suppress the opposite direction.
-    The scanner's existing orchestration interprets direction=NONE as
-    "evaluate both LONG and SHORT". We therefore return a neutral score of
-    50 while preserving the actual trend direction and directional score in
-    direction_hint/directional_score for the later direction-aware pipeline.
+    Requirements for a valid signal:
+    - EMA20 > EMA50 (LONG) or EMA20 < EMA50 (SHORT)
+    - Price on the correct side of EMA20
+    - ADX >= 20 (confirmed trend)
+    - MACD above signal line (LONG) or below (SHORT)
+    - Stoch RSI not extreme against direction
     """
 
     ADX_MIN    = 20
     ADX_STRONG = 25
-    ADX_POWER  = 35
-
-    @staticmethod
-    def _result(direction, trend, score, filters):
-        """Return a direction-aware result without leaking a soft hint into gating."""
-        if not CONFIG.get("require_trend_gate", True) and direction in ("LONG", "SHORT"):
-            return {
-                "direction": "NONE",
-                "trend": trend,
-                "score": 50.0,
-                "filters": filters,
-                "direction_hint": direction,
-                "directional_score": round(score, 2),
-            }
-        return {
-            "direction": direction,
-            "trend": trend,
-            "score": round(score, 2),
-            "filters": filters,
-        }
+    ADX_POWER  = 35   # new: very strong trend bonus
 
     def analyze(self, price, ema20, ema50, adx=None, roc=None,
                 macd=None, macd_sig=None, macd_hist=None,
@@ -72,24 +47,33 @@ class TrendEngine:
                 return {"direction": "NONE", "trend": "RANGE", "score": 0.0, "filters": "bb_upper_band"}
 
             gap   = ((ema20 - ema50) / ema50) * 100
-            score = min(100.0, 50 + gap * 12)
+            score = min(100.0, 50 + gap * 12)   # slightly steeper than v5
 
+            # ADX tiered bonus
             if adx:
                 if adx >= self.ADX_POWER:
                     score = min(100.0, score + 14)
                 elif adx >= self.ADX_STRONG:
                     score = min(100.0, score + 8)
 
+            # ROC momentum bonus
             if roc and roc > 0:
                 score = min(100.0, score + 4)
 
+            # MACD histogram bonus (strong bullish histogram = extra conviction)
             if macd_hist is not None and macd_hist > 0:
                 score = min(100.0, score + 3)
 
+            # Stoch RSI ideal zone bonus (40-70 = healthy, not extended)
             if stoch_k is not None and 40 <= stoch_k <= 70:
                 score = min(100.0, score + 4)
 
-            return self._result("LONG", "BULLISH", score, "passed")
+            return {
+                "direction": "LONG",
+                "trend":     "BULLISH",
+                "score":     round(score, 2),
+                "filters":   "passed",
+            }
 
         # ── SHORT ─────────────────────────────────────────────────────
         if ema20 < ema50 and price < ema20:
@@ -125,6 +109,11 @@ class TrendEngine:
             if stoch_k is not None and 30 <= stoch_k <= 60:
                 score = min(100.0, score + 4)
 
-            return self._result("SHORT", "BEARISH", score, "passed")
+            return {
+                "direction": "SHORT",
+                "trend":     "BEARISH",
+                "score":     round(score, 2),
+                "filters":   "passed",
+            }
 
         return {"direction": "NONE", "trend": "RANGE", "score": 0.0, "filters": "ema_misaligned"}

@@ -3,10 +3,10 @@ Funding Rate Engine — V6.9.25
 =============================
 Checks perpetual-swap funding before allowing signals.
 
-The scanner's existing fetch_funding() contract returns a numeric funding
-rate. To preserve that interface, unavailable data is represented by NaN and
-analyze() converts that sentinel into an explicit UNAVAILABLE result. A real
-0.0 funding rate remains a valid observation.
+Funding is directional safety/evidence, not a requirement that must be
+available for every candidate. When funding data is unavailable, discovery
+continues without a funding adjustment. Extreme observed funding can still
+block the affected direction.
 """
 
 import math
@@ -27,14 +27,17 @@ class FundingEngine:
             funding_rate = float("nan")
 
         if math.isnan(funding_rate):
+            # Funding is supporting evidence. Lack of funding data must not
+            # silently become a hard discovery gate for either direction.
             return {
                 "available": False,
+                "data_available": False,
                 "funding_rate": None,
                 "funding_pct": None,
-                "long_ok": False,
-                "short_ok": False,
-                "long_msg": "Funding unavailable — LONG blocked",
-                "short_msg": "Funding unavailable — SHORT blocked",
+                "long_ok": True,
+                "short_ok": True,
+                "long_msg": "Funding unavailable — no funding adjustment",
+                "short_msg": "Funding unavailable — no funding adjustment",
                 "short_score_adj": 0,
                 "reason": "funding_unavailable",
             }
@@ -69,6 +72,7 @@ class FundingEngine:
 
         return {
             "available": True,
+            "data_available": True,
             "funding_rate": funding_rate,
             "funding_pct": pct,
             "long_ok": long_ok,
