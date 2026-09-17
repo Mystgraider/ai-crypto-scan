@@ -582,7 +582,7 @@ def main():
                 base      = effective_trend_score * 0.6 + effective_quality_score * 0.4
                 composite = min(100.0, max(0.0, round(
                     (base + sr_bonus + oi_adj + fund_adj + squeeze_bonus + vp_bonus + rrce_bonus) * mtf_multiplier, 2)
-                )))
+                ))
                 g = grade_score(composite)
 
                 if g == "D":
