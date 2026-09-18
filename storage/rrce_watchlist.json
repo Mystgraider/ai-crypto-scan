@@ -1,14 +1,14 @@
 {
-  "TLM/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-09-18T09:47:41.082302+00:00",
-    "last_seen": "2026-09-18T09:47:41.082302+00:00",
+  "USDC/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-18T13:55:22.719563+00:00",
+    "last_seen": "2026-09-18T13:55:22.719563+00:00",
     "observations": 1,
-    "pool_level": 0.00141,
-    "range_high": 0.00141,
-    "range_low": 0.001395,
-    "regime": "EXTREME_BULL",
-    "sweep_extreme": 0.001412,
-    "symbol": "TLM/USDT:USDT"
+    "pool_level": 1.0,
+    "range_high": 1.0002,
+    "range_low": 1.0,
+    "regime": "BULL",
+    "sweep_extreme": 0.9999,
+    "symbol": "USDC/USDT:USDT"
   }
 }
