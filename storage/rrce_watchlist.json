@@ -1,14 +1,14 @@
 {
-  "KAVA/USDT:USDT|SHORT": {
+  "TLM/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-09-18T05:15:54.104409+00:00",
-    "last_seen": "2026-09-18T05:15:54.104409+00:00",
+    "first_seen": "2026-09-18T09:47:41.082302+00:00",
+    "last_seen": "2026-09-18T09:47:41.082302+00:00",
     "observations": 1,
-    "pool_level": 0.06674666666666666,
-    "range_high": 0.06681,
-    "range_low": 0.06611,
-    "regime": "RANGE",
-    "sweep_extreme": 0.06703,
-    "symbol": "KAVA/USDT:USDT"
+    "pool_level": 0.00141,
+    "range_high": 0.00141,
+    "range_low": 0.001395,
+    "regime": "EXTREME_BULL",
+    "sweep_extreme": 0.001412,
+    "symbol": "TLM/USDT:USDT"
   }
 }
