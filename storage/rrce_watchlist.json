@@ -1,16 +1,4 @@
 {
-  "CHZ/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-09-18T17:19:45.060935+00:00",
-    "last_seen": "2026-09-18T17:19:45.060935+00:00",
-    "observations": 1,
-    "pool_level": 0.01469,
-    "range_high": 0.01481,
-    "range_low": 0.01444,
-    "regime": "EXTREME_BULL",
-    "sweep_extreme": 0.01473,
-    "symbol": "CHZ/USDT:USDT"
-  },
   "CRV/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-18T19:43:28.950800+00:00",
@@ -47,28 +35,16 @@
     "sweep_extreme": 0.1294,
     "symbol": "IMX/USDT:USDT"
   },
-  "JASMY/USDT:USDT|SHORT": {
+  "MINA/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-09-18T17:20:02.073423+00:00",
-    "last_seen": "2026-09-18T17:20:02.073423+00:00",
+    "first_seen": "2026-09-18T21:53:26.747794+00:00",
+    "last_seen": "2026-09-18T21:53:26.747794+00:00",
     "observations": 1,
-    "pool_level": 0.004035,
-    "range_high": 0.004035,
-    "range_low": 0.003905,
+    "pool_level": 0.10616,
+    "range_high": 0.10616,
+    "range_low": 0.09367,
     "regime": "EXTREME_BULL",
-    "sweep_extreme": 0.004048,
-    "symbol": "JASMY/USDT:USDT"
-  },
-  "ROSE/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-09-18T17:19:46.545759+00:00",
-    "last_seen": "2026-09-18T17:19:46.545759+00:00",
-    "observations": 1,
-    "pool_level": 0.007393,
-    "range_high": 0.007396,
-    "range_low": 0.007122,
-    "regime": "EXTREME_BULL",
-    "sweep_extreme": 0.007404,
-    "symbol": "ROSE/USDT:USDT"
+    "sweep_extreme": 0.10642,
+    "symbol": "MINA/USDT:USDT"
   }
 }
