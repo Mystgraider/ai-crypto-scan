@@ -35,6 +35,30 @@
     "sweep_extreme": 0.1294,
     "symbol": "IMX/USDT:USDT"
   },
+  "KAVA/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-18T23:40:25.192426+00:00",
+    "last_seen": "2026-09-18T23:40:25.192426+00:00",
+    "observations": 1,
+    "pool_level": 0.068375,
+    "range_high": 0.06836,
+    "range_low": 0.06608,
+    "regime": "EXTREME_BULL",
+    "sweep_extreme": 0.0685,
+    "symbol": "KAVA/USDT:USDT"
+  },
+  "MANA/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-18T23:40:13.371261+00:00",
+    "last_seen": "2026-09-18T23:40:13.371261+00:00",
+    "observations": 1,
+    "pool_level": 0.078586,
+    "range_high": 0.078997,
+    "range_low": 0.0774,
+    "regime": "EXTREME_BULL",
+    "sweep_extreme": 0.07879,
+    "symbol": "MANA/USDT:USDT"
+  },
   "MINA/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-18T21:53:26.747794+00:00",
