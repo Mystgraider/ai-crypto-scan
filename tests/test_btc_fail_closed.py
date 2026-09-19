@@ -38,3 +38,50 @@ def test_non_btc_fetch_failure_still_raises():
         assert "BTC data unavailable" in str(exc)
     else:
         raise AssertionError("non-BTC fetch failures must not be swallowed")
+
+
+def _btc_frame(ema20, ema50, price, adx=30, rsi=55):
+    import pandas as pd
+
+    return pd.DataFrame([
+        {"close": price, "ema_20": ema20, "ema_50": ema50, "adx": adx, "rsi": rsi},
+        {"close": price, "ema_20": ema20, "ema_50": ema50, "adx": adx, "rsi": rsi},
+    ])
+
+
+def test_normal_btc_bull_keeps_both_directions_available():
+    result = BTCFilter().analyze(_btc_frame(ema20=101, ema50=99, price=102, rsi=60))
+
+    assert result["regime"] == "BULL"
+    assert result["allow_long"] is True
+    assert result["allow_short"] is True
+
+
+def test_normal_btc_bear_keeps_both_directions_available():
+    result = BTCFilter().analyze(_btc_frame(ema20=99, ema50=101, price=98, rsi=50))
+
+    assert result["regime"] == "BEAR_UNCONFIRMED"
+    assert result["allow_long"] is True
+    assert result["allow_short"] is True
+
+
+def test_btc_range_keeps_both_directions_available():
+    result = BTCFilter().analyze(_btc_frame(ema20=100, ema50=100, price=100, rsi=55))
+
+    assert result["regime"] == "RANGE"
+    assert result["allow_long"] is True
+    assert result["allow_short"] is True
+
+
+def test_btc_extreme_oversold_blocks_both_directions():
+    result = BTCFilter().analyze(_btc_frame(ema20=99, ema50=101, price=98, rsi=25))
+
+    assert result["allow_long"] is False
+    assert result["allow_short"] is False
+
+
+def test_btc_extreme_overbought_only_blocks_long():
+    result = BTCFilter().analyze(_btc_frame(ema20=101, ema50=99, price=102, rsi=80))
+
+    assert result["allow_long"] is False
+    assert result["allow_short"] is True
