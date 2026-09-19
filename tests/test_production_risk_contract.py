@@ -120,3 +120,22 @@ def test_production_contract_does_not_silently_restore_old_defaults():
     assert 'CONFIG.get("pause_shorts"' not in scanner
     assert 'CONFIG.get("block_bear_regime"' not in scanner
     assert 'CONFIG.get("range_regime_min_score"' not in scanner
+
+
+def test_rrce_live_entry_fails_closed_on_unvalidated_stage4():
+    from engines.rrce_engine import RRCEEngine
+
+    class _MustNotRun:
+        @staticmethod
+        def live_entry_levels(**kwargs):
+            raise AssertionError("RRCE execution must not run for invalid Stage 4")
+
+    result = RRCEEngine.live_entry_levels(
+        direction="LONG",
+        live_price=100.0,
+        stage4={"valid": False, "entry": 99.0, "sl": 95.0, "tp": 110.0},
+        max_deviation_pct=1.0,
+        min_rr=2.0,
+    )
+
+    assert result == {"valid": False, "reason": "invalid_stage4"}
