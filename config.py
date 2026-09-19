@@ -12,7 +12,9 @@ CONFIG = {
     "top_coins_limit": 100,
     "timeframe": "1h",
     "ohlcv_limit": 100,
-    "ohlcv_4h_limit": 50,
+    # V6.2.1: Single authoritative 4H limit. Indicators.MIN_CANDLES=60 requires
+    # at least 60 candles. Default to 100 to provide buffer beyond minimum.
+    "ohlcv_4h_limit": 100,
 
     # Signal thresholds — V5.6 values (relaxed, proven to generate signals)
     "min_score": 70,           # data: score 70-75 = 100% WR, 80+ = 0% WR

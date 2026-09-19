@@ -101,6 +101,24 @@ def main():
 
     market_loader  = MarketDataLoader()
     exchange       = market_loader.exchange
+    
+    # V6.2.1: Per-scan-cycle market data cache to prevent duplicate fetches.
+    # Cache is scoped to main() lifetime (one scan cycle). LONG/SHORT directions
+    # and MTF/RRCE all share the same cached data for a given symbol/timeframe.
+    # Failures are cached as None to avoid retrying failed fetches in same cycle.
+    _market_data_cache = {}  # key: (symbol, timeframe) -> pd.DataFrame or None
+    
+    def _get_cached(symbol: str, timeframe: str, limit: int):
+        cache_key = (symbol, timeframe, limit)
+        if cache_key not in _market_data_cache:
+            try:
+                _market_data_cache[cache_key] = market_loader.get_ohlcv(
+                    symbol, timeframe=timeframe, limit=limit
+                )
+            except Exception:
+                _market_data_cache[cache_key] = None
+        return _market_data_cache[cache_key]
+    
     trend_engine   = TrendEngine()
     quality_engine = QualityEngine()
     validator      = SignalValidator()

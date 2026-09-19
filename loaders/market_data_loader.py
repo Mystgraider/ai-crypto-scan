@@ -39,15 +39,18 @@ class MarketDataLoader:
 
         return df
 
-    def get_4h(self, symbol: str, limit: int = 100) -> pd.DataFrame:
+    def get_4h(self, symbol: str, limit: int = None) -> pd.DataFrame:
         """Convenience method for 4H candles.
 
         V6.1.3 fix: default was 50, but Indicators.apply() requires
         MIN_CANDLES=60 — every Indicators.apply(get_4h(...)) call was
         raising ValueError("Insufficient candles: 50 < 60"), which
         silently fell back to MTF "PROXY" status on every signal.
+
+        V6.2.1: Use CONFIG["ohlcv_4h_limit"] as the authoritative default.
         """
-        return self.get_ohlcv(symbol, timeframe="4h", limit=limit)
+        lim = limit if limit is not None else CONFIG["ohlcv_4h_limit"]
+        return self.get_ohlcv(symbol, timeframe="4h", limit=lim)
 
     def get_1h(self, symbol: str, limit: int = 100) -> pd.DataFrame:
         """Convenience method for 1H candles."""
