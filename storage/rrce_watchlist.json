@@ -47,6 +47,18 @@
     "sweep_extreme": 0.0215,
     "symbol": "COTI/USDT:USDT"
   },
+  "CRV/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-19T14:35:02.759657+00:00",
+    "last_seen": "2026-09-19T14:35:02.759657+00:00",
+    "observations": 1,
+    "pool_level": 0.33725,
+    "range_high": 0.3498,
+    "range_low": 0.3335,
+    "regime": "BULL",
+    "sweep_extreme": 0.3365,
+    "symbol": "CRV/USDT:USDT"
+  },
   "RSR/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-19T11:26:46.172443+00:00",
