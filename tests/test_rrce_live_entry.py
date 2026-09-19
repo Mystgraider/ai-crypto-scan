@@ -23,7 +23,7 @@ class LiveEntryLevelsTests(unittest.TestCase):
         result = RRCEEngine.live_entry_levels(
             direction="LONG",
             live_price=100.3,
-            stage4={"entry": 100.0, "sl": 98.0, "tp": 106.0},
+            stage4={"valid": True, "entry": 100.0, "sl": 98.0, "tp": 106.0},
             max_deviation_pct=0.4,
             min_rr=2.0,
         )
@@ -38,7 +38,7 @@ class LiveEntryLevelsTests(unittest.TestCase):
         result = RRCEEngine.live_entry_levels(
             direction="LONG",
             live_price=100.5,
-            stage4={"entry": 100.0, "sl": 98.0, "tp": 106.0},
+            stage4={"valid": True, "entry": 100.0, "sl": 98.0, "tp": 106.0},
             max_deviation_pct=0.4,
             min_rr=2.0,
         )
@@ -50,7 +50,7 @@ class LiveEntryLevelsTests(unittest.TestCase):
         result = RRCEEngine.live_entry_levels(
             direction="SHORT",
             live_price=99.8,
-            stage4={"entry": 100.0, "sl": 102.0, "tp": 94.0},
+            stage4={"valid": True, "entry": 100.0, "sl": 102.0, "tp": 94.0},
             max_deviation_pct=0.4,
             min_rr=2.0,
         )

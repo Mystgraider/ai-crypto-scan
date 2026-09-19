@@ -2,8 +2,8 @@
 Elite Futures Scanner V6.2
 ==============================
 V6.2 Fixes:
-  - Vol > 2.0x now hard-blocked in main scan loop (was only in QualityEngine
-    at 3.0x). BA/USDT at 3.06x fired Grade S and hit SL — confirmed kill.
+  - Volume is evaluated by QualityEngine as supporting evidence; the scanner
+    no longer hard-blocks at vol_max_ratio before quality scoring.
   - Signal tracker now expires OPEN signals >72h as EXPIRED status.
     Prevents stale signals (6-day-old OPEN) from polluting analytics.
   - Restored signals history from archive (V6.1.3 had reset signals.csv).
@@ -47,6 +47,7 @@ from reports.analytics_engine    import AnalyticsEngine
 from ai.signal_ranker            import AISignalRanker
 from ai.confidence_engine        import ConfidenceEngine
 from config                      import CONFIG
+from engines.direction_policy    import get_candidate_directions
 
 
 def grade_score(score: float) -> str:
@@ -162,7 +163,11 @@ def main():
             import traceback
             print(f"      ⚠️ BTC filter failed: {type(e).__name__}: {e}")
             print(f"      {traceback.format_exc().splitlines()[-1]}")
-            print(f"      Allowing all signals")
+            # Fail closed: unknown BTC state means no signals allowed.
+            btc_regime = {
+                "regime": "UNKNOWN", "allow_long": False, "allow_short": False,
+                "adx": 0, "rsi": 50, "reason": f"BTC filter error: {e}"
+            }
 
     # ── Step 1b: Circuit Breaker ───────────────────────────────────────────
     print("\n[1b] Circuit Breaker...")
@@ -267,25 +272,30 @@ def main():
                 stoch_k=stoch_k, stoch_d=stoch_d,
                 bb_pct_b=bb_pct_b,
             )
+            directional_trend_scores = trend_engine.directional_scores(
+                price=price, ema20=ema20, ema50=ema50,
+                adx=adx, roc=roc, macd=macd, macd_sig=macd_sig,
+                macd_hist=macd_hist, stoch_k=stoch_k, stoch_d=stoch_d,
+                bb_pct_b=bb_pct_b,
+            )
             trend_score = trend["score"]
 
-            if CONFIG.get("require_trend_gate", True):
-                if trend["direction"] == "NONE":
-                    skip["trend"] += 1
-                    _trace(symbol, "trend_none_and_gate_required")
-                    reason_key = f"trend_reason_{trend.get('filters', 'unknown')}"
-                    skip[reason_key] = skip.get(reason_key, 0) + 1
-                    continue
-                candidate_directions = [trend["direction"]]
-            else:
-                if trend["direction"] == "NONE":
-                    candidate_directions = ["LONG", "SHORT"]
-                else:
-                    candidate_directions = [trend["direction"]]
+            candidate_directions = get_candidate_directions(
+                trend["direction"],
+                CONFIG.get("require_trend_gate", True),
+            )
+            if not candidate_directions:
+                skip["trend"] += 1
+                _trace(symbol, "no_candidate_directions")
+                continue
 
             for direction in candidate_directions:
 
-                effective_trend_score = trend_score
+                # Trend evidence is direction-specific. When the trend gate is disabled,
+                # do not copy the confirmed LONG/SHORT score onto the opposite candidate.
+                effective_trend_score = directional_trend_scores.get(direction, 0.0)
+                if CONFIG.get("require_trend_gate", True):
+                    effective_trend_score = trend_score
 
                 if CONFIG["btc_filter_enabled"]:
                     if direction == "LONG"  and not btc_regime["allow_long"]:
@@ -293,21 +303,6 @@ def main():
                         _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
                         continue
                     if direction == "SHORT" and not btc_regime["allow_short"]:
-                        skip["btc"] += 1
-                        _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
-                        continue
-
-                if CONFIG.get("block_bear_regime", True) and btc_regime["regime"] in ("BEAR", "BEAR_CAUTION"):
-                    skip["btc"] += 1
-                    _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
-                    continue
-                if CONFIG.get("pause_shorts", True) and direction == "SHORT":
-                    skip["btc"] += 1
-                    _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
-                    continue
-
-                if btc_regime["regime"] == "RANGE" and trend["direction"] != "NONE":
-                    if effective_trend_score < CONFIG.get("range_regime_min_score", 85):
                         skip["btc"] += 1
                         _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
                         continue
@@ -440,7 +435,8 @@ def main():
                             skip[f"s3_reason_{reason}"] = skip.get(f"s3_reason_{reason}", 0) + 1
                     continue
 
-                rrce_risk = active_rrce_engine.live_entry_levels(
+                rrce_risk = revalidate_live_entry(
+                    rrce_engine=active_rrce_engine,
                     direction=direction,
                     live_price=price,
                     stage4=rrce_result["stage4"],
@@ -468,23 +464,13 @@ def main():
                 else:
                     rs = {"rs_score": 50.0, "rs_label": "NEUTRAL", "rs_ratio": 1.0}
 
-                if rs["rs_label"] == "WEAK":
-                    skip["weak_rs"] += 1
-                    _trace(symbol, "weak_rs", direction=direction)
-                    continue
+                # RS is supporting evidence for ranking, not a hard signal gate.
+                # Keep weak/extreme RS values visible to the ranker instead of
+                # silently rejecting an otherwise structurally valid direction.
 
-                rs_max = CONFIG.get("rs_max_ratio", 10.0)
-                if rs.get("rs_ratio", 1.0) > rs_max:
-                    skip["weak_rs"] += 1
-                    _trace(symbol, "weak_rs", direction=direction)
-                    continue
-
-                vol_max = CONFIG.get("vol_max_ratio", 2.0)
-                if rel_volume > vol_max:
-                    skip["quality"] += 1
-                    _trace(symbol, "quality_block", direction=direction)
-                    continue
-
+                # Volume is supporting evidence, not a scanner-level hard gate.
+                # QualityEngine scores the observed volume and retains its
+                # documented extreme-volume protection inside the quality score.
                 spike = spike_engine.analyze(rel_volume)
 
                 mtf_status     = "SKIPPED"
@@ -543,22 +529,38 @@ def main():
                         oi_data = oi_engine.fetch_oi(exchange, symbol)
                         if not oi_data.get("available"):
                             skip["oi_unavailable"] = skip.get("oi_unavailable", 0) + 1
-                            _trace(symbol, "oi_unavailable", direction=direction,
-                                   reason=oi_data.get("reason", "unknown"))
-                            continue
-
-                        price_chg = float(df_1h["close"].pct_change().iloc[-1] * 100)
-                        oi_result = oi_engine.analyze(
-                            current_oi=oi_data["current_oi"],
-                            previous_oi=oi_data["previous_oi"],
-                            price_change=price_chg,
-                            direction=direction,
-                        )
+                            _trace(
+                                symbol,
+                                "oi_unavailable",
+                                direction=direction,
+                                reason=oi_data.get("reason", "unknown"),
+                            )
+                            oi_result = {
+                                "oi_signal": "UNAVAILABLE",
+                                "score_adj": 0,
+                                "oi_change_pct": None,
+                            }
+                        else:
+                            price_chg = float(df_1h["close"].pct_change().iloc[-1] * 100)
+                            oi_result = oi_engine.analyze(
+                                current_oi=oi_data["current_oi"],
+                                previous_oi=oi_data["previous_oi"],
+                                price_change=price_chg,
+                                direction=direction,
+                            )
                     except Exception as _oi_error:
                         skip["oi_unavailable"] = skip.get("oi_unavailable", 0) + 1
-                        _trace(symbol, "oi_unavailable", direction=direction,
-                               reason=type(_oi_error).__name__)
-                        continue
+                        _trace(
+                            symbol,
+                            "oi_unavailable",
+                            direction=direction,
+                            reason=type(_oi_error).__name__,
+                        )
+                        oi_result = {
+                            "oi_signal": "UNAVAILABLE",
+                            "score_adj": 0,
+                            "oi_change_pct": None,
+                        }
 
                 risk = rrce_risk
 
@@ -575,8 +577,8 @@ def main():
                 fund_adj  = funding_result.get("short_score_adj", 0) if direction == "SHORT" else 0
                 base      = effective_trend_score * 0.6 + effective_quality_score * 0.4
                 composite = min(100.0, max(0.0, round(
-                    (base + sr_bonus + oi_adj + fund_adj + squeeze_bonus + vp_bonus + rrce_bonus) * mtf_multiplier, 2
-                )))
+                    (base + sr_bonus + oi_adj + fund_adj + squeeze_bonus + vp_bonus + rrce_bonus) * mtf_multiplier, 2)
+                ))
                 g = grade_score(composite)
 
                 if g == "D":
@@ -601,7 +603,7 @@ def main():
                     "sr_support":      sr_levels["nearest_support"],
                     "sr_resistance":   sr_levels["nearest_resistance"],
                     "composite":       composite,
-                    "grade":           g,
+                    "grade":            g,
                     "rr":              risk["rr"],
                     "entry":           risk["entry"],
                     "sl":              risk["sl"],
@@ -700,10 +702,11 @@ def main():
     conf_eng  = ConfidenceEngine()
 
     ranked = AISignalRanker().rank(candidates)
-    ranked = ranked[:CONFIG["max_signals_per_run"]]
-    print(f"      ✅ {len(ranked)} signal(s) to fire")
+    print(f"      ✅ {len(ranked)} ranked candidate(s) queued for live validation")
 
-    print(f"\n[5/8] Sending {len(ranked)} alert(s)...")
+    print(f"\n[5/8] Sending up to {CONFIG['max_signals_per_run']} validated alert(s)...")
+
+    valid_signal_count = 0
 
     for sig in ranked:
 
@@ -825,6 +828,7 @@ def main():
         )
 
         set_cooldown(sig["symbol"])
+        valid_signal_count += 1
 
         print(
             f"  ✅ {sig['symbol']} {sig['direction']} | "
@@ -832,6 +836,13 @@ def main():
             f"RSI:{sig['rsi']} StochK:{sig['stoch_k']} Vol:{sig['rel_volume']}x | "
             f"MTF:{sig['mtf_status']} BTC:{sig['btc_regime']}"
         )
+
+        if valid_signal_count >= CONFIG["max_signals_per_run"]:
+            print(
+                f"      🛑 Max validated signals reached "
+                f"({valid_signal_count}/{CONFIG['max_signals_per_run']})."
+            )
+            break
 
     print("\n[6/8] Running signal tracker...")
     SignalTracker().run()

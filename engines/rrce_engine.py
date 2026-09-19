@@ -40,6 +40,8 @@ class RRCEEngine:
         """Validate a live fill against the RRCE pullback zone."""
         if not stage4:
             return {"valid": False, "reason": "missing_stage4"}
+        if stage4.get("valid") is not True:
+            return {"valid": False, "reason": "invalid_stage4"}
 
         planned_entry = float(stage4["entry"])
         sl = float(stage4["sl"])
