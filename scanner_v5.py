@@ -1,6 +1,6 @@
 """
-Elite Futures Scanner V6.2
-==============================
+Elite Futures Scanner — Production
+==================================
 V6.2 Fixes:
   - Volume is evaluated by QualityEngine as supporting evidence; the scanner
     no longer hard-blocks at vol_max_ratio before quality scoring.
@@ -87,7 +87,7 @@ def is_stock_token(symbol: str) -> bool:
 def main():
 
     print("=" * 55)
-    print("🚀 Elite Futures Scanner V6.1.3")
+    print("🚀 Elite Futures Scanner — Production")
     print("=" * 55)
 
     import time as _time
@@ -321,7 +321,7 @@ def main():
                         _trace(symbol, "funding_block", direction=direction)
                         continue
 
-                beta_result = {"beta_label": "N/A", "beta": 1.0}
+                beta_result = {"beta_label": "UNAVAILABLE", "beta": None}
                 if CONFIG["beta_filter_enabled"] and direction == "SHORT":
                     coin_closes_beta = df_1h["close"].tolist()
                     beta_result = beta_filter.evaluate(
