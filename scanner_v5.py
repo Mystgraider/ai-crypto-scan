@@ -307,21 +307,6 @@ def main():
                         _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
                         continue
 
-                if CONFIG.get("block_bear_regime", True) and btc_regime["regime"] in ("BEAR", "BEAR_CAUTION"):
-                    skip["btc"] += 1
-                    _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
-                    continue
-                if CONFIG.get("pause_shorts", True) and direction == "SHORT":
-                    skip["btc"] += 1
-                    _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
-                    continue
-
-                if btc_regime["regime"] == "RANGE" and trend["direction"] != "NONE":
-                    if effective_trend_score < CONFIG.get("range_regime_min_score", 85):
-                        skip["btc"] += 1
-                        _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
-                        continue
-
                 funding_result = {"funding_pct": 0.0, "funding_pct_raw": 0.0, "short_score_adj": 0}
                 if CONFIG["funding_enabled"]:
                     fr = funding_engine.fetch_funding(exchange, symbol)
@@ -450,7 +435,8 @@ def main():
                             skip[f"s3_reason_{reason}"] = skip.get(f"s3_reason_{reason}", 0) + 1
                     continue
 
-                rrce_risk = active_rrce_engine.live_entry_levels(
+                rrce_risk = revalidate_live_entry(
+                    rrce_engine=active_rrce_engine,
                     direction=direction,
                     live_price=price,
                     stage4=rrce_result["stage4"],
