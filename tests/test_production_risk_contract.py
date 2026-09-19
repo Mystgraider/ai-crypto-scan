@@ -67,9 +67,10 @@ def test_rrce_is_the_only_production_sl_tp_authority():
     assert "live_entry_levels(" not in scanner
     assert "revalidate_live_entry(" in scanner
     assert "build_tp_ladder(" in live_entry
-    assert 'stage4["entry"]' in live_entry
-    assert 'stage4["sl"]' in live_entry
-    assert 'stage4["tp"]' in live_entry
+    assert 'stage4=stage4' in live_entry
+    assert 'result = rrce_engine.live_entry_levels(' in live_entry
+    assert 'entry=result["entry"]' in live_entry
+    assert 'structural_tp=result["tp3"]' in live_entry
     assert "structural_tp=result[\"tp3\"]" in live_entry
 
     # RRCE owns the structural entry/SL/TP contract; the ladder owns TP1/TP2/TP3.
