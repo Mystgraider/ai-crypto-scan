@@ -91,3 +91,28 @@ def test_confidence_is_heuristic_not_a_raw_win_rate_echo():
     engine = ConfidenceEngine()
     assert engine.estimate(80, 80, 50) == 80.0
     assert engine.estimate(80, 80, 100) == 90.0
+
+
+
+def test_signal_persistence_carries_rank_and_confidence(tmp_path, monkeypatch):
+    import csv
+    import json
+    import storage.signal_logger as signal_logger
+
+    path = tmp_path / "signals.csv"
+    monkeypatch.setattr(signal_logger, "SIGNALS_FILE", str(path))
+    attribution = {"attribution_version": "2D-D1", "ai_rank_score": 64.69}
+
+    signal_logger.save_signal(
+        symbol="ETH/USDT:USDT", direction="LONG", entry=100.0, sl=95.0,
+        tp1=105.0, tp2=110.0, tp3=115.0,
+        ai_rank_score=64.69, ai_rank_raw=64.69,
+        confidence=78.5, ai_attribution=attribution,
+    )
+
+    with path.open(newline="", encoding="utf-8") as f:
+        row = next(csv.DictReader(f))
+    assert row["ai_rank_score"] == "64.69"
+    assert row["ai_rank_raw"] == "64.69"
+    assert row["confidence"] == "78.5"
+    assert json.loads(row["ai_attribution"]) == attribution

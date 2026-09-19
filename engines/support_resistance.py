@@ -1,10 +1,12 @@
 """
 Support & Resistance Engine — V5.5
 =====================================
-Now REQUIRED for SHORT signals (not optional).
+S/R is supporting evidence for ranking, with one explicit directional
+risk constraint: SHORT entries require a nearby resistance ceiling.
 
 SHORT signals must be near resistance — this gives a defined ceiling
 and prevents shorting in open air where a squeeze can run indefinitely.
+This is a SHORT-only constraint; it must never reject LONG discovery.
 
 LONG signals get a bonus if near support (not required, but preferred).
 
@@ -76,7 +78,7 @@ class SupportResistanceEngine:
     def short_has_ceiling(self, levels: dict, max_dist_pct: float = 3.0) -> bool:
         """
         Returns True if there is a resistance level within max_dist_pct above price.
-        SHORT signals REQUIRE this — no ceiling = no short.
+        This is the explicit SHORT-only S/R ceiling constraint.
         """
         if levels["resistance_dist_pct"] is None:
             return False

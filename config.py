@@ -17,8 +17,6 @@ CONFIG = {
     "signal_score_ceiling": 84,
 
     # Direction policy: LONG and SHORT are independently eligible.
-    "pause_shorts": False,
-    "block_bear_regime": False,
     "require_trend_gate": False,
     "require_quality_engine": False,
     "scan_time_budget_sec": 480,
@@ -38,18 +36,10 @@ CONFIG = {
 
     # BTC RANGE only selects the RANGE RRCE profile. It must not impose a
     # TrendEngine score gate on otherwise independent coin directions.
-    "range_regime_min_score": 0,
 
+    # RRCE is the sole production authority for structural SL/TP levels.
     "min_rr": 2.0,
-    "min_sl_pct": 0.003,
-    "sl_atr_mult": 1.0,
-    "tp1_atr_mult": 2.5,
-    "tp2_atr_mult": 4.0,
-    "tp3_atr_mult": 6.0,
-    "short_sl_atr_mult": 2.0,
-    "short_tp1_atr_mult": 4.5,
-    "short_tp2_atr_mult": 6.0,
-    "short_tp3_atr_mult": 8.0,
+
     "signal_cooldown_hours": 4,
     "max_signals_per_run": 3,
     "max_daily_losses": 3,

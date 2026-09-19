@@ -53,7 +53,6 @@ class RelativeStrengthEngine:
         if len(coin_closes) < periods + 1 or len(btc_closes) < periods + 1:
             return self._NEUTRAL.copy()
 
-        # N periods means N intervals between the starting and ending close.
         start_index = -(periods + 1)
         coin_start = coin_closes[start_index]
         btc_start = btc_closes[start_index]
@@ -82,10 +81,6 @@ class RelativeStrengthEngine:
         if not math.isfinite(rs_ratio):
             return self._NEUTRAL.copy()
 
-        # Normalize ratio to 0-100 score.
-        # ratio 2.0 = score 100 (coin's ending wealth is 2x BTC's)
-        # ratio 1.0 = score 60 (in-line)
-        # ratio 0.5 = score 30 (coin underperformed BTC)
         rs_score = min(100.0, max(0.0, rs_ratio * 60))
         rs_score = round(rs_score, 2)
 
