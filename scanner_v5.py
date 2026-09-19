@@ -272,6 +272,12 @@ def main():
                 stoch_k=stoch_k, stoch_d=stoch_d,
                 bb_pct_b=bb_pct_b,
             )
+            directional_trend_scores = trend_engine.directional_scores(
+                price=price, ema20=ema20, ema50=ema50,
+                adx=adx, roc=roc, macd=macd, macd_sig=macd_sig,
+                macd_hist=macd_hist, stoch_k=stoch_k, stoch_d=stoch_d,
+                bb_pct_b=bb_pct_b,
+            )
             trend_score = trend["score"]
 
             candidate_directions = get_candidate_directions(
@@ -285,7 +291,11 @@ def main():
 
             for direction in candidate_directions:
 
-                effective_trend_score = trend_score
+                # Trend evidence is direction-specific. When the trend gate is disabled,
+                # do not copy the confirmed LONG/SHORT score onto the opposite candidate.
+                effective_trend_score = directional_trend_scores.get(direction, 0.0)
+                if CONFIG.get("require_trend_gate", True):
+                    effective_trend_score = trend_score
 
                 if CONFIG["btc_filter_enabled"]:
                     if direction == "LONG"  and not btc_regime["allow_long"]:
