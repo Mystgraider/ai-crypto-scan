@@ -31,7 +31,8 @@ PREFERRED_SHORT = {
 
 class BetaFilter:
 
-    HIGH_BETA_THRESHOLD = 2.5
+    # Production SHORT hard-gate threshold. Kept aligned with config.py.
+    HIGH_BETA_THRESHOLD = 1.5
     MEDIUM_BETA_THRESHOLD = 0.8
 
     def calculate_beta(
@@ -39,12 +40,12 @@ class BetaFilter:
         coin_closes: list[float],
         btc_closes: list[float],
         periods: int = 20,
-    ) -> float:
-        """Calculate statistical beta = Cov(asset, BTC) / Var(BTC)."""
+    ) -> float | None:
+        """Calculate statistical beta; return None when beta is unavailable."""
         if periods < 2:
-            return 1.0
+            return None
         if len(coin_closes) < periods + 1 or len(btc_closes) < periods + 1:
-            return 1.0
+            return None
 
         coin = pd.Series(coin_closes[-(periods + 1):], dtype="float64")
         btc = pd.Series(btc_closes[-(periods + 1):], dtype="float64")
@@ -54,20 +55,32 @@ class BetaFilter:
         ).dropna()
 
         if len(returns) < 2:
-            return 1.0
+            return None
 
         btc_variance = returns["btc"].var()
         if pd.isna(btc_variance) or btc_variance <= 0:
-            return 1.0
+            return None
 
         covariance = returns["coin"].cov(returns["btc"])
         if pd.isna(covariance):
-            return 1.0
+            return None
 
         return round(float(covariance / btc_variance), 3)
 
-    def classify(self, symbol: str, beta: float) -> dict:
+    def classify(self, symbol: str, beta: float | None) -> dict:
         """Classify coin beta and determine if SHORT is allowed."""
+        # Unavailable beta is supporting evidence, not a hard discovery gate.
+        # Do not convert missing/invalid beta data into a fake neutral 1.0 beta.
+        if beta is None or pd.isna(beta):
+            return {
+                "beta": None,
+                "beta_label": "UNAVAILABLE",
+                "short_ok": True,
+                "preferred": False,
+                "reason": "Beta unavailable — no beta adjustment",
+            }
+
+        # Explicit known high-beta symbols remain a hard SHORT block.
         if symbol in KNOWN_HIGH_BETA:
             return {
                 "beta": beta,
@@ -77,15 +90,8 @@ class BetaFilter:
                 "reason": "Known high-beta coin — SHORT blocked",
             }
 
-        if symbol in PREFERRED_SHORT:
-            return {
-                "beta": beta,
-                "beta_label": "LOW",
-                "short_ok": True,
-                "preferred": True,
-                "reason": "Preferred short-list coin — SHORT allowed",
-            }
-
+        # Measured beta hard gate must take precedence over the preferred list.
+        # A preferred symbol is not allowed to override an actually high beta.
         if beta >= self.HIGH_BETA_THRESHOLD:
             return {
                 "beta": beta,
@@ -93,6 +99,15 @@ class BetaFilter:
                 "short_ok": False,
                 "preferred": False,
                 "reason": f"Beta {beta} >= {self.HIGH_BETA_THRESHOLD} — SHORT blocked",
+            }
+
+        if symbol in PREFERRED_SHORT:
+            return {
+                "beta": beta,
+                "beta_label": "LOW",
+                "short_ok": True,
+                "preferred": True,
+                "reason": "Preferred short-list coin — SHORT allowed",
             }
 
         if beta >= self.MEDIUM_BETA_THRESHOLD:

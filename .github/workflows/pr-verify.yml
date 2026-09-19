@@ -1,0 +1,35 @@
+name: PR Verification
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify scanner integrity
+        run: |
+          python -m py_compile scanner_v5.py engines/rrce_engine.py engines/live_entry_integrity.py engines/beta_filter.py engines/funding_engine.py engines/oi_engine.py engines/support_resistance.py engines/relative_strength.py tests/test_btc_fail_closed.py tests/test_direction_policy.py tests/test_scanner_direction_integration.py tests/test_trend_gate_independence.py tests/test_score_ceiling_contradiction.py tests/test_live_entry_integrity.py tests/test_rrce_strategy_integrity.py tests/test_phase2b_engines.py tests/test_oi_availability_policy.py tests/test_sr_policy.py tests/test_phase2d_ai_integrity.py tests/test_phase2c_decision_pipeline.py tests/test_relative_strength.py tests/test_signal_tracker.py tests/test_production_risk_contract.py
+          python -m pytest -q tests/test_btc_fail_closed.py tests/test_direction_policy.py tests/test_scanner_direction_integration.py tests/test_trend_gate_independence.py tests/test_score_ceiling_contradiction.py tests/test_live_entry_integrity.py tests/test_rrce_strategy_integrity.py tests/test_phase2b_engines.py tests/test_oi_availability_policy.py tests/test_sr_policy.py tests/test_phase2d_ai_integrity.py tests/test_phase2c_decision_pipeline.py tests/test_relative_strength.py tests/test_signal_tracker.py tests/test_production_risk_contract.py
