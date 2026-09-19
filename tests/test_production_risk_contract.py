@@ -134,3 +134,10 @@ def test_rrce_live_entry_fails_closed_on_unvalidated_stage4():
     )
 
     assert result == {"valid": False, "reason": "invalid_stage4"}
+
+
+
+def test_beta_unavailable_does_not_fabricate_neutral_one():
+    scanner = _source(SCANNER)
+    assert '"beta_label": "N/A", "beta": 1.0' not in scanner
+    assert '"beta_label": "UNAVAILABLE", "beta": None' in scanner
