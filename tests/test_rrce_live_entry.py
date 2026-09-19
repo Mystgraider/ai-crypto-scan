@@ -38,7 +38,7 @@ class LiveEntryLevelsTests(unittest.TestCase):
         result = RRCEEngine.live_entry_levels(
             direction="LONG",
             live_price=100.5,
-            stage4={"entry": 100.0, "sl": 98.0, "tp": 106.0},
+            stage4={"valid": True, "entry": 100.0, "sl": 98.0, "tp": 106.0},
             max_deviation_pct=0.4,
             min_rr=2.0,
         )
