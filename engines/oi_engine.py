@@ -61,7 +61,7 @@ class OIEngine:
     @staticmethod
     def _unavailable(reason):
         return {
-            "available": True,
+            "available": False,
             "data_available": False,
             "oi_signal": "UNAVAILABLE",
             "score_adj": 0,
@@ -141,7 +141,7 @@ class OIEngine:
         return {
             "current_oi": current_oi,
             "previous_oi": previous_oi,
-            "available": True,
+            "available": False,
             "data_available": False,
             "reason": reason,
         }
