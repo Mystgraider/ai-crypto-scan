@@ -20,8 +20,8 @@ from ai.attribution import build_attribution
 
 
 class AISignalRanker:
-    # Declared component weights. These sum to 98%; the remaining 2% is
-    # reserved for the small categorical adjustments below.
+    # Declared component weights. These sum to 100%, including the
+    # categorical adjustment budget.
     WEIGHT_TREND = 35.0
     WEIGHT_QUALITY = 22.0
     WEIGHT_RS = 18.0
