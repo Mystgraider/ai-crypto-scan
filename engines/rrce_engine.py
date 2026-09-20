@@ -124,7 +124,19 @@ class RRCEEngine:
             return None
 
         midpoint = (range_high + range_low) / 2.0
+        range_width_pct = (range_high - range_low) / range_low * 100 if range_low else None
         position_pct = (price - range_low) / (range_high - range_low) * 100
+
+        def _timestamp_for(idx):
+            if "timestamp" not in df_htf.columns or idx not in df_htf.index:
+                return None
+            try:
+                return str(df_htf.loc[idx, "timestamp"])
+            except Exception:
+                return None
+
+        range_high_time = _timestamp_for(last_high_idx)
+        range_low_time = _timestamp_for(last_low_idx)
 
         if direction == "LONG":
             zone_ok = position_pct <= zone_threshold_pct
@@ -140,6 +152,13 @@ class RRCEEngine:
             "midpoint": midpoint,
             "zone": zone,
             "position_pct": round(position_pct, 1),
+            "range_width_pct": round(range_width_pct, 4) if range_width_pct is not None else None,
+            "range_high_time": range_high_time,
+            "range_low_time": range_low_time,
+            "range_high_index": str(last_high_idx),
+            "range_low_index": str(last_low_idx),
+            "price_above_range_high_pct": round((price - range_high) / range_high * 100, 4) if range_high else None,
+            "price_below_range_low_pct": round((range_low - price) / range_low * 100, 4) if range_low else None,
         }
 
     # ── Stage 2: RETAIL LIQUIDITY (MTF) ──────────────────────────────────
@@ -196,12 +215,21 @@ class RRCEEngine:
         if swept and "timestamp" in window.columns:
             sweep_time = window.loc[swept_mask, "timestamp"].iloc[-1]
 
+        range_extreme = range_low if direction == "LONG" else range_high
+        pool_distance_pct = abs(pool["level"] - range_extreme) / range_extreme * 100 if range_extreme else None
+
         return {
             "passed": bool(swept),
             "reason": None if swept else "pool_found_not_swept",
             "pools": pools,
             "pool_level": pool["level"],
             "pool_touches": pool["touches"],
+            "pool_distance_from_range_extreme_pct": round(pool_distance_pct, 4) if pool_distance_pct is not None else None,
+            "near_pool_count": len(near_pools),
+            "all_pool_count": len(pools),
+            "patience_bars": int(patience_bars),
+            "sweep_window_start": str(window["timestamp"].iloc[0]) if "timestamp" in window.columns and not window.empty else None,
+            "sweep_window_end": str(window["timestamp"].iloc[-1]) if "timestamp" in window.columns and not window.empty else None,
             "sweep_extreme": sweep_extreme,
             "sweep_time": sweep_time,
         }
