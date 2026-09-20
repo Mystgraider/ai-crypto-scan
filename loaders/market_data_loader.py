@@ -1,77 +1,94 @@
-"""
-Market Data Loader — Phase 4 upgrade
-=====================================
-Supports multiple timeframes (1H and 4H).
-Used by main scanner and MultiFrameEngine.
-"""
+"""Market data access with per-scan request deduplication."""
 
 import pandas as pd
+
 from loaders.market_loader import MarketLoader
 from config import CONFIG
 
 
 class MarketDataLoader:
+    """Fetch exchange candles and reuse successful results within one scan cycle.
+
+    One MarketDataLoader instance is intentionally scoped to a single scanner run.
+    The cache is keyed by symbol, timeframe, and limit, so repeated requests for
+    the same market context do not create duplicate exchange API calls.
+    Cached frames are copied before returning so downstream indicator processing
+    cannot mutate the cached raw data.
+    """
 
     def __init__(self):
         self.exchange = MarketLoader().get_exchange()
+        self._ohlcv_cache: dict[tuple[str, str, int], pd.DataFrame] = {}
 
     def get_ohlcv(
         self,
         symbol: str,
         timeframe: str = None,
-        limit: int = None
+        limit: int = None,
     ) -> pd.DataFrame:
+        tf = timeframe or CONFIG["timeframe"]
+        lim = limit if limit is not None else CONFIG["ohlcv_limit"]
+        key = (symbol, tf, int(lim))
 
-        tf  = timeframe or CONFIG["timeframe"]
-        lim = limit     or CONFIG["ohlcv_limit"]
+        cached = self._ohlcv_cache.get(key)
+        if cached is not None:
+            return cached.copy(deep=True)
 
         try:
             data = self.exchange.fetch_ohlcv(
                 symbol,
                 timeframe=tf,
-                limit=lim
+                limit=lim,
             )
         except Exception:
             if symbol == CONFIG["btc_symbol"] and tf == "1h":
                 df = pd.DataFrame(
-                    [[pd.Timestamp.utcnow(), float("nan"), float("nan"),
-                      float("nan"), float("nan"), float("nan")]],
+                    [[
+                        pd.Timestamp.utcnow(),
+                        float("nan"),
+                        float("nan"),
+                        float("nan"),
+                        float("nan"),
+                        float("nan"),
+                    ]],
                     columns=["timestamp", "open", "high", "low", "close", "volume"],
                 )
                 df.attrs["btc_data_unavailable"] = True
                 df.attrs["btc_market_data"] = True
-                return df
+                self._ohlcv_cache[key] = df
+                return df.copy(deep=True)
             raise
 
         df = pd.DataFrame(
             data,
-            columns=["timestamp", "open", "high", "low", "close", "volume"]
+            columns=["timestamp", "open", "high", "low", "close", "volume"],
         )
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
 
         if symbol == CONFIG["btc_symbol"]:
             df.attrs["btc_market_data"] = True
 
-        return df
+        self._ohlcv_cache[key] = df
+        return df.copy(deep=True)
 
-    def get_4h(self, symbol: str, limit: int = 100) -> pd.DataFrame:
-        """Convenience method for 4H candles.
+    def get_4h(self, symbol: str, limit: int = None) -> pd.DataFrame:
+        """Return the configured safe 4H candle window."""
+        effective_limit = (
+            CONFIG["ohlcv_4h_limit"] if limit is None else limit
+        )
+        return self.get_ohlcv(symbol, timeframe="4h", limit=effective_limit)
 
-        V6.1.3 fix: default was 50, but Indicators.apply() requires
-        MIN_CANDLES=60 — every Indicators.apply(get_4h(...)) call was
-        raising ValueError("Insufficient candles: 50 < 60"), which
-        silently fell back to MTF "PROXY" status on every signal.
-        """
-        return self.get_ohlcv(symbol, timeframe="4h", limit=limit)
+    def get_1h(self, symbol: str, limit: int = None) -> pd.DataFrame:
+        """Return the configured 1H candle window."""
+        effective_limit = CONFIG["ohlcv_limit"] if limit is None else limit
+        return self.get_ohlcv(symbol, timeframe="1h", limit=effective_limit)
 
-    def get_1h(self, symbol: str, limit: int = 100) -> pd.DataFrame:
-        """Convenience method for 1H candles."""
-        return self.get_ohlcv(symbol, timeframe="1h", limit=limit)
+    def get_15m(self, symbol: str, limit: int = None) -> pd.DataFrame:
+        """Return the configured 15M candle window."""
+        effective_limit = CONFIG["ohlcv_limit"] if limit is None else limit
+        return self.get_ohlcv(symbol, timeframe="15m", limit=effective_limit)
 
-    def get_15m(self, symbol: str, limit: int = 100) -> pd.DataFrame:
-        """Convenience method for 15M candles — used for entry precision in MTF engine."""
-        return self.get_ohlcv(symbol, timeframe="15m", limit=limit)
-
-    def get_5m(self, symbol: str, limit: int = 100) -> pd.DataFrame:
-        """Convenience method for 5M candles — RRCE execution timeframe."""
-        return self.get_ohlcv(symbol, timeframe="5m", limit=limit)
+    def get_5m(self, symbol: str, limit: int = None) -> pd.DataFrame:
+        """Return the configured 5M candle window."""
+        effective_limit = CONFIG["ohlcv_limit"] if limit is None else limit
+        return self.get_ohlcv(symbol, timeframe="5m", limit=effective_limit)
