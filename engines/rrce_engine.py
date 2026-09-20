@@ -448,10 +448,18 @@ class RRCEEngine:
 
         entry = (ob["top"] + ob["bottom"]) / 2.0
 
-        if "atr" in df_exec.columns and not pd.isna(df_exec["atr"].iloc[-2]):
-            buffer = float(df_exec["atr"].iloc[-2]) * 0.3
-        else:
-            buffer = abs(entry) * 0.003
+        # Use ATR from the CHOCH break candle when available. The break_idx
+        # is anchored to the closed-candle confirmation sequence, so this keeps
+        # the execution buffer temporally aligned with the setup rather than
+        # using a later candle's volatility.
+        atr = None
+        if "atr" in df_exec.columns:
+            atr_idx = break_idx if break_idx is not None else len(df_exec) - 2
+            if 0 <= atr_idx < len(df_exec):
+                atr_value = df_exec["atr"].iloc[atr_idx]
+                if not pd.isna(atr_value) and float(atr_value) > 0:
+                    atr = float(atr_value)
+        buffer = atr * 0.3 if atr is not None else abs(entry) * 0.003
 
         if direction == "LONG":
             sl = sweep_extreme - buffer
