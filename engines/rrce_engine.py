@@ -391,7 +391,7 @@ class RRCEEngine:
     # ── Full sequence, strictly gated ────────────────────────────────────
     def evaluate(self, df_htf: pd.DataFrame, df_mtf: pd.DataFrame,
                  df_ltf_confirm: pd.DataFrame, df_ltf_exec: pd.DataFrame,
-                 direction: str, price: float, patience_bars: int = 6) -> dict:
+                 direction: str, price: float, patience_bars: int = 6, confirmation_bars: int = 3) -> dict:
         """Runs the full 4-stage RRCE sequence as hard sequential gates."""
         result = {"valid": False, "failed_at": None, "stage1": None,
                    "stage2": None, "stage3": None, "stage4": None, "bonus": 0.0}
