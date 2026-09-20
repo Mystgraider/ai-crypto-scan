@@ -62,7 +62,7 @@ def test_stage3_does_not_accept_choch_before_sweep():
     )
 
     assert result["passed"] is False
-    assert result["reason"] == "no_choch"
+    assert result["reason"] == "choch_not_after_sweep"
 
 
 def test_stage3_window_is_bounded():
