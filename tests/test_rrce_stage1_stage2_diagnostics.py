@@ -82,3 +82,33 @@ def test_stage1_rejects_prices_outside_structural_range():
     assert long_below["passed"] is False
     assert short_above["position_pct"] > 100
     assert short_above["passed"] is False
+
+
+def test_stage2_no_near_pool_still_exposes_population_diagnostics():
+    engine = RRCEEngine()
+
+    df = pd.DataFrame({
+        "high": [110, 111, 110, 111, 110, 111, 110, 111],
+        "low": [109, 110, 109, 110, 109, 110, 109, 110],
+        "close": [110, 110, 110, 110, 110, 110, 110, 110],
+        "timestamp": pd.date_range("2026-09-19", periods=8, freq="15min", tz="UTC"),
+    })
+    swings = df.copy()
+    swings["swing_high"] = np.nan
+    swings["swing_low"] = np.nan
+    swings.loc[1, "swing_low"] = 109.0
+    swings.loc[3, "swing_low"] = 109.0
+    engine._find_swings = lambda _: swings
+
+    result = engine.stage2_retail_liquidity(
+        df, "LONG", range_low=100.0, range_high=120.0, proximity_pct=5.0, patience_bars=3
+    )
+
+    assert result["passed"] is False
+    assert result["reason"] == "no_equal_lows_near_range_low"
+    assert result["all_pool_count"] == 1
+    assert result["near_pool_count"] == 0
+    assert result["proximity_pct"] == 5.0
+    assert result["patience_bars"] == 3
+    assert result["sweep_window_start"] is not None
+    assert result["sweep_window_end"] is not None
