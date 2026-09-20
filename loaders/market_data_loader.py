@@ -30,7 +30,14 @@ class MarketDataLoader:
         lim = limit if limit is not None else CONFIG["ohlcv_limit"]
         key = (symbol, tf, int(lim))
 
-        cached = self._ohlcv_cache.get(key)
+        # Some existing tests construct the loader with __new__() to inject a
+        # fake exchange. Preserve that supported test seam without requiring
+        # callers to know about the internal cache implementation.
+        cache = getattr(self, "_ohlcv_cache", None)
+        if cache is None:
+            cache = self._ohlcv_cache = {}
+
+        cached = cache.get(key)
         if cached is not None:
             return cached.copy(deep=True)
 
@@ -55,7 +62,7 @@ class MarketDataLoader:
                 )
                 df.attrs["btc_data_unavailable"] = True
                 df.attrs["btc_market_data"] = True
-                self._ohlcv_cache[key] = df
+                cache[key] = df
                 return df.copy(deep=True)
             raise
 
@@ -68,7 +75,7 @@ class MarketDataLoader:
         if symbol == CONFIG["btc_symbol"]:
             df.attrs["btc_market_data"] = True
 
-        self._ohlcv_cache[key] = df
+        cache[key] = df
         return df.copy(deep=True)
 
     def get_4h(self, symbol: str, limit: int = None) -> pd.DataFrame:
