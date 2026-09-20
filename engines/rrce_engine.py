@@ -412,7 +412,9 @@ class RRCEEngine:
             return result
 
         s3 = self.stage3_confirmation(
-            df_ltf_confirm, direction, sweep_time=s2.get("sweep_time")
+            df_ltf_confirm, direction,
+            sweep_time=s2.get("sweep_time"),
+            confirmation_bars=confirmation_bars,
         )
         result["stage3"] = s3
         if not s3 or not s3["passed"]:
