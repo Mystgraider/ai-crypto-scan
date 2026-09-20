@@ -216,9 +216,25 @@ class RRCEEngine:
                     "sweep_window_start": str(window["timestamp"].iloc[0]) if "timestamp" in window.columns and not window.empty else None,
                     "sweep_window_end": str(window["timestamp"].iloc[-1]) if "timestamp" in window.columns and not window.empty else None,
                 }
-            pool = min(near_pools, key=lambda p: abs(p["level"] - range_low))
-            swept_mask = (window["low"] < pool["level"]) & (window["close"] > pool["level"])
-            swept = bool(swept_mask.any())
+            # Prefer a qualifying pool that was actually swept. If multiple
+            # qualifying pools were swept, keep the one closest to the range
+            # extreme. Do not let an unswept nearest pool hide a valid sweep
+            # on another qualifying liquidity pool.
+            swept_pools = []
+            for candidate in near_pools:
+                candidate_mask = (window["low"] < candidate["level"]) & (window["close"] > candidate["level"])
+                if bool(candidate_mask.any()):
+                    swept_pools.append((candidate, candidate_mask))
+            if swept_pools:
+                pool, swept_mask = min(
+                    swept_pools,
+                    key=lambda item: abs(item[0]["level"] - range_low)
+                )
+                swept = True
+            else:
+                pool = min(near_pools, key=lambda p: abs(p["level"] - range_low))
+                swept_mask = (window["low"] < pool["level"]) & (window["close"] > pool["level"])
+                swept = False
             sweep_extreme = float(window.loc[swept_mask, "low"].min()) if swept else float(window["low"].min())
         elif direction == "SHORT":
             highs = d["swing_high"].dropna().tolist()
@@ -239,9 +255,21 @@ class RRCEEngine:
                     "sweep_window_start": str(window["timestamp"].iloc[0]) if "timestamp" in window.columns and not window.empty else None,
                     "sweep_window_end": str(window["timestamp"].iloc[-1]) if "timestamp" in window.columns and not window.empty else None,
                 }
-            pool = min(near_pools, key=lambda p: abs(p["level"] - range_high))
-            swept_mask = (window["high"] > pool["level"]) & (window["close"] < pool["level"])
-            swept = bool(swept_mask.any())
+            swept_pools = []
+            for candidate in near_pools:
+                candidate_mask = (window["high"] > candidate["level"]) & (window["close"] < candidate["level"])
+                if bool(candidate_mask.any()):
+                    swept_pools.append((candidate, candidate_mask))
+            if swept_pools:
+                pool, swept_mask = min(
+                    swept_pools,
+                    key=lambda item: abs(item[0]["level"] - range_high)
+                )
+                swept = True
+            else:
+                pool = min(near_pools, key=lambda p: abs(p["level"] - range_high))
+                swept_mask = (window["high"] > pool["level"]) & (window["close"] < pool["level"])
+                swept = False
             sweep_extreme = float(window.loc[swept_mask, "high"].max()) if swept else float(window["high"].max())
         else:
             return {"passed": False, "reason": "invalid_direction", "pools": []}
