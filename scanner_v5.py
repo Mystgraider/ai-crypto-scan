@@ -118,16 +118,6 @@ def main():
         eq_tolerance_pct=CONFIG["rrce_range_eq_tolerance_pct"]
     )
 
-    # V6.9.20 (EXPERIMENT ONLY): a second, isolated RRCE instance on
-    # 4H/1H timeframes with a wider Equal-High/Low tolerance (0.15%
-    # was tuned for 15m; 4H needs more room since price moves further
-    # between swing points at that scale). This does NOT feed into
-    # candidates, signals.csv, or Telegram — it only writes its own
-    # observation log so we can see if 4H can find setups at all
-    # without risking the verified 15m/5m live system.
-    experiment_4h_engine = RRCEEngine(swing_lookback=10, eq_tolerance_pct=0.6)
-    experiment_4h_log = []
-
     sizer          = PositionSizer()
     funding_engine = FundingEngine()
     beta_filter    = BetaFilter()
@@ -293,7 +283,65 @@ def main():
                 _trace(symbol, "no_candidate_directions")
                 continue
 
-            for direction in candidate_directions:
+            # Symbol-level shared preparation. Network fetches and indicator
+            # calculations are performed once per symbol, then reused by both
+            # LONG and SHORT. Direction-specific interpretation remains inside
+            # the loop below.
+            allowed_directions = []
+            for _direction in candidate_directions:
+                if CONFIG["btc_filter_enabled"]:
+                    if _direction == "LONG" and not btc_regime["allow_long"]:
+                        continue
+                    if _direction == "SHORT" and not btc_regime["allow_short"]:
+                        continue
+                allowed_directions.append(_direction)
+            if not allowed_directions:
+                skip["btc"] += len(candidate_directions)
+                continue
+
+            funding_result_base = {"funding_pct": 0.0, "funding_pct_raw": 0.0, "short_score_adj": 0}
+            if CONFIG["funding_enabled"]:
+                fr = funding_engine.fetch_funding(exchange, symbol)
+                funding_result_base = funding_engine.analyze(fr)
+                funding_result_base["funding_pct_raw"] = fr
+
+            oi_data_base = None
+            if CONFIG["oi_enabled"]:
+                try:
+                    oi_data_base = oi_engine.fetch_oi(exchange, symbol)
+                except Exception as _oi_prefetch_error:
+                    oi_data_base = {"available": False, "reason": type(_oi_prefetch_error).__name__}
+
+            # RRCE/MTF candles and indicators are shared across directions.
+            df_rrce_15m = None
+            df_rrce_5m = None
+            df_4h = None
+            try:
+                df_rrce_15m = Indicators.apply(market_loader.get_15m(symbol))
+            except Exception:
+                pass
+            try:
+                df_rrce_5m = Indicators.apply(market_loader.get_5m(symbol))
+            except Exception:
+                pass
+            if CONFIG["mtf_enabled"]:
+                for _attempt in range(2):
+                    try:
+                        df_4h = Indicators.apply(market_loader.get_4h(symbol))
+                        break
+                    except Exception:
+                        if _attempt == 1:
+                            df_4h = None
+
+            # These are symbol-level calculations; direction only changes the
+            # bonus interpretation, not the underlying market structure.
+            sr_levels_shared = sr_engine.find_levels(df_1h)
+            bb_width_pctile = float(df_1h["bb_width_pctile"].iloc[-2]) \
+                if "bb_width_pctile" in df_1h.columns else 1.0
+            squeeze_bonus_shared = 8 if bb_width_pctile <= 0.2 else 0
+            vp_profile_shared = vp_engine.build_profile(df_1h)
+
+            for direction in allowed_directions:
 
                 # Trend evidence is direction-specific. When the trend gate is disabled,
                 # do not copy the confirmed LONG/SHORT score onto the opposite candidate.
@@ -311,12 +359,9 @@ def main():
                         _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
                         continue
 
-                funding_result = {"funding_pct": 0.0, "funding_pct_raw": 0.0, "short_score_adj": 0}
+                funding_result = funding_result_base.copy()
                 if CONFIG["funding_enabled"]:
-                    fr = funding_engine.fetch_funding(exchange, symbol)
-                    funding_result = funding_engine.analyze(fr)
-                    funding_result["funding_pct_raw"] = fr
-                    if direction == "LONG"  and not funding_result["long_ok"]:
+                    if direction == "LONG" and not funding_result["long_ok"]:
                         skip["funding"] += 1
                         _trace(symbol, "funding_block", direction=direction)
                         continue
@@ -337,25 +382,19 @@ def main():
                         _trace(symbol, "beta_block", direction=direction)
                         continue
 
-                sr_levels = sr_engine.find_levels(df_1h)
+                sr_levels = sr_levels_shared
                 sr_bonus  = sr_engine.score_bonus(direction, sr_levels)
 
-                bb_width_pctile = float(df_1h["bb_width_pctile"].iloc[-2]) \
-                    if "bb_width_pctile" in df_1h.columns else 1.0
-                squeeze_bonus = 8 if bb_width_pctile <= 0.2 else 0
-
-                vp_profile = vp_engine.build_profile(df_1h)
-                vp_bonus   = vp_engine.score_bonus(direction, price, vp_profile)
+                squeeze_bonus = squeeze_bonus_shared
+                vp_bonus = vp_engine.score_bonus(direction, price, vp_profile_shared)
 
                 rrce_bonus = 0.0
                 rrce_result = None
                 try:
-                    _df_rrce_15m_raw = market_loader.get_15m(symbol)
-                    _df_rrce_15m = Indicators.apply(_df_rrce_15m_raw)
-                    _df_rrce_5m_raw = market_loader.get_5m(symbol)
-                    _df_rrce_5m = Indicators.apply(_df_rrce_5m_raw)
+                    _df_rrce_15m = df_rrce_15m
+                    _df_rrce_5m = df_rrce_5m
 
-                    if len(_df_rrce_15m) >= 20 and len(_df_rrce_5m) >= 20:
+                    if _df_rrce_15m is not None and _df_rrce_5m is not None and len(_df_rrce_15m) >= 20 and len(_df_rrce_5m) >= 20:
                         is_range_regime = btc_regime["regime"] == "RANGE"
                         active_rrce_engine = range_rrce_engine if is_range_regime else rrce_engine
                         patience_bars = (
@@ -373,24 +412,6 @@ def main():
                 except Exception as _rrce_e:
                     print(f"      ⚠️  {symbol} RRCE multi-TF fetch/eval failed: {_rrce_e}")
 
-                try:
-                    _exp_4h_raw = market_loader.get_4h(symbol)
-                    _exp_4h = Indicators.apply(_exp_4h_raw)
-                    _exp_1h = Indicators.apply(df_1h.copy())
-                    if len(_exp_4h) >= 20 and len(_exp_1h) >= 20:
-                        _exp_result = experiment_4h_engine.evaluate(
-                            df_htf=_exp_4h, df_mtf=_exp_4h,
-                            df_ltf_confirm=_exp_1h, df_ltf_exec=_exp_1h,
-                            direction=direction, price=price,
-                        )
-                        experiment_4h_log.append({
-                            "symbol": symbol, "direction": direction,
-                            "valid": _exp_result.get("valid"),
-                            "failed_at": _exp_result.get("failed_at"),
-                            "stage1_position_pct": (_exp_result.get("stage1") or {}).get("position_pct"),
-                        })
-                except Exception as _exp_e:
-                    experiment_4h_log.append({"symbol": symbol, "direction": direction, "error": str(_exp_e)})
 
                 if rrce_result:
                     s1_data = rrce_result.get("stage1")
@@ -495,34 +516,32 @@ def main():
 
                 if CONFIG["mtf_enabled"]:
                     trend_15m = None
-                    try:
-                        _df_15m_raw = market_loader.get_15m(symbol) if hasattr(market_loader, "get_15m") else None
-                        if _df_15m_raw is not None:
-                            df_15m = Indicators.apply(_df_15m_raw)
-                            if len(df_15m) >= 2 and not df_15m.iloc[-2][["ema_20","ema_50","adx"]].isnull().any():
-                                trend_15m   = mtf_engine.analyze_15m(df_15m)
-                                mtf_15m_dir = trend_15m["direction"]
-                    except Exception:
-                        trend_15m = None
-
-                    for _attempt in range(2):
+                    if df_rrce_15m is not None:
                         try:
-                            _df_4h_raw = market_loader.get_4h(symbol)
-                            df_4h      = Indicators.apply(_df_4h_raw)
-                            if len(df_4h) >= 2 and not df_4h.iloc[-2][["ema_20","ema_50","adx"]].isnull().any():
-                                tf4         = mtf_engine.analyze_4h(df_4h)
-                                mtf_4h_dir  = tf4["direction"]
-                                mtf_4h_rsi  = tf4.get("rsi", 50.0)
-                                confirm     = mtf_engine.confirm(direction, tf4, trend_15m)
-                                mtf_status     = confirm["status"]
-                                mtf_multiplier = confirm["multiplier"]
-                                break
+                            if len(df_rrce_15m) >= 2 and not df_rrce_15m.iloc[-2][["ema_20","ema_50","adx"]].isnull().any():
+                                trend_15m = mtf_engine.analyze_15m(df_rrce_15m)
+                                mtf_15m_dir = trend_15m["direction"]
                         except Exception:
-                            if _attempt == 1:
-                                fallback = mtf_engine.degraded_4h_fallback(adx)
-                                mtf_status = fallback["status"]
-                                mtf_multiplier = fallback["multiplier"]
-                                mtf_4h_dir = fallback["direction"]
+                            trend_15m = None
+
+                    try:
+                        if df_4h is not None and len(df_4h) >= 2 and not df_4h.iloc[-2][["ema_20","ema_50","adx"]].isnull().any():
+                            tf4 = mtf_engine.analyze_4h(df_4h)
+                            mtf_4h_dir = tf4["direction"]
+                            mtf_4h_rsi = tf4.get("rsi", 50.0)
+                            confirm = mtf_engine.confirm(direction, tf4, trend_15m)
+                            mtf_status = confirm["status"]
+                            mtf_multiplier = confirm["multiplier"]
+                        else:
+                            fallback = mtf_engine.degraded_4h_fallback(adx)
+                            mtf_status = fallback["status"]
+                            mtf_multiplier = fallback["multiplier"]
+                            mtf_4h_dir = fallback["direction"]
+                    except Exception:
+                        fallback = mtf_engine.degraded_4h_fallback(adx)
+                        mtf_status = fallback["status"]
+                        mtf_multiplier = fallback["multiplier"]
+                        mtf_4h_dir = fallback["direction"]
 
                 if CONFIG["mtf_reject_counter_trend"] and mtf_status in ("REJECTED", "SKIPPED"):
                     skip["mtf"] += 1
@@ -537,42 +556,27 @@ def main():
 
                 oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}
                 if CONFIG["oi_enabled"]:
-                    try:
-                        oi_data = oi_engine.fetch_oi(exchange, symbol)
-                        if not oi_data.get("available"):
-                            skip["oi_unavailable"] = skip.get("oi_unavailable", 0) + 1
-                            _trace(
-                                symbol,
-                                "oi_unavailable",
-                                direction=direction,
-                                reason=oi_data.get("reason", "unknown"),
-                            )
-                            oi_result = {
-                                "oi_signal": "UNAVAILABLE",
-                                "score_adj": 0,
-                                "oi_change_pct": None,
-                            }
-                        else:
-                            price_chg = float(df_1h["close"].pct_change().iloc[-1] * 100)
-                            oi_result = oi_engine.analyze(
-                                current_oi=oi_data["current_oi"],
-                                previous_oi=oi_data["previous_oi"],
-                                price_change=price_chg,
-                                direction=direction,
-                            )
-                    except Exception as _oi_error:
+                    if not oi_data_base or not oi_data_base.get("available"):
                         skip["oi_unavailable"] = skip.get("oi_unavailable", 0) + 1
                         _trace(
                             symbol,
                             "oi_unavailable",
                             direction=direction,
-                            reason=type(_oi_error).__name__,
+                            reason=(oi_data_base or {}).get("reason", "unknown"),
                         )
                         oi_result = {
                             "oi_signal": "UNAVAILABLE",
                             "score_adj": 0,
                             "oi_change_pct": None,
                         }
+                    else:
+                        price_chg = float(df_1h["close"].pct_change().iloc[-1] * 100)
+                        oi_result = oi_engine.analyze(
+                            current_oi=oi_data_base["current_oi"],
+                            previous_oi=oi_data_base["previous_oi"],
+                            price_change=price_chg,
+                            direction=direction,
+                        )
 
                 risk = rrce_risk
 
@@ -694,18 +698,6 @@ def main():
     except Exception as _e:
         print(f"      ⚠️  debug log write failed: {_e}")
 
-    try:
-        exp_valid = sum(1 for r in experiment_4h_log if r.get("valid"))
-        exp_row = {
-            "ts": _dt.now(_tz.utc).isoformat(),
-            "total_checked": len(experiment_4h_log),
-            "valid_count": exp_valid,
-            "results": experiment_4h_log,
-        }
-        with open("storage/experiment_4h_log.jsonl", "a") as f:
-            f.write(_json.dumps(exp_row) + "\n")
-    except Exception as _e:
-        print(f"      ⚠️  experiment log write failed: {_e}")
 
     try:
         trace_row = {"ts": _dt.now(_tz.utc).isoformat(), "trace": symbol_trace_log}
