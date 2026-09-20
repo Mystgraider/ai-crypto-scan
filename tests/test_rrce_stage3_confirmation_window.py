@@ -80,6 +80,56 @@ def test_stage3_window_is_bounded():
     assert result["reason"] == "no_choch"
 
 
+
+def test_stage3_continues_after_choch_without_fvg():
+    engine = RRCEEngine()
+    engine._find_swings = _patched_swings
+
+    fixture = _ltf_fixture().copy()
+    fixture.loc[4, "close"] = 102.0
+
+    result = engine.stage3_confirmation(
+        fixture,
+        "LONG",
+        sweep_time=pd.Timestamp("2026-09-19 00:20:00", tz="UTC"),
+        confirmation_bars=3,
+    )
+
+    assert result["passed"] is True
+    assert result["break_idx"] == 5
+    assert result["fvg"]["break_idx"] == 5
+
+
+def test_stage3_uses_structure_available_before_each_candidate_break():
+    engine = RRCEEngine()
+
+    def _temporal_swings(df):
+        d = df.copy()
+        d["swing_high"] = np.nan
+        d["swing_low"] = np.nan
+        if len(df) <= 6:
+            d.loc[4, "swing_high"] = 100.0
+        else:
+            d.loc[4, "swing_high"] = 100.0
+            d.loc[6, "swing_high"] = 105.0
+        d.loc[2, "swing_low"] = 90.0
+        return d
+
+    engine._find_swings = _temporal_swings
+    fixture = _ltf_fixture().copy()
+    fixture.loc[5, "close"] = 102.0
+
+    result = engine.stage3_confirmation(
+        fixture,
+        "LONG",
+        sweep_time=pd.Timestamp("2026-09-19 00:20:00", tz="UTC"),
+        confirmation_bars=3,
+    )
+
+    assert result["passed"] is True
+    assert result["break_idx"] == 5
+    assert result["choch_level"] == 100.0
+
 def test_stage3_tuning_is_configured_and_scanner_wires_it():
     from pathlib import Path
 
