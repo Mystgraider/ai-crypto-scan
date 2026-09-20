@@ -1,14 +1,26 @@
 {
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-09-20T13:09:41.299758+00:00",
-    "last_seen": "2026-09-20T17:46:09.689985+00:00",
-    "observations": 3,
+    "first_seen": "2026-09-20T21:54:29.958085+00:00",
+    "last_seen": "2026-09-20T21:54:29.958085+00:00",
+    "observations": 1,
     "pool_level": 0.9996999999999999,
     "range_high": 0.9997,
     "range_low": 0.9994,
     "regime": "BULL",
     "sweep_extreme": 0.9997,
     "symbol": "USDC/USDT:USDT"
+  },
+  "WOO/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-20T21:54:08.522978+00:00",
+    "last_seen": "2026-09-20T21:54:08.522978+00:00",
+    "observations": 1,
+    "pool_level": 0.01137,
+    "range_high": 0.01149,
+    "range_low": 0.01124,
+    "regime": "BULL",
+    "sweep_extreme": 0.01132,
+    "symbol": "WOO/USDT:USDT"
   }
 }
