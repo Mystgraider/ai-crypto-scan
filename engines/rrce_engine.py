@@ -230,50 +230,59 @@ class RRCEEngine:
         return None
 
     def stage3_confirmation(self, df_ltf: pd.DataFrame, direction: str,
-                            lookback: int = 60, sweep_time=None) -> dict | None:
+                            lookback: int = 60, sweep_time=None,
+                            confirmation_bars: int = 3) -> dict | None:
+        """Confirm CHOCH within a bounded post-sweep closed-candle window.
+
+        Tuning change: the CHOCH/FVG pair no longer has to occur on the
+        latest closed candle. The break must still occur after the Stage-2
+        sweep, and the FVG must still be created by that exact CHOCH candle.
+        This recovers delayed confirmations without accepting an unrelated FVG.
+        """
         closed = df_ltf.iloc[:-1].copy() if len(df_ltf) >= 2 else df_ltf.iloc[0:0].copy()
         if len(closed) < 3:
             return {"passed": False, "reason": "insufficient_closed_candles"}
 
         d = self._find_swings(closed).tail(lookback)
-        last_close = float(closed["close"].iloc[-1])
-        break_idx = len(closed) - 1
-        break_time = closed["timestamp"].iloc[-1] if "timestamp" in closed.columns else None
-
-        if sweep_time is not None and break_time is not None:
-            try:
-                if pd.Timestamp(break_time) <= pd.Timestamp(sweep_time):
-                    return {"passed": False, "reason": "choch_not_after_sweep"}
-            except Exception:
-                pass
-
         if direction == "LONG":
-            swing_highs = d["swing_high"].dropna()
-            if swing_highs.empty:
-                return {"passed": False, "reason": "no_structure"}
-            choch_level = float(swing_highs.iloc[-1])
-            choch = last_close > choch_level
+            swing_levels = d["swing_high"].dropna()
         else:
-            swing_lows = d["swing_low"].dropna()
-            if swing_lows.empty:
-                return {"passed": False, "reason": "no_structure"}
-            choch_level = float(swing_lows.iloc[-1])
-            choch = last_close < choch_level
+            swing_levels = d["swing_low"].dropna()
+        if swing_levels.empty:
+            return {"passed": False, "reason": "no_structure"}
 
-        if not choch:
-            return {"passed": False, "reason": "no_choch", "choch_level": choch_level}
+        choch_level = float(swing_levels.iloc[-1])
+        window_end = len(closed) - 1
+        window_start = max(2, window_end - max(1, int(confirmation_bars)) + 1)
 
-        fvg = self._detect_fvg_near(closed, direction, break_idx=break_idx)
-        if not fvg:
-            return {"passed": False, "reason": "choch_without_break_fvg", "choch_level": choch_level}
+        for break_idx in range(window_start, window_end + 1):
+            break_time = closed["timestamp"].iloc[break_idx] if "timestamp" in closed.columns else None
 
-        return {
-            "passed": True,
-            "choch_level": choch_level,
-            "fvg": fvg,
-            "break_idx": break_idx,
-            "break_time": break_time,
-        }
+            if sweep_time is not None and break_time is not None:
+                try:
+                    if pd.Timestamp(break_time) <= pd.Timestamp(sweep_time):
+                        continue
+                except Exception:
+                    pass
+
+            close = float(closed["close"].iloc[break_idx])
+            choch = close > choch_level if direction == "LONG" else close < choch_level
+            if not choch:
+                continue
+
+            fvg = self._detect_fvg_near(closed, direction, break_idx=break_idx)
+            if not fvg:
+                continue
+
+            return {
+                "passed": True,
+                "choch_level": choch_level,
+                "fvg": fvg,
+                "break_idx": break_idx,
+                "break_time": break_time,
+            }
+
+        return {"passed": False, "reason": "no_choch", "choch_level": choch_level}
 
     # ── Stage 4: EXECUTION (LTF, finest) ─────────────────────────────────
     def _order_block(self, df: pd.DataFrame, direction: str, break_idx: int = None,
