@@ -363,6 +363,7 @@ def main():
                             df_ltf_confirm=_df_rrce_5m, df_ltf_exec=_df_rrce_5m,
                             direction=direction, price=price,
                             patience_bars=patience_bars,
+                            confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
                         )
                         rrce_bonus = rrce_result["bonus"]
                 except Exception as _rrce_e:

@@ -49,6 +49,9 @@ CONFIG = {
     "rrce_entry_max_deviation_pct": 0.4,
     "rrce_default_patience_bars": 6,
     "rrce_range_patience_bars": 8,
+    # Stage-3 tuning: allow a bounded delayed CHOCH/FVG confirmation.
+    # The FVG must still belong to the exact CHOCH candle.
+    "rrce_stage3_confirmation_bars": 3,
     "rrce_default_eq_tolerance_pct": 0.15,
     "rrce_range_eq_tolerance_pct": 0.20,
     "rrce_watchlist_hours": 4,
