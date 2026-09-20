@@ -138,12 +138,21 @@ class RRCEEngine:
         range_high_time = _timestamp_for(last_high_idx)
         range_low_time = _timestamp_for(last_low_idx)
 
+        # A structural range is only valid while price is inside that
+        # range. Without this bound, LONG setups below range_low and SHORT
+        # setups above range_high can pass the one-sided discount/premium
+        # test, producing negative or >100% position_pct values.
+        inside_range = 0.0 <= position_pct <= 100.0
+
         if direction == "LONG":
-            zone_ok = position_pct <= zone_threshold_pct
+            zone_ok = inside_range and position_pct <= zone_threshold_pct
             zone = "discount"
-        else:
-            zone_ok = position_pct >= (100 - zone_threshold_pct)
+        elif direction == "SHORT":
+            zone_ok = inside_range and position_pct >= (100 - zone_threshold_pct)
             zone = "premium"
+        else:
+            zone_ok = False
+            zone = "invalid"
 
         return {
             "passed": zone_ok,
