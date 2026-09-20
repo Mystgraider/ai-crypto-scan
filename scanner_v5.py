@@ -293,6 +293,35 @@ def main():
                 _trace(symbol, "no_candidate_directions")
                 continue
 
+            # Symbol-level market-data cache: LONG and SHORT share the same
+            # funding/OI observations and 4H experiment candles. Fetch each
+            # network resource at most once per symbol, then derive the
+            # direction-specific interpretation locally.
+            funding_result_base = {"funding_pct": 0.0, "funding_pct_raw": 0.0, "short_score_adj": 0}
+            if CONFIG["funding_enabled"]:
+                fr = funding_engine.fetch_funding(exchange, symbol)
+                funding_result_base = funding_engine.analyze(fr)
+                funding_result_base["funding_pct_raw"] = fr
+
+            oi_data_base = None
+            if CONFIG["oi_enabled"]:
+                try:
+                    oi_data_base = oi_engine.fetch_oi(exchange, symbol)
+                except Exception as _oi_prefetch_error:
+                    oi_data_base = {"available": False, "reason": type(_oi_prefetch_error).__name__}
+
+            experiment_4h = None
+            if len(candidate_directions) > 0:
+                try:
+                    _exp_4h_raw = market_loader.get_4h(symbol)
+                    experiment_4h = Indicators.apply(_exp_4h_raw)
+                except Exception as _exp_fetch_error:
+                    experiment_4h_log.append({
+                        "symbol": symbol,
+                        "direction": "ALL",
+                        "error": str(_exp_fetch_error),
+                    })
+
             for direction in candidate_directions:
 
                 # Trend evidence is direction-specific. When the trend gate is disabled,
@@ -311,12 +340,9 @@ def main():
                         _trace(symbol, "btc_regime_block", direction=direction, regime=btc_regime.get("regime"))
                         continue
 
-                funding_result = {"funding_pct": 0.0, "funding_pct_raw": 0.0, "short_score_adj": 0}
+                funding_result = funding_result_base.copy()
                 if CONFIG["funding_enabled"]:
-                    fr = funding_engine.fetch_funding(exchange, symbol)
-                    funding_result = funding_engine.analyze(fr)
-                    funding_result["funding_pct_raw"] = fr
-                    if direction == "LONG"  and not funding_result["long_ok"]:
+                    if direction == "LONG" and not funding_result["long_ok"]:
                         skip["funding"] += 1
                         _trace(symbol, "funding_block", direction=direction)
                         continue
@@ -373,24 +399,23 @@ def main():
                 except Exception as _rrce_e:
                     print(f"      ⚠️  {symbol} RRCE multi-TF fetch/eval failed: {_rrce_e}")
 
-                try:
-                    _exp_4h_raw = market_loader.get_4h(symbol)
-                    _exp_4h = Indicators.apply(_exp_4h_raw)
-                    _exp_1h = Indicators.apply(df_1h.copy())
-                    if len(_exp_4h) >= 20 and len(_exp_1h) >= 20:
-                        _exp_result = experiment_4h_engine.evaluate(
-                            df_htf=_exp_4h, df_mtf=_exp_4h,
-                            df_ltf_confirm=_exp_1h, df_ltf_exec=_exp_1h,
-                            direction=direction, price=price,
-                        )
-                        experiment_4h_log.append({
-                            "symbol": symbol, "direction": direction,
-                            "valid": _exp_result.get("valid"),
-                            "failed_at": _exp_result.get("failed_at"),
-                            "stage1_position_pct": (_exp_result.get("stage1") or {}).get("position_pct"),
-                        })
-                except Exception as _exp_e:
-                    experiment_4h_log.append({"symbol": symbol, "direction": direction, "error": str(_exp_e)})
+                if experiment_4h is not None:
+                    try:
+                        _exp_1h = df_1h
+                        if len(experiment_4h) >= 20 and len(_exp_1h) >= 20:
+                            _exp_result = experiment_4h_engine.evaluate(
+                                df_htf=experiment_4h, df_mtf=experiment_4h,
+                                df_ltf_confirm=_exp_1h, df_ltf_exec=_exp_1h,
+                                direction=direction, price=price,
+                            )
+                            experiment_4h_log.append({
+                                "symbol": symbol, "direction": direction,
+                                "valid": _exp_result.get("valid"),
+                                "failed_at": _exp_result.get("failed_at"),
+                                "stage1_position_pct": (_exp_result.get("stage1") or {}).get("position_pct"),
+                            })
+                    except Exception as _exp_e:
+                        experiment_4h_log.append({"symbol": symbol, "direction": direction, "error": str(_exp_e)})
 
                 if rrce_result:
                     s1_data = rrce_result.get("stage1")
@@ -537,42 +562,27 @@ def main():
 
                 oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}
                 if CONFIG["oi_enabled"]:
-                    try:
-                        oi_data = oi_engine.fetch_oi(exchange, symbol)
-                        if not oi_data.get("available"):
-                            skip["oi_unavailable"] = skip.get("oi_unavailable", 0) + 1
-                            _trace(
-                                symbol,
-                                "oi_unavailable",
-                                direction=direction,
-                                reason=oi_data.get("reason", "unknown"),
-                            )
-                            oi_result = {
-                                "oi_signal": "UNAVAILABLE",
-                                "score_adj": 0,
-                                "oi_change_pct": None,
-                            }
-                        else:
-                            price_chg = float(df_1h["close"].pct_change().iloc[-1] * 100)
-                            oi_result = oi_engine.analyze(
-                                current_oi=oi_data["current_oi"],
-                                previous_oi=oi_data["previous_oi"],
-                                price_change=price_chg,
-                                direction=direction,
-                            )
-                    except Exception as _oi_error:
+                    if not oi_data_base or not oi_data_base.get("available"):
                         skip["oi_unavailable"] = skip.get("oi_unavailable", 0) + 1
                         _trace(
                             symbol,
                             "oi_unavailable",
                             direction=direction,
-                            reason=type(_oi_error).__name__,
+                            reason=(oi_data_base or {}).get("reason", "unknown"),
                         )
                         oi_result = {
                             "oi_signal": "UNAVAILABLE",
                             "score_adj": 0,
                             "oi_change_pct": None,
                         }
+                    else:
+                        price_chg = float(df_1h["close"].pct_change().iloc[-1] * 100)
+                        oi_result = oi_engine.analyze(
+                            current_oi=oi_data_base["current_oi"],
+                            previous_oi=oi_data_base["previous_oi"],
+                            price_change=price_chg,
+                            direction=direction,
+                        )
 
                 risk = rrce_risk
 
