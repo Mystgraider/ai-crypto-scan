@@ -191,7 +191,11 @@ def main():
 
     candidates = []
     stage1_position_samples = []
+    stage1_position_samples_passed = []
     stage2_pool_counts = []
+    stage2_near_pool_counts = []
+    stage2_all_pool_counts = []
+    stage2_selected_pool_distances = []
 
     TRACE_SYMBOLS = {"ETH/USDT:USDT", "SOL/USDT:USDT", "BNB/USDT:USDT", "XRP/USDT:USDT", "LTC/USDT:USDT"}
     symbol_trace_log = []
@@ -394,10 +398,20 @@ def main():
                     s3_data = rrce_result.get("stage3")
                     if s1_data and s1_data.get("passed"):
                         skip["rrce_stage1_passed"] += 1
+                        if "position_pct" in s1_data:
+                            stage1_position_samples_passed.append(s1_data["position_pct"])
                     if s2_data:
                         pools = s2_data.get("pools")
                         if pools is not None:
                             stage2_pool_counts.append(len(pools))
+                        if s2_data.get("near_pool_count") is not None:
+                            stage2_near_pool_counts.append(int(s2_data["near_pool_count"]))
+                        if s2_data.get("all_pool_count") is not None:
+                            stage2_all_pool_counts.append(int(s2_data["all_pool_count"]))
+                        if s2_data.get("pool_distance_from_range_extreme_pct") is not None:
+                            stage2_selected_pool_distances.append(
+                                float(s2_data["pool_distance_from_range_extreme_pct"])
+                            )
                         if s2_data.get("passed"):
                             skip["rrce_stage2_passed"] += 1
                             try:
@@ -658,13 +672,19 @@ def main():
             "btc_regime_adx": btc_regime.get("adx"),
             "btc_regime_rsi": btc_regime.get("rsi"),
             "btc_regime_reason": btc_regime.get("reason"),
-            "stage1_position_pct_count": len(stage1_position_samples),
-            "stage1_position_pct_min": round(min(stage1_position_samples), 1) if stage1_position_samples else None,
-            "stage1_position_pct_max": round(max(stage1_position_samples), 1) if stage1_position_samples else None,
-            "stage1_position_pct_avg": round(sum(stage1_position_samples)/len(stage1_position_samples), 1) if stage1_position_samples else None,
-            "stage1_position_pct_median": round(sorted(stage1_position_samples)[len(stage1_position_samples)//2], 1) if stage1_position_samples else None,
+            "stage1_position_pct_failed_count": len(stage1_position_samples),
+            "stage1_position_pct_failed_min": round(min(stage1_position_samples), 1) if stage1_position_samples else None,
+            "stage1_position_pct_failed_max": round(max(stage1_position_samples), 1) if stage1_position_samples else None,
+            "stage1_position_pct_failed_avg": round(sum(stage1_position_samples)/len(stage1_position_samples), 1) if stage1_position_samples else None,
+            "stage1_position_pct_passed_count": len(stage1_position_samples_passed),
+            "stage1_position_pct_passed_min": round(min(stage1_position_samples_passed), 1) if stage1_position_samples_passed else None,
+            "stage1_position_pct_passed_max": round(max(stage1_position_samples_passed), 1) if stage1_position_samples_passed else None,
             "stage2_pool_count_avg": round(sum(stage2_pool_counts)/len(stage2_pool_counts), 2) if stage2_pool_counts else None,
             "stage2_zero_pool_pct": round(sum(1 for c in stage2_pool_counts if c == 0) / len(stage2_pool_counts) * 100, 1) if stage2_pool_counts else None,
+            "stage2_near_pool_count_avg": round(sum(stage2_near_pool_counts)/len(stage2_near_pool_counts), 2) if stage2_near_pool_counts else None,
+            "stage2_zero_near_pool_pct": round(sum(1 for c in stage2_near_pool_counts if c == 0) / len(stage2_near_pool_counts) * 100, 1) if stage2_near_pool_counts else None,
+            "stage2_all_pool_count_avg": round(sum(stage2_all_pool_counts)/len(stage2_all_pool_counts), 2) if stage2_all_pool_counts else None,
+            "stage2_selected_pool_distance_avg_pct": round(sum(stage2_selected_pool_distances)/len(stage2_selected_pool_distances), 4) if stage2_selected_pool_distances else None,
             "rrce_watchlist_active": active_count(CONFIG["rrce_watchlist_hours"]),
             **skip,
         }

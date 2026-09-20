@@ -138,12 +138,21 @@ class RRCEEngine:
         range_high_time = _timestamp_for(last_high_idx)
         range_low_time = _timestamp_for(last_low_idx)
 
+        # A structural range is only valid while price is inside that
+        # range. Without this bound, LONG setups below range_low and SHORT
+        # setups above range_high can pass the one-sided discount/premium
+        # test, producing negative or >100% position_pct values.
+        inside_range = 0.0 <= position_pct <= 100.0
+
         if direction == "LONG":
-            zone_ok = position_pct <= zone_threshold_pct
+            zone_ok = inside_range and position_pct <= zone_threshold_pct
             zone = "discount"
-        else:
-            zone_ok = position_pct >= (100 - zone_threshold_pct)
+        elif direction == "SHORT":
+            zone_ok = inside_range and position_pct >= (100 - zone_threshold_pct)
             zone = "premium"
+        else:
+            zone_ok = False
+            zone = "invalid"
 
         return {
             "passed": zone_ok,
@@ -193,29 +202,82 @@ class RRCEEngine:
             pools = self._equal_levels(lows)
             near_pools = [p for p in pools
                           if abs(p["level"] - range_low) / range_low * 100 <= proximity_pct]
+            range_extreme = range_low
+            pool_side = "low"
             if not near_pools:
-                return {"passed": False, "reason": "no_equal_lows_near_range_low", "pools": pools}
-            pool = min(near_pools, key=lambda p: abs(p["level"] - range_low))
-            swept_mask = (window["low"] < pool["level"]) & (window["close"] > pool["level"])
-            swept = bool(swept_mask.any())
+                return {
+                    "passed": False,
+                    "reason": "no_equal_lows_near_range_low",
+                    "pools": pools,
+                    "near_pool_count": 0,
+                    "all_pool_count": len(pools),
+                    "proximity_pct": float(proximity_pct),
+                    "patience_bars": int(patience_bars),
+                    "sweep_window_start": str(window["timestamp"].iloc[0]) if "timestamp" in window.columns and not window.empty else None,
+                    "sweep_window_end": str(window["timestamp"].iloc[-1]) if "timestamp" in window.columns and not window.empty else None,
+                }
+            # Prefer a qualifying pool that was actually swept. If multiple
+            # qualifying pools were swept, keep the one closest to the range
+            # extreme. Do not let an unswept nearest pool hide a valid sweep
+            # on another qualifying liquidity pool.
+            swept_pools = []
+            for candidate in near_pools:
+                candidate_mask = (window["low"] < candidate["level"]) & (window["close"] > candidate["level"])
+                if bool(candidate_mask.any()):
+                    swept_pools.append((candidate, candidate_mask))
+            if swept_pools:
+                pool, swept_mask = min(
+                    swept_pools,
+                    key=lambda item: abs(item[0]["level"] - range_low)
+                )
+                swept = True
+            else:
+                pool = min(near_pools, key=lambda p: abs(p["level"] - range_low))
+                swept_mask = (window["low"] < pool["level"]) & (window["close"] > pool["level"])
+                swept = False
             sweep_extreme = float(window.loc[swept_mask, "low"].min()) if swept else float(window["low"].min())
-        else:
+        elif direction == "SHORT":
             highs = d["swing_high"].dropna().tolist()
             pools = self._equal_levels(highs)
             near_pools = [p for p in pools
                           if abs(p["level"] - range_high) / range_high * 100 <= proximity_pct]
+            range_extreme = range_high
+            pool_side = "high"
             if not near_pools:
-                return {"passed": False, "reason": "no_equal_highs_near_range_high", "pools": pools}
-            pool = min(near_pools, key=lambda p: abs(p["level"] - range_high))
-            swept_mask = (window["high"] > pool["level"]) & (window["close"] < pool["level"])
-            swept = bool(swept_mask.any())
+                return {
+                    "passed": False,
+                    "reason": "no_equal_highs_near_range_high",
+                    "pools": pools,
+                    "near_pool_count": 0,
+                    "all_pool_count": len(pools),
+                    "proximity_pct": float(proximity_pct),
+                    "patience_bars": int(patience_bars),
+                    "sweep_window_start": str(window["timestamp"].iloc[0]) if "timestamp" in window.columns and not window.empty else None,
+                    "sweep_window_end": str(window["timestamp"].iloc[-1]) if "timestamp" in window.columns and not window.empty else None,
+                }
+            swept_pools = []
+            for candidate in near_pools:
+                candidate_mask = (window["high"] > candidate["level"]) & (window["close"] < candidate["level"])
+                if bool(candidate_mask.any()):
+                    swept_pools.append((candidate, candidate_mask))
+            if swept_pools:
+                pool, swept_mask = min(
+                    swept_pools,
+                    key=lambda item: abs(item[0]["level"] - range_high)
+                )
+                swept = True
+            else:
+                pool = min(near_pools, key=lambda p: abs(p["level"] - range_high))
+                swept_mask = (window["high"] > pool["level"]) & (window["close"] < pool["level"])
+                swept = False
             sweep_extreme = float(window.loc[swept_mask, "high"].max()) if swept else float(window["high"].max())
+        else:
+            return {"passed": False, "reason": "invalid_direction", "pools": []}
 
         sweep_time = None
         if swept and "timestamp" in window.columns:
             sweep_time = window.loc[swept_mask, "timestamp"].iloc[-1]
 
-        range_extreme = range_low if direction == "LONG" else range_high
         pool_distance_pct = abs(pool["level"] - range_extreme) / range_extreme * 100 if range_extreme else None
 
         return {
@@ -223,6 +285,8 @@ class RRCEEngine:
             "reason": None if swept else "pool_found_not_swept",
             "pools": pools,
             "pool_level": pool["level"],
+            "selected_pool_side": pool_side,
+            "proximity_pct": float(proximity_pct),
             "pool_touches": pool["touches"],
             "pool_distance_from_range_extreme_pct": round(pool_distance_pct, 4) if pool_distance_pct is not None else None,
             "near_pool_count": len(near_pools),
@@ -384,10 +448,18 @@ class RRCEEngine:
 
         entry = (ob["top"] + ob["bottom"]) / 2.0
 
-        if "atr" in df_exec.columns and not pd.isna(df_exec["atr"].iloc[-2]):
-            buffer = float(df_exec["atr"].iloc[-2]) * 0.3
-        else:
-            buffer = abs(entry) * 0.003
+        # Use ATR from the CHOCH break candle when available. The break_idx
+        # is anchored to the closed-candle confirmation sequence, so this keeps
+        # the execution buffer temporally aligned with the setup rather than
+        # using a later candle's volatility.
+        atr = None
+        if "atr" in df_exec.columns:
+            atr_idx = break_idx if break_idx is not None else len(df_exec) - 2
+            if 0 <= atr_idx < len(df_exec):
+                atr_value = df_exec["atr"].iloc[atr_idx]
+                if not pd.isna(atr_value) and float(atr_value) > 0:
+                    atr = float(atr_value)
+        buffer = atr * 0.3 if atr is not None else abs(entry) * 0.003
 
         if direction == "LONG":
             sl = sweep_extreme - buffer
