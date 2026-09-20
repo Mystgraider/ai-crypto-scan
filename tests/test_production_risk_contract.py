@@ -96,7 +96,7 @@ def test_rrce_is_the_only_production_sl_tp_authority():
 def test_final_candidate_pipeline_stays_direction_first_and_rank_second():
     scanner = _source(SCANNER)
 
-    directions_pos = scanner.index("for direction in candidate_directions:")
+    directions_pos = scanner.index("for direction in allowed_directions:")
     risk_pos = scanner.index("rrce_risk = revalidate_live_entry(", directions_pos)
     validator_pos = scanner.index("if not validator.validate(", risk_pos)
     candidate_pos = scanner.index("candidates.append({", validator_pos)
