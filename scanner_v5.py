@@ -325,10 +325,21 @@ def main():
             except Exception:
                 pass
             if CONFIG["mtf_enabled"]:
-                try:
-                    df_4h = Indicators.apply(market_loader.get_4h(symbol))
-                except Exception:
-                    df_4h = None
+                for _attempt in range(2):
+                    try:
+                        df_4h = Indicators.apply(market_loader.get_4h(symbol))
+                        break
+                    except Exception:
+                        if _attempt == 1:
+                            df_4h = None
+
+            # These are symbol-level calculations; direction only changes the
+            # bonus interpretation, not the underlying market structure.
+            sr_levels_shared = sr_engine.find_levels(df_1h)
+            bb_width_pctile = float(df_1h["bb_width_pctile"].iloc[-2]) \
+                if "bb_width_pctile" in df_1h.columns else 1.0
+            squeeze_bonus_shared = 8 if bb_width_pctile <= 0.2 else 0
+            vp_profile_shared = vp_engine.build_profile(df_1h)
 
             for direction in allowed_directions:
 
@@ -371,15 +382,11 @@ def main():
                         _trace(symbol, "beta_block", direction=direction)
                         continue
 
-                sr_levels = sr_engine.find_levels(df_1h)
+                sr_levels = sr_levels_shared
                 sr_bonus  = sr_engine.score_bonus(direction, sr_levels)
 
-                bb_width_pctile = float(df_1h["bb_width_pctile"].iloc[-2]) \
-                    if "bb_width_pctile" in df_1h.columns else 1.0
-                squeeze_bonus = 8 if bb_width_pctile <= 0.2 else 0
-
-                vp_profile = vp_engine.build_profile(df_1h)
-                vp_bonus   = vp_engine.score_bonus(direction, price, vp_profile)
+                squeeze_bonus = squeeze_bonus_shared
+                vp_bonus = vp_engine.score_bonus(direction, price, vp_profile_shared)
 
                 rrce_bonus = 0.0
                 rrce_result = None
