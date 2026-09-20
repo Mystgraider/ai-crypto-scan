@@ -243,23 +243,31 @@ class RRCEEngine:
         if len(closed) < 3:
             return {"passed": False, "reason": "insufficient_closed_candles"}
 
-        d = self._find_swings(closed).tail(lookback)
-        if direction == "LONG":
-            swing_levels = d["swing_high"].dropna()
-        else:
-            swing_levels = d["swing_low"].dropna()
-        if swing_levels.empty:
-            return {"passed": False, "reason": "no_structure"}
-
-        choch_level = float(swing_levels.iloc[-1])
         window_end = len(closed) - 1
         window_start = max(2, window_end - max(1, int(confirmation_bars)) + 1)
 
         saw_choch = False
         saw_choch_before_sweep = False
+        saw_choch_without_fvg = False
+        last_choch_level = None
+        last_break_time = None
 
         for break_idx in range(window_start, window_end + 1):
+            # Rebuild structure from data available BEFORE the candidate break.
+            # This prevents future-confirmed swings from becoming a look-ahead
+            # input when the confirmation window contains earlier candles.
+            structure = self._find_swings(closed.iloc[:break_idx + 1]).tail(lookback)
+            if direction == "LONG":
+                swing_levels = structure["swing_high"].dropna()
+            else:
+                swing_levels = structure["swing_low"].dropna()
+            if swing_levels.empty:
+                continue
+
+            choch_level = float(swing_levels.iloc[-1])
             break_time = closed["timestamp"].iloc[break_idx] if "timestamp" in closed.columns else None
+            last_choch_level = choch_level
+            last_break_time = break_time
 
             close = float(closed["close"].iloc[break_idx])
             choch = close > choch_level if direction == "LONG" else close < choch_level
@@ -278,13 +286,10 @@ class RRCEEngine:
 
             fvg = self._detect_fvg_near(closed, direction, break_idx=break_idx)
             if not fvg:
-                return {
-                    "passed": False,
-                    "reason": "choch_without_break_fvg",
-                    "choch_level": choch_level,
-                    "break_idx": break_idx,
-                    "break_time": break_time,
-                }
+                # Keep searching: a later CHOCH in the same bounded window may
+                # be the first valid CHOCH+FVG pair.
+                saw_choch_without_fvg = True
+                continue
 
             return {
                 "passed": True,
@@ -294,17 +299,25 @@ class RRCEEngine:
                 "break_time": break_time,
             }
 
-        if saw_choch_before_sweep and sweep_time is not None:
+        if saw_choch_before_sweep and sweep_time is not None and not saw_choch_without_fvg:
             return {
                 "passed": False,
                 "reason": "choch_not_after_sweep",
-                "choch_level": choch_level,
+                "choch_level": last_choch_level,
+            }
+
+        if saw_choch_without_fvg:
+            return {
+                "passed": False,
+                "reason": "choch_without_break_fvg",
+                "choch_level": last_choch_level,
+                "break_time": last_break_time,
             }
 
         return {
             "passed": False,
             "reason": "no_choch",
-            "choch_level": choch_level,
+            "choch_level": last_choch_level,
             "saw_choch": saw_choch,
         }
 
