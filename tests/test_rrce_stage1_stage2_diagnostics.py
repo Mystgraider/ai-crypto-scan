@@ -112,3 +112,32 @@ def test_stage2_no_near_pool_still_exposes_population_diagnostics():
     assert result["patience_bars"] == 3
     assert result["sweep_window_start"] is not None
     assert result["sweep_window_end"] is not None
+
+
+def test_stage2_selects_a_swept_qualifying_pool_over_a_closer_unswept_pool():
+    engine = RRCEEngine()
+
+    df = pd.DataFrame({
+        "high": [104, 104, 104, 104, 103, 104, 104, 104],
+        "low": [101, 101, 101, 101, 101, 101, 101, 101],
+        "close": [102, 102, 102, 102, 101, 103, 101, 101],
+        "timestamp": pd.date_range("2026-09-19", periods=8, freq="15min", tz="UTC"),
+    })
+    engine._find_swings = lambda _: pd.DataFrame({
+        "swing_high": [np.nan] * 8,
+        "swing_low": [np.nan] * 8,
+    })
+    engine._equal_levels = lambda _: [
+        {"level": 100.0, "touches": 2},
+        {"level": 102.0, "touches": 2},
+    ]
+
+    result = engine.stage2_retail_liquidity(
+        df, "LONG", range_low=100.0, range_high=110.0,
+        proximity_pct=5.0, patience_bars=3,
+    )
+
+    assert result["passed"] is True
+    assert result["pool_level"] == 102.0
+    assert result["pool_distance_from_range_extreme_pct"] == 2.0
+    assert result["sweep_time"] == df["timestamp"].iloc[5]
