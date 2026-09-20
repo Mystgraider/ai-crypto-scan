@@ -202,29 +202,54 @@ class RRCEEngine:
             pools = self._equal_levels(lows)
             near_pools = [p for p in pools
                           if abs(p["level"] - range_low) / range_low * 100 <= proximity_pct]
+            range_extreme = range_low
+            pool_side = "low"
             if not near_pools:
-                return {"passed": False, "reason": "no_equal_lows_near_range_low", "pools": pools}
+                return {
+                    "passed": False,
+                    "reason": "no_equal_lows_near_range_low",
+                    "pools": pools,
+                    "near_pool_count": 0,
+                    "all_pool_count": len(pools),
+                    "proximity_pct": float(proximity_pct),
+                    "patience_bars": int(patience_bars),
+                    "sweep_window_start": str(window["timestamp"].iloc[0]) if "timestamp" in window.columns and not window.empty else None,
+                    "sweep_window_end": str(window["timestamp"].iloc[-1]) if "timestamp" in window.columns and not window.empty else None,
+                }
             pool = min(near_pools, key=lambda p: abs(p["level"] - range_low))
             swept_mask = (window["low"] < pool["level"]) & (window["close"] > pool["level"])
             swept = bool(swept_mask.any())
             sweep_extreme = float(window.loc[swept_mask, "low"].min()) if swept else float(window["low"].min())
-        else:
+        elif direction == "SHORT":
             highs = d["swing_high"].dropna().tolist()
             pools = self._equal_levels(highs)
             near_pools = [p for p in pools
                           if abs(p["level"] - range_high) / range_high * 100 <= proximity_pct]
+            range_extreme = range_high
+            pool_side = "high"
             if not near_pools:
-                return {"passed": False, "reason": "no_equal_highs_near_range_high", "pools": pools}
+                return {
+                    "passed": False,
+                    "reason": "no_equal_highs_near_range_high",
+                    "pools": pools,
+                    "near_pool_count": 0,
+                    "all_pool_count": len(pools),
+                    "proximity_pct": float(proximity_pct),
+                    "patience_bars": int(patience_bars),
+                    "sweep_window_start": str(window["timestamp"].iloc[0]) if "timestamp" in window.columns and not window.empty else None,
+                    "sweep_window_end": str(window["timestamp"].iloc[-1]) if "timestamp" in window.columns and not window.empty else None,
+                }
             pool = min(near_pools, key=lambda p: abs(p["level"] - range_high))
             swept_mask = (window["high"] > pool["level"]) & (window["close"] < pool["level"])
             swept = bool(swept_mask.any())
             sweep_extreme = float(window.loc[swept_mask, "high"].max()) if swept else float(window["high"].max())
+        else:
+            return {"passed": False, "reason": "invalid_direction", "pools": []}
 
         sweep_time = None
         if swept and "timestamp" in window.columns:
             sweep_time = window.loc[swept_mask, "timestamp"].iloc[-1]
 
-        range_extreme = range_low if direction == "LONG" else range_high
         pool_distance_pct = abs(pool["level"] - range_extreme) / range_extreme * 100 if range_extreme else None
 
         return {
@@ -232,6 +257,8 @@ class RRCEEngine:
             "reason": None if swept else "pool_found_not_swept",
             "pools": pools,
             "pool_level": pool["level"],
+            "selected_pool_side": pool_side,
+            "proximity_pct": float(proximity_pct),
             "pool_touches": pool["touches"],
             "pool_distance_from_range_extreme_pct": round(pool_distance_pct, 4) if pool_distance_pct is not None else None,
             "near_pool_count": len(near_pools),
