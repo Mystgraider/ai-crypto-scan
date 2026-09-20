@@ -504,13 +504,10 @@ def main():
                                 break
                         except Exception:
                             if _attempt == 1:
-                                if adx >= 30:
-                                    mtf_status     = "ALLOWED"
-                                    mtf_multiplier = 0.95
-                                    mtf_4h_dir     = "PROXY"
-                                else:
-                                    mtf_status     = "SKIPPED"
-                                    mtf_multiplier = 1.0
+                                fallback = mtf_engine.degraded_4h_fallback(adx)
+                                mtf_status = fallback["status"]
+                                mtf_multiplier = fallback["multiplier"]
+                                mtf_4h_dir = fallback["direction"]
 
                 if CONFIG["mtf_reject_counter_trend"] and mtf_status in ("REJECTED", "SKIPPED"):
                     skip["mtf"] += 1

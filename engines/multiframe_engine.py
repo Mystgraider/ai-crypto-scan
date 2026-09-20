@@ -17,6 +17,14 @@ Multipliers:
   ALLOWED           (4H neutral/risky)       = 1.00
   ALLOWED_WEAK      (4H ok but 15M against)  = 0.92
   REJECTED          (counter-trend)          = 0.00
+
+Degraded 4H contract:
+  - If 4H data/indicator analysis fails after the scanner's final retry,
+    the scanner explicitly enters degraded mode through
+    degraded_4h_fallback().
+  - ADX >= 30: ALLOWED / 0.95 / direction marker PROXY.
+  - ADX < 30: SKIPPED / 1.00 / direction marker UNKNOWN.
+  - This fallback does not fabricate a bullish/bearish 4H direction.
 """
 
 import pandas as pd
@@ -30,6 +38,31 @@ class MultiFrameEngine:
     RSI_OVERSOLD_4H   = 25
     STOCH_OB_4H       = 80   # new: stoch RSI overbought on 4H
     STOCH_OS_4H       = 20   # new: stoch RSI oversold on 4H
+
+    @staticmethod
+    def degraded_4h_fallback(adx: float) -> dict:
+        """Return the explicit production contract for unavailable 4H confirmation.
+
+        This preserves the existing scanner behavior while making degraded mode
+        centralized, documented, and directly testable. The fallback never
+        invents a bullish/bearish 4H direction.
+        """
+        adx_value = float(adx)
+
+        if adx_value >= 30.0:
+            return {
+                "status": "ALLOWED",
+                "multiplier": 0.95,
+                "direction": "PROXY",
+                "reason": "4H unavailable after retry; ADX >= 30 permits degraded proxy mode",
+            }
+
+        return {
+            "status": "SKIPPED",
+            "multiplier": 1.0,
+            "direction": "UNKNOWN",
+            "reason": "4H unavailable after retry; ADX < 30 does not permit degraded proxy mode",
+        }
 
     def analyze_4h(self, df: pd.DataFrame) -> dict:
         if len(df) < 2:
