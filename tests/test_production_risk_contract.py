@@ -144,9 +144,17 @@ def test_beta_unavailable_does_not_fabricate_neutral_one():
 
 
 def test_rrce_evaluate_accepts_and_forwards_confirmation_window():
-    rrce = _source(RRCE_ENGINE)
+    import inspect
 
-    assert "def evaluate(self, df_htf: pd.DataFrame, df_mtf: pd.DataFrame," in rrce
-    assert "direction: str, patience_bars: int = 6, confirmation_bars: int = 3)" in rrce
+    from engines.rrce_engine import RRCEEngine
+
+    signature = inspect.signature(RRCEEngine.evaluate)
+    params = signature.parameters
+
+    assert params["direction"].annotation is str
+    assert params["patience_bars"].default == 6
+    assert params["confirmation_bars"].default == 3
+
+    rrce = _source(RRCE_ENGINE)
     assert "confirmation_bars=confirmation_bars" in rrce
     assert 'CONFIG["rrce_stage3_confirmation_bars"]' in _source(SCANNER)
