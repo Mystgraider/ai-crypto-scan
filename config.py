@@ -5,7 +5,7 @@ CONFIG = {
     "top_coins_limit": 100,
     "timeframe": "1h",
     "ohlcv_limit": 100,
-    "ohlcv_4h_limit": 50,
+    "ohlcv_4h_limit": 100,
 
     # Signal thresholds
     "min_score": 70,
