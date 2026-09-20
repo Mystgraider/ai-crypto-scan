@@ -141,3 +141,12 @@ def test_beta_unavailable_does_not_fabricate_neutral_one():
     scanner = _source(SCANNER)
     assert '"beta_label": "N/A", "beta": 1.0' not in scanner
     assert '"beta_label": "UNAVAILABLE", "beta": None' in scanner
+
+
+def test_rrce_evaluate_accepts_and_forwards_confirmation_window():
+    rrce = _source(RRCE_ENGINE)
+
+    assert "def evaluate(self, df_htf: pd.DataFrame, df_mtf: pd.DataFrame," in rrce
+    assert "direction: str, patience_bars: int = 6, confirmation_bars: int = 3)" in rrce
+    assert "confirmation_bars=confirmation_bars" in rrce
+    assert 'CONFIG["rrce_stage3_confirmation_bars"]' in _source(SCANNER)
