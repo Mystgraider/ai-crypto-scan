@@ -58,3 +58,27 @@ def test_stage2_exposes_pool_and_sweep_window_diagnostics():
     assert result["patience_bars"] == 3
     assert result["sweep_window_start"] is not None
     assert result["sweep_window_end"] is not None
+
+
+def test_stage1_rejects_prices_outside_structural_range():
+    engine = RRCEEngine()
+
+    df = pd.DataFrame({
+        "high": [100.0] * 40,
+        "low": [90.0] * 40,
+        "timestamp": pd.date_range("2026-09-19", periods=40, freq="15min", tz="UTC"),
+    })
+    swings = df.copy()
+    swings["swing_high"] = np.nan
+    swings["swing_low"] = np.nan
+    swings.loc[10, "swing_high"] = 110.0
+    swings.loc[20, "swing_low"] = 90.0
+    engine._find_swings = lambda _: swings
+
+    long_below = engine.stage1_range(df, "LONG", 85.0)
+    short_above = engine.stage1_range(df, "SHORT", 120.0)
+
+    assert long_below["position_pct"] < 0
+    assert long_below["passed"] is False
+    assert short_above["position_pct"] > 100
+    assert short_above["passed"] is False
