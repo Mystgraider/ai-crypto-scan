@@ -255,24 +255,36 @@ class RRCEEngine:
         window_end = len(closed) - 1
         window_start = max(2, window_end - max(1, int(confirmation_bars)) + 1)
 
+        saw_choch = False
+        saw_choch_before_sweep = False
+
         for break_idx in range(window_start, window_end + 1):
             break_time = closed["timestamp"].iloc[break_idx] if "timestamp" in closed.columns else None
-
-            if sweep_time is not None and break_time is not None:
-                try:
-                    if pd.Timestamp(break_time) <= pd.Timestamp(sweep_time):
-                        continue
-                except Exception:
-                    pass
 
             close = float(closed["close"].iloc[break_idx])
             choch = close > choch_level if direction == "LONG" else close < choch_level
             if not choch:
                 continue
 
+            saw_choch = True
+
+            if sweep_time is not None and break_time is not None:
+                try:
+                    if pd.Timestamp(break_time) <= pd.Timestamp(sweep_time):
+                        saw_choch_before_sweep = True
+                        continue
+                except Exception:
+                    pass
+
             fvg = self._detect_fvg_near(closed, direction, break_idx=break_idx)
             if not fvg:
-                continue
+                return {
+                    "passed": False,
+                    "reason": "choch_without_break_fvg",
+                    "choch_level": choch_level,
+                    "break_idx": break_idx,
+                    "break_time": break_time,
+                }
 
             return {
                 "passed": True,
@@ -282,7 +294,19 @@ class RRCEEngine:
                 "break_time": break_time,
             }
 
-        return {"passed": False, "reason": "no_choch", "choch_level": choch_level}
+        if saw_choch_before_sweep and sweep_time is not None:
+            return {
+                "passed": False,
+                "reason": "choch_not_after_sweep",
+                "choch_level": choch_level,
+            }
+
+        return {
+            "passed": False,
+            "reason": "no_choch",
+            "choch_level": choch_level,
+            "saw_choch": saw_choch,
+        }
 
     # ── Stage 4: EXECUTION (LTF, finest) ─────────────────────────────────
     def _order_block(self, df: pd.DataFrame, direction: str, break_idx: int = None,
