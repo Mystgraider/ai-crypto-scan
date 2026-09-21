@@ -1,26 +1,26 @@
 {
-  "ACH/USDT:USDT|SHORT": {
+  "ENJ/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-09-21T14:00:20.248917+00:00",
-    "last_seen": "2026-09-21T14:00:20.248917+00:00",
+    "first_seen": "2026-09-21T19:05:33.857213+00:00",
+    "last_seen": "2026-09-21T19:05:33.857213+00:00",
     "observations": 1,
-    "pool_level": 0.005993000000000001,
-    "range_high": 0.006094,
-    "range_low": 0.005854,
+    "pool_level": 0.02789,
+    "range_high": 0.02841,
+    "range_low": 0.02764,
     "regime": "EXTREME_BULL",
-    "sweep_extreme": 0.006015,
-    "symbol": "ACH/USDT:USDT"
+    "sweep_extreme": 0.02796,
+    "symbol": "ENJ/USDT:USDT"
   },
-  "COTI/USDT:USDT|SHORT": {
+  "KAVA/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-09-21T14:00:30.826565+00:00",
-    "last_seen": "2026-09-21T14:00:30.826565+00:00",
+    "first_seen": "2026-09-21T19:05:46.479182+00:00",
+    "last_seen": "2026-09-21T19:05:46.479182+00:00",
     "observations": 1,
-    "pool_level": 0.01839,
-    "range_high": 0.01885,
-    "range_low": 0.01734,
+    "pool_level": 0.07238,
+    "range_high": 0.07292,
+    "range_low": 0.07156,
     "regime": "EXTREME_BULL",
-    "sweep_extreme": 0.01849,
-    "symbol": "COTI/USDT:USDT"
+    "sweep_extreme": 0.07239,
+    "symbol": "KAVA/USDT:USDT"
   }
 }
