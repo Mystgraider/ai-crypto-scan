@@ -1,4 +1,16 @@
 {
+  "CKB/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-21T22:35:15.134382+00:00",
+    "last_seen": "2026-09-21T22:35:15.134382+00:00",
+    "observations": 1,
+    "pool_level": 0.0012893333333333333,
+    "range_high": 0.001289,
+    "range_low": 0.001254,
+    "regime": "BULL_CAUTION",
+    "sweep_extreme": 0.001292,
+    "symbol": "CKB/USDT:USDT"
+  },
   "ENJ/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-21T19:05:33.857213+00:00",
