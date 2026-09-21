@@ -1,1 +1,26 @@
-{}
+{
+  "ACH/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-21T14:00:20.248917+00:00",
+    "last_seen": "2026-09-21T14:00:20.248917+00:00",
+    "observations": 1,
+    "pool_level": 0.005993000000000001,
+    "range_high": 0.006094,
+    "range_low": 0.005854,
+    "regime": "EXTREME_BULL",
+    "sweep_extreme": 0.006015,
+    "symbol": "ACH/USDT:USDT"
+  },
+  "COTI/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-21T14:00:30.826565+00:00",
+    "last_seen": "2026-09-21T14:00:30.826565+00:00",
+    "observations": 1,
+    "pool_level": 0.01839,
+    "range_high": 0.01885,
+    "range_low": 0.01734,
+    "regime": "EXTREME_BULL",
+    "sweep_extreme": 0.01849,
+    "symbol": "COTI/USDT:USDT"
+  }
+}
