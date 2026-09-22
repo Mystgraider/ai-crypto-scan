@@ -151,6 +151,8 @@ def test_stage2_pool_discovery_is_cut_off_before_sweep_window():
         "close": [100.0] * rows,
         "timestamp": pd.date_range("2026-09-19", periods=rows, freq="15min", tz="UTC"),
     })
+    # The closed sweep candles must reclaim the pool level after trading below it.
+    df.loc[16:18, "close"] = 100.5
 
     observed_lengths = []
 
