@@ -194,7 +194,15 @@ class RRCEEngine:
                                  proximity_pct: float = 5.0, lookback: int = 80,
                                  patience_bars: int = 6) -> dict | None:
         """Find a recent equal-level liquidity pool and a CLOSED-candle sweep."""
-        d = self._find_swings(df_mtf).tail(lookback)
+        # Liquidity pools must be knowable before the sweep window begins.
+        # Discovering swings from the full dataframe can let future-confirmed
+        # swing points become pools for an earlier sweep, creating look-ahead
+        # bias. Build the pool universe only from candles strictly before the
+        # bounded sweep window; the sweep itself is then evaluated separately
+        # on the closed candles inside that window.
+        pool_window_start = max(0, len(df_mtf) - (patience_bars + 1))
+        pool_source = df_mtf.iloc[:pool_window_start]
+        d = self._find_swings(pool_source).tail(lookback)
         window = df_mtf.iloc[-(patience_bars + 1):-1]
 
         if direction == "LONG":
