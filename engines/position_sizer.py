@@ -18,6 +18,8 @@ Kelly-inspired sizing:
   Grade C                    → 0.5% account risk (minimum)
 """
 
+import math
+
 
 class PositionSizer:
 
@@ -50,7 +52,20 @@ class PositionSizer:
         account:    float = 1000.0,   # USDT account size
     ) -> dict:
 
-        base_risk_pct = self.RISK_TABLE.get(grade, 0.5)
+        if grade not in self.RISK_TABLE:
+            raise ValueError("invalid_grade")
+        if not isinstance(confidence, (int, float)) or not math.isfinite(confidence):
+            raise ValueError("invalid_confidence")
+        if not 0 <= confidence <= 100:
+            raise ValueError("confidence_out_of_range")
+        if not isinstance(entry, (int, float)) or not math.isfinite(entry) or entry <= 0:
+            raise ValueError("invalid_entry")
+        if not isinstance(sl, (int, float)) or not math.isfinite(sl) or sl <= 0:
+            raise ValueError("invalid_sl")
+        if not isinstance(account, (int, float)) or not math.isfinite(account) or account <= 0:
+            raise ValueError("invalid_account")
+
+        base_risk_pct = self.RISK_TABLE[grade]
 
         # Confidence adjustment: < 50% confidence = halve the risk
         if confidence < 50:
