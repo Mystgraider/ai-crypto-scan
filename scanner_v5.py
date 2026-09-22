@@ -224,9 +224,10 @@ def main():
     for symbol in symbols:
 
         _symbol_start_time = _time.perf_counter()
+        _direction_start = None
         _runtime_metrics["symbols_attempted"] += 1
 
-        if _time.time() - _scan_start_time > _scan_time_budget_sec:
+        if _time.perf_counter() - _scan_start_time > _scan_time_budget_sec:
             print(f"      ⏱️  Time budget ({_scan_time_budget_sec}s) reached — "
                   f"stopping early with {len(candidates)} candidate(s) found so far, "
                   f"{symbols.index(symbol)}/{len(symbols)} symbols processed.")
@@ -677,7 +678,8 @@ def main():
                     "beta_label":      beta_result.get("beta_label", "N/A"),
                 })
 
-            _runtime_metrics["stage_time_sec"]["direction_processing"] += _time.perf_counter() - _direction_start
+            if _direction_start is not None:
+                _runtime_metrics["stage_time_sec"]["direction_processing"] += _time.perf_counter() - _direction_start
             _runtime_metrics["symbols_completed"] += 1
             _runtime_metrics["symbol_time_samples"].append({
                 "symbol": symbol,
@@ -685,7 +687,8 @@ def main():
             })
 
         except Exception as e:
-            _runtime_metrics["stage_time_sec"]["direction_processing"] += _time.perf_counter() - _direction_start if "_direction_start" in locals() else 0.0
+            if _direction_start is not None:
+                _runtime_metrics["stage_time_sec"]["direction_processing"] += _time.perf_counter() - _direction_start
             skip["errors"] += 1
             if "Insufficient candles" not in str(e) and "NaN" not in str(e):
                 print(f"  ⚠️  {symbol}: {e}")
@@ -762,11 +765,13 @@ def main():
         print(f"      ⚠️  trace log write failed: {_e}")
 
     print("\n[4/8] AI Ranking...")
+    _ranking_start = _time.perf_counter()
     analytics = AnalyticsEngine().compute()
     hist_wr   = analytics["win_rate"]
     conf_eng  = ConfidenceEngine()
 
     ranked = AISignalRanker().rank(candidates)
+    _runtime_metrics["stage_time_sec"]["ranking"] = _time.perf_counter() - _ranking_start
     print(f"      ✅ {len(ranked)} ranked candidate(s) queued for live validation")
 
     print(f"\n[5/8] Sending up to {CONFIG['max_signals_per_run']} validated alert(s)...")
@@ -775,6 +780,7 @@ def main():
 
     for sig in ranked:
 
+        _live_validation_start = _time.perf_counter()
         try:
             fresh_price = float(exchange.fetch_ticker(sig["symbol"])["last"])
             drift_pct = abs(fresh_price - sig["entry"]) / sig["entry"] * 100
@@ -811,7 +817,9 @@ def main():
             sig["tp2"] = live_risk["tp2"]
             sig["tp3"] = live_risk["tp3"]
             sig["rr"] = live_risk["rr"]
+            _runtime_metrics["stage_time_sec"]["live_validation"] += _time.perf_counter() - _live_validation_start
         except Exception as e:
+            _runtime_metrics["stage_time_sec"]["live_validation"] += _time.perf_counter() - _live_validation_start
             print(f"  ⚠️  {sig['symbol']} live entry validation failed ({e}) — skipping signal")
             continue
 
