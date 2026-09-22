@@ -77,7 +77,7 @@ class SignalTracker:
 
         for s in all_active:
             try:
-                ts = datetime.fromisoformat(s["timestamp"])
+                ts = self._parse_signal_timestamp(s.get("timestamp"))
                 if ts < expiry_cutoff:
                     age_h = int((now - ts).total_seconds() / 3600)
                     update_signal_tracking(
