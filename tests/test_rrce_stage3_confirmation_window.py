@@ -139,3 +139,54 @@ def test_stage3_tuning_is_configured_and_scanner_wires_it():
 
     assert CONFIG["rrce_stage3_confirmation_bars"] == 3
     assert 'confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"]' in scanner
+
+
+def test_stage3_window_is_anchored_to_sweep_not_latest_bars():
+    engine = RRCEEngine()
+    engine._find_swings = _patched_swings
+
+    fixture = _ltf_fixture().copy()
+    # Sweep occurs early; CHOCH is 4 closed candles after it. With a
+    # 3-bar post-sweep window, the stale CHOCH must not be accepted.
+    result = engine.stage3_confirmation(
+        fixture,
+        "LONG",
+        sweep_time=pd.Timestamp("2026-09-19 00:05:00", tz="UTC"),
+        confirmation_bars=3,
+    )
+
+    assert result["passed"] is False
+    assert result["reason"] == "no_choch"
+
+
+def test_stage3_rejects_invalid_sweep_timestamp_fail_closed():
+    engine = RRCEEngine()
+    engine._find_swings = _patched_swings
+
+    result = engine.stage3_confirmation(
+        _ltf_fixture(),
+        "LONG",
+        sweep_time="not-a-timestamp",
+        confirmation_bars=3,
+    )
+
+    assert result["passed"] is False
+    assert result["reason"] == "invalid_sweep_timestamp"
+
+
+def test_stage3_rejects_duplicate_ltf_timestamps():
+    engine = RRCEEngine()
+    engine._find_swings = _patched_swings
+
+    fixture = _ltf_fixture().copy()
+    fixture.loc[6, "timestamp"] = fixture.loc[5, "timestamp"]
+
+    result = engine.stage3_confirmation(
+        fixture,
+        "LONG",
+        sweep_time=pd.Timestamp("2026-09-19 00:20:00", tz="UTC"),
+        confirmation_bars=3,
+    )
+
+    assert result["passed"] is False
+    assert result["reason"] == "duplicate_ltf_timestamps"
