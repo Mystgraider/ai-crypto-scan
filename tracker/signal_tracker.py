@@ -32,6 +32,16 @@ class SignalTracker:
         self.loader = MarketDataLoader()
 
     @staticmethod
+    def _parse_signal_timestamp(value):
+        try:
+            ts = datetime.fromisoformat(str(value))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("invalid_signal_timestamp") from exc
+        if ts.tzinfo is None or ts.utcoffset() is None:
+            raise ValueError("naive_signal_timestamp")
+        return ts.astimezone(timezone.utc)
+
+    @staticmethod
     def _realized_r(direction, entry, initial_sl, exit_price):
         risk = abs(entry - initial_sl)
         if risk <= 0:
@@ -86,8 +96,9 @@ class SignalTracker:
                     )
                     print(f"  ⏰ {s['symbol']} {s['direction']} → EXPIRED (age: {age_h}h)")
                     continue
-            except Exception:
-                pass
+            except (TypeError, ValueError) as exc:
+                print(f"  ⚠️  {s.get('symbol', '?')} {s.get('direction', '?')} → skipped: {exc}")
+                continue
             signals.append(s)
 
         if not signals:
