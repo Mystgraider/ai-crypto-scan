@@ -35,6 +35,18 @@
     "sweep_extreme": 0.1338,
     "symbol": "DYDX/USDT:USDT"
   },
+  "DYDX/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-22T13:00:19.604181+00:00",
+    "last_seen": "2026-09-22T13:00:19.604181+00:00",
+    "observations": 1,
+    "pool_level": 0.1368,
+    "range_high": 0.1368,
+    "range_low": 0.1326,
+    "regime": "BULL",
+    "sweep_extreme": 0.1372,
+    "symbol": "DYDX/USDT:USDT"
+  },
   "ETC/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-22T12:11:58.500343+00:00",
@@ -50,11 +62,11 @@
   "GRT/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-22T12:13:00.716832+00:00",
-    "last_seen": "2026-09-22T12:32:55.959207+00:00",
-    "observations": 2,
+    "last_seen": "2026-09-22T13:01:00.267811+00:00",
+    "observations": 3,
     "pool_level": 0.0236,
     "range_high": 0.02397,
-    "range_low": 0.02309,
+    "range_low": 0.02317,
     "regime": "BULL",
     "sweep_extreme": 0.02363,
     "symbol": "GRT/USDT:USDT"
@@ -98,8 +110,8 @@
   "RSR/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-22T12:12:49.076144+00:00",
-    "last_seen": "2026-09-22T12:32:42.823980+00:00",
-    "observations": 2,
+    "last_seen": "2026-09-22T13:00:46.500821+00:00",
+    "observations": 3,
     "pool_level": 0.001628,
     "range_high": 0.001694,
     "range_low": 0.001628,
@@ -134,14 +146,26 @@
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-22T11:29:51.257671+00:00",
-    "last_seen": "2026-09-22T12:13:20.950601+00:00",
-    "observations": 2,
+    "last_seen": "2026-09-22T13:01:18.065047+00:00",
+    "observations": 3,
     "pool_level": 0.9995296296296298,
     "range_high": 0.9996,
     "range_low": 0.9993,
     "regime": "BULL",
     "sweep_extreme": 0.9996,
     "symbol": "USDC/USDT:USDT"
+  },
+  "WOO/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-22T13:00:59.038680+00:00",
+    "last_seen": "2026-09-22T13:00:59.038680+00:00",
+    "observations": 1,
+    "pool_level": 0.01261,
+    "range_high": 0.01291,
+    "range_low": 0.01261,
+    "regime": "BULL",
+    "sweep_extreme": 0.01256,
+    "symbol": "WOO/USDT:USDT"
   },
   "XTZ/USDT:USDT|LONG": {
     "direction": "LONG",
