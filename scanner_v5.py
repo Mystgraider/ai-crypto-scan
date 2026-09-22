@@ -91,7 +91,7 @@ def main():
     print("=" * 55)
 
     import time as _time
-    _scan_start_time = _time.time()
+    _scan_start_time = _time.perf_counter()
     # V6.9.6: GH Actions workflow timeout is 10 min. Now that
     # require_trend_gate=False lets far more symbols reach RRCE
     # (which does 2 extra API fetches per direction tried, up to 4 per
@@ -224,9 +224,10 @@ def main():
     for symbol in symbols:
 
         _symbol_start_time = _time.perf_counter()
+        _direction_start = None
         _runtime_metrics["symbols_attempted"] += 1
 
-        if _time.time() - _scan_start_time > _scan_time_budget_sec:
+        if _time.perf_counter() - _scan_start_time > _scan_time_budget_sec:
             print(f"      ⏱️  Time budget ({_scan_time_budget_sec}s) reached — "
                   f"stopping early with {len(candidates)} candidate(s) found so far, "
                   f"{symbols.index(symbol)}/{len(symbols)} symbols processed.")
@@ -361,6 +362,7 @@ def main():
                     except Exception:
                         if _attempt == 1:
                             df_4h = None
+            _runtime_metrics["stage_time_sec"]["rrce_data"] += _time.perf_counter() - _rrce_data_start
 
             # These are symbol-level calculations; direction only changes the
             # bonus interpretation, not the underlying market structure.
@@ -677,7 +679,8 @@ def main():
                     "beta_label":      beta_result.get("beta_label", "N/A"),
                 })
 
-            _runtime_metrics["stage_time_sec"]["direction_processing"] += _time.perf_counter() - _direction_start
+            if _direction_start is not None:
+                _runtime_metrics["stage_time_sec"]["direction_processing"] += _time.perf_counter() - _direction_start
             _runtime_metrics["symbols_completed"] += 1
             _runtime_metrics["symbol_time_samples"].append({
                 "symbol": symbol,
@@ -685,7 +688,8 @@ def main():
             })
 
         except Exception as e:
-            _runtime_metrics["stage_time_sec"]["direction_processing"] += _time.perf_counter() - _direction_start if "_direction_start" in locals() else 0.0
+            if _direction_start is not None:
+                _runtime_metrics["stage_time_sec"]["direction_processing"] += _time.perf_counter() - _direction_start
             skip["errors"] += 1
             if "Insufficient candles" not in str(e) and "NaN" not in str(e):
                 print(f"  ⚠️  {symbol}: {e}")
@@ -762,11 +766,13 @@ def main():
         print(f"      ⚠️  trace log write failed: {_e}")
 
     print("\n[4/8] AI Ranking...")
+    _ranking_start = _time.perf_counter()
     analytics = AnalyticsEngine().compute()
     hist_wr   = analytics["win_rate"]
     conf_eng  = ConfidenceEngine()
 
     ranked = AISignalRanker().rank(candidates)
+    _runtime_metrics["stage_time_sec"]["ranking"] = _time.perf_counter() - _ranking_start
     print(f"      ✅ {len(ranked)} ranked candidate(s) queued for live validation")
 
     print(f"\n[5/8] Sending up to {CONFIG['max_signals_per_run']} validated alert(s)...")
@@ -775,6 +781,7 @@ def main():
 
     for sig in ranked:
 
+        _live_validation_start = _time.perf_counter()
         try:
             fresh_price = float(exchange.fetch_ticker(sig["symbol"])["last"])
             drift_pct = abs(fresh_price - sig["entry"]) / sig["entry"] * 100
@@ -811,7 +818,9 @@ def main():
             sig["tp2"] = live_risk["tp2"]
             sig["tp3"] = live_risk["tp3"]
             sig["rr"] = live_risk["rr"]
+            _runtime_metrics["stage_time_sec"]["live_validation"] += _time.perf_counter() - _live_validation_start
         except Exception as e:
+            _runtime_metrics["stage_time_sec"]["live_validation"] += _time.perf_counter() - _live_validation_start
             print(f"  ⚠️  {sig['symbol']} live entry validation failed ({e}) — skipping signal")
             continue
 
@@ -908,6 +917,37 @@ def main():
                 f"({valid_signal_count}/{CONFIG['max_signals_per_run']})."
             )
             break
+
+    # Write a final runtime snapshot after ranking and live validation so those
+    # stages are included in the persisted telemetry for this run.
+    _runtime_metrics["scan_elapsed_sec"] = round(_time.perf_counter() - _scan_start_time, 3)
+    try:
+        import json as _json
+        from datetime import datetime as _dt, timezone as _tz
+        runtime_final_row = {
+            "ts": _dt.now(_tz.utc).isoformat(),
+            "runtime_final": {
+                "scan_elapsed_sec": _runtime_metrics["scan_elapsed_sec"],
+                "symbols_attempted": _runtime_metrics["symbols_attempted"],
+                "symbols_completed": _runtime_metrics["symbols_completed"],
+                "stage_time_sec": {
+                    k: round(v, 3)
+                    for k, v in _runtime_metrics["stage_time_sec"].items()
+                },
+                "symbol_time_avg_sec": round(
+                    sum(s["elapsed_sec"] for s in _runtime_metrics["symbol_time_samples"])
+                    / len(_runtime_metrics["symbol_time_samples"]), 3
+                ) if _runtime_metrics["symbol_time_samples"] else None,
+                "symbol_time_max_sec": max(
+                    (s["elapsed_sec"] for s in _runtime_metrics["symbol_time_samples"]),
+                    default=None,
+                ),
+            },
+        }
+        with open("storage/scan_debug_log.jsonl", "a") as f:
+            f.write(_json.dumps(runtime_final_row) + "\n")
+    except Exception as _e:
+        print(f"      ⚠️  final runtime log write failed: {_e}")
 
     print("\n[6/8] Running signal tracker...")
     SignalTracker().run()
