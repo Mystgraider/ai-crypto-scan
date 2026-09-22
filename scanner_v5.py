@@ -323,6 +323,40 @@ def main():
                 skip["btc"] += len(candidate_directions)
                 continue
 
+            # RRCE Stage-1 is the cheap structural gate. Fetch only the 15m
+            # context needed to evaluate the range first; defer 5m/4h network
+            # calls until at least one direction survives Stage-1.
+            df_rrce_15m = None
+            _rrce_data_start = _time.perf_counter()
+            try:
+                df_rrce_15m = Indicators.apply(market_loader.get_15m(symbol))
+            except Exception:
+                pass
+            _runtime_metrics["stage_time_sec"]["rrce_data"] += _time.perf_counter() - _rrce_data_start
+
+            rrce_stage1_prefilter = {}
+            if df_rrce_15m is not None and len(df_rrce_15m) >= 20:
+                _prefilter_is_range = btc_regime["regime"] == "RANGE"
+                _prefilter_engine = range_rrce_engine if _prefilter_is_range else rrce_engine
+                for _direction in allowed_directions:
+                    try:
+                        rrce_stage1_prefilter[_direction] = _prefilter_engine.stage1_range(
+                            df_rrce_15m, _direction, price
+                        )
+                    except Exception:
+                        rrce_stage1_prefilter[_direction] = None
+
+                if not any(
+                    result and result.get("passed")
+                    for result in rrce_stage1_prefilter.values()
+                ):
+                    for _direction, _s1 in rrce_stage1_prefilter.items():
+                        if _s1 and "position_pct" in _s1:
+                            stage1_position_samples.append(_s1["position_pct"])
+                        _fail_key = "rrce_fail_stage1_range"
+                        skip[_fail_key] = skip.get(_fail_key, 0) + 1
+                    continue
+
             funding_result_base = {"funding_pct": 0.0, "funding_pct_raw": 0.0, "short_score_adj": 0}
             if CONFIG["funding_enabled"]:
                 _t = _time.perf_counter()
@@ -341,15 +375,11 @@ def main():
                 finally:
                     _runtime_metrics["stage_time_sec"]["oi"] += _time.perf_counter() - _t
 
-            # RRCE/MTF candles and indicators are shared across directions.
-            df_rrce_15m = None
+            # Stage-1 already has the shared 15m context. Only now fetch
+            # the lower-timeframe / MTF data required by later RRCE stages.
             df_rrce_5m = None
             df_4h = None
             _rrce_data_start = _time.perf_counter()
-            try:
-                df_rrce_15m = Indicators.apply(market_loader.get_15m(symbol))
-            except Exception:
-                pass
             try:
                 df_rrce_5m = Indicators.apply(market_loader.get_5m(symbol))
             except Exception:
