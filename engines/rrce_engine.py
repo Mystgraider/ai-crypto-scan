@@ -343,8 +343,44 @@ class RRCEEngine:
         if len(closed) < 3:
             return {"passed": False, "reason": "insufficient_closed_candles"}
 
+        confirmation_bars = int(confirmation_bars)
+        if confirmation_bars < 1:
+            return {"passed": False, "reason": "invalid_confirmation_bars"}
+
         window_end = len(closed) - 1
-        window_start = max(2, window_end - max(1, int(confirmation_bars)) + 1)
+
+        # The confirmation window is anchored to the actual Stage-2 sweep.
+        # "confirmation_bars=3" means the next 3 CLOSED LTF candles after the
+        # sweep, not simply the latest 3 candles at scan time. This prevents a
+        # stale CHOCH from becoming valid merely because it is still recent.
+        sweep_ts = None
+        candidate_indices = []
+        if sweep_time is not None:
+            if "timestamp" not in closed.columns:
+                return {"passed": False, "reason": "missing_ltf_timestamp"}
+
+            try:
+                sweep_ts = pd.to_datetime(sweep_time, utc=True, errors="raise")
+                break_ts = pd.to_datetime(closed["timestamp"], utc=True, errors="raise")
+            except (TypeError, ValueError, OverflowError):
+                return {"passed": False, "reason": "invalid_sweep_timestamp"}
+
+            if break_ts.duplicated().any():
+                return {"passed": False, "reason": "duplicate_ltf_timestamps"}
+
+            post_sweep = [
+                int(i) for i in range(len(closed))
+                if break_ts.iloc[i] > sweep_ts
+            ]
+            candidate_indices = post_sweep[:confirmation_bars]
+        else:
+            window_start = max(2, window_end - confirmation_bars + 1)
+            candidate_indices = list(range(window_start, window_end + 1))
+
+        candidate_indices = [
+            i for i in candidate_indices
+            if 2 <= i <= window_end
+        ]
 
         saw_choch = False
         saw_choch_before_sweep = False
@@ -352,7 +388,7 @@ class RRCEEngine:
         last_choch_level = None
         last_break_time = None
 
-        for break_idx in range(window_start, window_end + 1):
+        for break_idx in candidate_indices:
             # Rebuild structure from data available BEFORE the candidate break.
             # This prevents future-confirmed swings from becoming a look-ahead
             # input when the confirmation window contains earlier candles.
@@ -376,13 +412,12 @@ class RRCEEngine:
 
             saw_choch = True
 
-            if sweep_time is not None and break_time is not None:
-                try:
-                    if pd.Timestamp(break_time) <= pd.Timestamp(sweep_time):
-                        saw_choch_before_sweep = True
-                        continue
-                except Exception:
-                    pass
+            if sweep_ts is not None:
+                # sweep_ts and break_ts were normalized with UTC above. Any
+                # timestamp that is not strictly after the sweep is ineligible.
+                if pd.to_datetime(break_time, utc=True, errors="raise") <= sweep_ts:
+                    saw_choch_before_sweep = True
+                    continue
 
             fvg = self._detect_fvg_near(closed, direction, break_idx=break_idx)
             if not fvg:
@@ -529,10 +564,50 @@ class RRCEEngine:
             result["failed_at"] = "stage3_confirmation"
             return result
 
+        # Stage 3 returns a positional break_idx. Stage 4 must resolve that
+        # index to the exact same LTF candle. Production currently passes the
+        # same dataframe to both stages, but the engine contract is hardened
+        # here so a future caller cannot silently mix differently aligned
+        # confirmation/execution frames.
+        break_idx = s3.get("break_idx")
+        if break_idx is None or break_idx < 0:
+            result["failed_at"] = "stage3_dataframe_alignment"
+            result["stage3"]["reason"] = "missing_break_idx"
+            return result
+
+        if "timestamp" not in df_ltf_confirm.columns or "timestamp" not in df_ltf_exec.columns:
+            result["failed_at"] = "stage3_dataframe_alignment"
+            result["stage3"]["reason"] = "missing_execution_timestamp"
+            return result
+
+        if break_idx >= len(df_ltf_confirm) or break_idx >= len(df_ltf_exec):
+            result["failed_at"] = "stage3_dataframe_alignment"
+            result["stage3"]["reason"] = "break_idx_out_of_range"
+            return result
+
+        try:
+            confirm_ts = pd.to_datetime(
+                df_ltf_confirm["timestamp"].iloc[break_idx], utc=True, errors="raise"
+            )
+            exec_ts = pd.to_datetime(
+                df_ltf_exec["timestamp"].iloc[break_idx], utc=True, errors="raise"
+            )
+        except (TypeError, ValueError, OverflowError):
+            result["failed_at"] = "stage3_dataframe_alignment"
+            result["stage3"]["reason"] = "invalid_execution_timestamp"
+            return result
+
+        if confirm_ts != exec_ts:
+            result["failed_at"] = "stage3_dataframe_alignment"
+            result["stage3"]["reason"] = "break_candle_timestamp_mismatch"
+            result["stage3"]["confirm_break_time"] = str(confirm_ts)
+            result["stage3"]["exec_break_time"] = str(exec_ts)
+            return result
+
         opposite_pool = s1["range_high"] if direction == "LONG" else s1["range_low"]
         s4 = self.stage4_execution(
             df_ltf_exec, direction, s3["fvg"], s2["sweep_extreme"],
-            opposite_pool, break_idx=s3.get("break_idx")
+            opposite_pool, break_idx=break_idx
         )
         result["stage4"] = s4
         if not s4.get("valid"):
