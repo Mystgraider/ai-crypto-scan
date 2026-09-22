@@ -99,7 +99,25 @@ def main():
     # zero results committed. Stop starting new symbols past this
     # budget so whatever's already found still gets saved.
     _scan_time_budget_sec = CONFIG.get("scan_time_budget_sec", 480)
+    _runtime_metrics = {
+        "scan_started_at": None,
+        "scan_elapsed_sec": 0.0,
+        "symbols_attempted": 0,
+        "symbols_completed": 0,
+        "symbol_time_samples": [],
+        "stage_time_sec": {
+            "symbol_1h": 0.0,
+            "funding": 0.0,
+            "oi": 0.0,
+            "rrce_data": 0.0,
+            "shared_structure": 0.0,
+            "direction_processing": 0.0,
+            "ranking": 0.0,
+            "live_validation": 0.0,
+        },
+    }
 
+    _runtime_metrics["scan_started_at"] = _time.time()
     market_loader  = MarketDataLoader()
     exchange       = market_loader.exchange
     trend_engine   = TrendEngine()
@@ -205,6 +223,9 @@ def main():
 
     for symbol in symbols:
 
+        _symbol_start_time = _time.perf_counter()
+        _runtime_metrics["symbols_attempted"] += 1
+
         if _time.time() - _scan_start_time > _scan_time_budget_sec:
             print(f"      ⏱️  Time budget ({_scan_time_budget_sec}s) reached — "
                   f"stopping early with {len(candidates)} candidate(s) found so far, "
@@ -228,8 +249,10 @@ def main():
             continue
 
         try:
+            _t = _time.perf_counter()
             df_1h  = market_loader.get_1h(symbol)
             df_1h  = Indicators.apply(df_1h)
+            _runtime_metrics["stage_time_sec"]["symbol_1h"] += _time.perf_counter() - _t
 
             if len(df_1h) < 2:
                 skip["errors"] += 1
@@ -301,21 +324,27 @@ def main():
 
             funding_result_base = {"funding_pct": 0.0, "funding_pct_raw": 0.0, "short_score_adj": 0}
             if CONFIG["funding_enabled"]:
+                _t = _time.perf_counter()
                 fr = funding_engine.fetch_funding(exchange, symbol)
                 funding_result_base = funding_engine.analyze(fr)
                 funding_result_base["funding_pct_raw"] = fr
+                _runtime_metrics["stage_time_sec"]["funding"] += _time.perf_counter() - _t
 
             oi_data_base = None
             if CONFIG["oi_enabled"]:
+                _t = _time.perf_counter()
                 try:
                     oi_data_base = oi_engine.fetch_oi(exchange, symbol)
                 except Exception as _oi_prefetch_error:
                     oi_data_base = {"available": False, "reason": type(_oi_prefetch_error).__name__}
+                finally:
+                    _runtime_metrics["stage_time_sec"]["oi"] += _time.perf_counter() - _t
 
             # RRCE/MTF candles and indicators are shared across directions.
             df_rrce_15m = None
             df_rrce_5m = None
             df_4h = None
+            _rrce_data_start = _time.perf_counter()
             try:
                 df_rrce_15m = Indicators.apply(market_loader.get_15m(symbol))
             except Exception:
@@ -335,12 +364,15 @@ def main():
 
             # These are symbol-level calculations; direction only changes the
             # bonus interpretation, not the underlying market structure.
+            _shared_start = _time.perf_counter()
             sr_levels_shared = sr_engine.find_levels(df_1h)
             bb_width_pctile = float(df_1h["bb_width_pctile"].iloc[-2]) \
                 if "bb_width_pctile" in df_1h.columns else 1.0
             squeeze_bonus_shared = 8 if bb_width_pctile <= 0.2 else 0
             vp_profile_shared = vp_engine.build_profile(df_1h)
+            _runtime_metrics["stage_time_sec"]["shared_structure"] += _time.perf_counter() - _shared_start
 
+            _direction_start = _time.perf_counter()
             for direction in allowed_directions:
 
                 # Trend evidence is direction-specific. When the trend gate is disabled,
@@ -645,7 +677,15 @@ def main():
                     "beta_label":      beta_result.get("beta_label", "N/A"),
                 })
 
+            _runtime_metrics["stage_time_sec"]["direction_processing"] += _time.perf_counter() - _direction_start
+            _runtime_metrics["symbols_completed"] += 1
+            _runtime_metrics["symbol_time_samples"].append({
+                "symbol": symbol,
+                "elapsed_sec": round(_time.perf_counter() - _symbol_start_time, 3),
+            })
+
         except Exception as e:
+            _runtime_metrics["stage_time_sec"]["direction_processing"] += _time.perf_counter() - _direction_start if "_direction_start" in locals() else 0.0
             skip["errors"] += 1
             if "Insufficient candles" not in str(e) and "NaN" not in str(e):
                 print(f"  ⚠️  {symbol}: {e}")
@@ -663,6 +703,8 @@ def main():
         f"budget_stop:{skip['time_budget_stop']} err:{skip['errors']}"
     )
 
+    _runtime_metrics["scan_elapsed_sec"] = round(_time.perf_counter() - _scan_start_time, 3)
+    _runtime_metrics["stage_time_sec"]["ranking"] = 0.0
     try:
         import json as _json
         from datetime import datetime as _dt, timezone as _tz
@@ -690,6 +732,19 @@ def main():
             "stage2_all_pool_count_avg": round(sum(stage2_all_pool_counts)/len(stage2_all_pool_counts), 2) if stage2_all_pool_counts else None,
             "stage2_selected_pool_distance_avg_pct": round(sum(stage2_selected_pool_distances)/len(stage2_selected_pool_distances), 4) if stage2_selected_pool_distances else None,
             "rrce_watchlist_active": active_count(CONFIG["rrce_watchlist_hours"]),
+            "runtime": {
+                "scan_elapsed_sec": _runtime_metrics["scan_elapsed_sec"],
+                "symbols_attempted": _runtime_metrics["symbols_attempted"],
+                "symbols_completed": _runtime_metrics["symbols_completed"],
+                "stage_time_sec": {k: round(v, 3) for k, v in _runtime_metrics["stage_time_sec"].items()},
+                "symbol_time_avg_sec": round(
+                    sum(s["elapsed_sec"] for s in _runtime_metrics["symbol_time_samples"])
+                    / len(_runtime_metrics["symbol_time_samples"]), 3
+                ) if _runtime_metrics["symbol_time_samples"] else None,
+                "symbol_time_max_sec": max(
+                    (s["elapsed_sec"] for s in _runtime_metrics["symbol_time_samples"]), default=None
+                ),
+            },
             **skip,
         }
         debug_path = "storage/scan_debug_log.jsonl"
