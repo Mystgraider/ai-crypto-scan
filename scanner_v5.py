@@ -362,6 +362,7 @@ def main():
                     except Exception:
                         if _attempt == 1:
                             df_4h = None
+            _runtime_metrics["stage_time_sec"]["rrce_data"] += _time.perf_counter() - _rrce_data_start
 
             # These are symbol-level calculations; direction only changes the
             # bonus interpretation, not the underlying market structure.
@@ -916,6 +917,37 @@ def main():
                 f"({valid_signal_count}/{CONFIG['max_signals_per_run']})."
             )
             break
+
+    # Write a final runtime snapshot after ranking and live validation so those
+    # stages are included in the persisted telemetry for this run.
+    _runtime_metrics["scan_elapsed_sec"] = round(_time.perf_counter() - _scan_start_time, 3)
+    try:
+        import json as _json
+        from datetime import datetime as _dt, timezone as _tz
+        runtime_final_row = {
+            "ts": _dt.now(_tz.utc).isoformat(),
+            "runtime_final": {
+                "scan_elapsed_sec": _runtime_metrics["scan_elapsed_sec"],
+                "symbols_attempted": _runtime_metrics["symbols_attempted"],
+                "symbols_completed": _runtime_metrics["symbols_completed"],
+                "stage_time_sec": {
+                    k: round(v, 3)
+                    for k, v in _runtime_metrics["stage_time_sec"].items()
+                },
+                "symbol_time_avg_sec": round(
+                    sum(s["elapsed_sec"] for s in _runtime_metrics["symbol_time_samples"])
+                    / len(_runtime_metrics["symbol_time_samples"]), 3
+                ) if _runtime_metrics["symbol_time_samples"] else None,
+                "symbol_time_max_sec": max(
+                    (s["elapsed_sec"] for s in _runtime_metrics["symbol_time_samples"]),
+                    default=None,
+                ),
+            },
+        }
+        with open("storage/scan_debug_log.jsonl", "a") as f:
+            f.write(_json.dumps(runtime_final_row) + "\n")
+    except Exception as _e:
+        print(f"      ⚠️  final runtime log write failed: {_e}")
 
     print("\n[6/8] Running signal tracker...")
     SignalTracker().run()
