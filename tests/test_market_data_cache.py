@@ -97,3 +97,41 @@ def test_btc_1h_failure_is_cached_as_explicit_unavailable_state():
     assert bool(second.attrs["btc_data_unavailable"])
     assert bool(second.attrs["btc_market_data"])
     assert len(second) == 1
+
+
+def test_rejects_duplicate_exchange_timestamps():
+    class DuplicateExchange:
+        def fetch_ohlcv(self, symbol, timeframe, limit):
+            base = 1_700_000_000_000
+            return [
+                [base, 100, 101, 99, 100, 10],
+                [base, 101, 102, 100, 101, 10],
+                [base, 101, 102, 100, 101, 10],
+            ]
+
+    loader = MarketDataLoader.__new__(MarketDataLoader)
+    loader.exchange = DuplicateExchange()
+    loader._ohlcv_cache = {}
+
+    import pytest
+    with pytest.raises(ValueError, match="duplicate_exchange_timestamps"):
+        loader.get_5m("ETH/USDT:USDT", limit=3)
+
+
+def test_rejects_non_monotonic_exchange_timestamps():
+    class NonMonotonicExchange:
+        def fetch_ohlcv(self, symbol, timeframe, limit):
+            base = 1_700_000_000_000
+            return [
+                [base, 100, 101, 99, 100, 10],
+                [base + 10_000, 101, 102, 100, 101, 10],
+                [base + 5_000, 102, 103, 101, 102, 10],
+            ]
+
+    loader = MarketDataLoader.__new__(MarketDataLoader)
+    loader.exchange = NonMonotonicExchange()
+    loader._ohlcv_cache = {}
+
+    import pytest
+    with pytest.raises(ValueError, match="non_monotonic_exchange_timestamps"):
+        loader.get_5m("ETH/USDT:USDT", limit=3)
