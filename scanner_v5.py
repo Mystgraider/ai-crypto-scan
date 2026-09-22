@@ -91,7 +91,7 @@ def main():
     print("=" * 55)
 
     import time as _time
-    _scan_start_time = _time.time()
+    _scan_start_time = _time.perf_counter()
     # V6.9.6: GH Actions workflow timeout is 10 min. Now that
     # require_trend_gate=False lets far more symbols reach RRCE
     # (which does 2 extra API fetches per direction tried, up to 4 per
