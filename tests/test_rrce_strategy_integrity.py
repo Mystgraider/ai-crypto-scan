@@ -151,3 +151,84 @@ def test_rrce_evaluate_accepts_matching_stage3_stage4_break_timestamp():
 
     assert result["valid"] is True
     assert result["stage4"] == s4
+
+
+def test_rrce_evaluate_rejects_break_candle_ohlc_mismatch():
+    import numpy as np
+    from unittest.mock import patch
+
+    engine = RRCEEngine()
+    df = pd.DataFrame({
+        "timestamp": pd.date_range("2026-09-19", periods=8, freq="5min", tz="UTC"),
+        "open": np.arange(100, 108, dtype=float),
+        "high": np.arange(101, 109, dtype=float),
+        "low": np.arange(99, 107, dtype=float),
+        "close": np.arange(100, 108, dtype=float),
+        "atr": np.ones(8, dtype=float),
+    })
+    df_exec = df.copy()
+    df_exec.loc[5, "close"] = 999.0
+
+    s1 = {"passed": True, "range_low": 90.0, "range_high": 110.0}
+    s2 = {"passed": True, "sweep_time": df["timestamp"].iloc[4], "sweep_extreme": 89.0}
+    s3 = {
+        "passed": True,
+        "fvg": {"top": 103.0, "bottom": 102.0, "break_idx": 5},
+        "break_idx": 5,
+        "break_time": df["timestamp"].iloc[5],
+    }
+
+    with patch.object(engine, "stage1_range", return_value=s1),          patch.object(engine, "stage2_retail_liquidity", return_value=s2),          patch.object(engine, "stage3_confirmation", return_value=s3):
+        result = engine.evaluate(
+            df_htf=df,
+            df_mtf=df,
+            df_ltf_confirm=df,
+            df_ltf_exec=df_exec,
+            direction="LONG",
+            price=100.0,
+        )
+
+    assert result["valid"] is False
+    assert result["failed_at"] == "stage3_dataframe_alignment"
+    assert result["stage3"]["reason"] == "break_candle_data_mismatch"
+    assert result["stage3"]["field"] == "close"
+
+
+def test_rrce_evaluate_rejects_break_candle_atr_mismatch():
+    import numpy as np
+    from unittest.mock import patch
+
+    engine = RRCEEngine()
+    df = pd.DataFrame({
+        "timestamp": pd.date_range("2026-09-19", periods=8, freq="5min", tz="UTC"),
+        "open": np.arange(100, 108, dtype=float),
+        "high": np.arange(101, 109, dtype=float),
+        "low": np.arange(99, 107, dtype=float),
+        "close": np.arange(100, 108, dtype=float),
+        "atr": np.ones(8, dtype=float),
+    })
+    df_exec = df.copy()
+    df_exec.loc[5, "atr"] = 2.0
+
+    s1 = {"passed": True, "range_low": 90.0, "range_high": 110.0}
+    s2 = {"passed": True, "sweep_time": df["timestamp"].iloc[4], "sweep_extreme": 89.0}
+    s3 = {
+        "passed": True,
+        "fvg": {"top": 103.0, "bottom": 102.0, "break_idx": 5},
+        "break_idx": 5,
+        "break_time": df["timestamp"].iloc[5],
+    }
+
+    with patch.object(engine, "stage1_range", return_value=s1),          patch.object(engine, "stage2_retail_liquidity", return_value=s2),          patch.object(engine, "stage3_confirmation", return_value=s3):
+        result = engine.evaluate(
+            df_htf=df,
+            df_mtf=df,
+            df_ltf_confirm=df,
+            df_ltf_exec=df_exec,
+            direction="LONG",
+            price=100.0,
+        )
+
+    assert result["valid"] is False
+    assert result["failed_at"] == "stage3_dataframe_alignment"
+    assert result["stage3"]["reason"] == "break_candle_atr_mismatch"
