@@ -49,12 +49,12 @@ def test_stage3_requires_fvg_on_the_choch_break_candle():
     assert result["reason"] == "choch_without_break_fvg"
 
 
-def test_stage3_rejects_choch_that_happens_before_sweep():
+def test_stage3_ignores_choch_before_sweep():
     engine = RRCEEngine(swing_lookback=1)
     df = _ltf_frame()
     result = engine.stage3_confirmation(df, "LONG", sweep_time=df["timestamp"].iloc[5])
     assert result["passed"] is False
-    assert result["reason"] == "choch_not_after_sweep"
+    assert result["reason"] == "no_choch"
 
 
 def test_stage4_requires_anchored_order_block():
