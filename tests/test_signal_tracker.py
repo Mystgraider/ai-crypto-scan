@@ -140,6 +140,18 @@ class SignalTrackerLifecycleTests(unittest.TestCase):
         )
         self.assertEqual(result, {"status": "SL_HIT", "event_price": 98.0})
 
+    def test_parse_signal_timestamp_requires_timezone(self):
+        parsed = self.tracker._parse_signal_timestamp("2026-01-01T00:00:00+08:00")
+        self.assertEqual(parsed.isoformat(), "2025-12-31T16:00:00+00:00")
+
+    def test_parse_signal_timestamp_rejects_invalid_value(self):
+        with self.assertRaisesRegex(ValueError, "invalid_signal_timestamp"):
+            self.tracker._parse_signal_timestamp("not-a-timestamp")
+
+    def test_parse_signal_timestamp_rejects_naive_value(self):
+        with self.assertRaisesRegex(ValueError, "naive_signal_timestamp"):
+            self.tracker._parse_signal_timestamp("2026-01-01T00:00:00")
+
     def test_invalid_direction_is_ignored(self):
         result = self.tracker._check(
             "SIDEWAYS", 103.0, 100.0, 98.0, 102.0, 104.0, 106.0, "OPEN",
