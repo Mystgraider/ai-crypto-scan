@@ -1,5 +1,4 @@
-"""
-Signal Tracker — V6.4
+"""Signal Tracker — V6.4
 ==================================
 Tracks active signals and persists lifecycle events.
 
@@ -87,7 +86,13 @@ class SignalTracker:
 
         for s in all_active:
             try:
-                ts = datetime.fromisoformat(s["timestamp"])
+                ts = self._parse_signal_timestamp(s.get("timestamp"))
+                if ts > now:
+                    print(
+                        f"  ⚠️  {s.get('symbol', '?')} {s.get('direction', '?')} "
+                        "→ skipped: future_signal_timestamp"
+                    )
+                    continue
                 if ts < expiry_cutoff:
                     age_h = int((now - ts).total_seconds() / 3600)
                     update_signal_tracking(
@@ -211,10 +216,8 @@ class SignalTracker:
         """
         if direction == "LONG":
             sl_hit = self._long_sl_hit
-            tp_hit = self._long_tp_hit
         elif direction == "SHORT":
             sl_hit = self._short_sl_hit
-            tp_hit = self._short_tp_hit
         else:
             return None
 
