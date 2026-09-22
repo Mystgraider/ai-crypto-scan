@@ -65,7 +65,7 @@ def test_stage3_does_not_accept_choch_before_sweep():
     assert result["reason"] == "choch_not_after_sweep"
 
 
-def test_stage3_window_is_bounded():
+def test_stage3_window_is_bounded_after_sweep():
     engine = RRCEEngine()
     engine._find_swings = _patched_swings
 
@@ -76,8 +76,10 @@ def test_stage3_window_is_bounded():
         confirmation_bars=1,
     )
 
-    assert result["passed"] is False
-    assert result["reason"] == "no_choch"
+    # The first closed candle after the sweep is the CHOCH candle, so a
+    # one-bar post-sweep window is sufficient and must be accepted.
+    assert result["passed"] is True
+    assert result["break_idx"] == 5
 
 
 
