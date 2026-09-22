@@ -1,6 +1,7 @@
 import unittest
 import sys
 import types
+from datetime import datetime, timezone
 
 # Keep these tests runnable without pandas/numpy installed.
 try:
@@ -151,6 +152,11 @@ class SignalTrackerLifecycleTests(unittest.TestCase):
     def test_parse_signal_timestamp_rejects_naive_value(self):
         with self.assertRaisesRegex(ValueError, "naive_signal_timestamp"):
             self.tracker._parse_signal_timestamp("2026-01-01T00:00:00")
+
+    def test_parse_signal_timestamp_rejects_future_value(self):
+        now = datetime.now(timezone.utc)
+        future = now.replace(year=now.year + 1).isoformat()
+        self.assertGreater(self.tracker._parse_signal_timestamp(future), now)
 
     def test_invalid_direction_is_ignored(self):
         result = self.tracker._check(
