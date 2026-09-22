@@ -51,7 +51,7 @@ class MarketDataLoader:
             if symbol == CONFIG["btc_symbol"] and tf == "1h":
                 df = pd.DataFrame(
                     [[
-                        pd.Timestamp.utcnow(),
+                        pd.Timestamp.now(tz="UTC"),
                         float("nan"),
                         float("nan"),
                         float("nan"),
@@ -70,7 +70,20 @@ class MarketDataLoader:
             data,
             columns=["timestamp", "open", "high", "low", "close", "volume"],
         )
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        try:
+            df["timestamp"] = pd.to_datetime(
+                df["timestamp"], unit="ms", utc=True, errors="raise"
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("invalid_exchange_timestamps") from exc
+
+        # RRCE and other temporal logic rely on positional candle order.
+        # Never silently accept duplicated or out-of-order exchange candles.
+        timestamps = df["timestamp"]
+        if timestamps.duplicated().any():
+            raise ValueError("duplicate_exchange_timestamps")
+        if len(timestamps) > 1 and not timestamps.is_monotonic_increasing:
+            raise ValueError("non_monotonic_exchange_timestamps")
 
         if symbol == CONFIG["btc_symbol"]:
             df.attrs["btc_market_data"] = True
