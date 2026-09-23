@@ -192,3 +192,21 @@ def test_stage3_rejects_duplicate_ltf_timestamps():
 
     assert result["passed"] is False
     assert result["reason"] == "duplicate_ltf_timestamps"
+
+
+def test_stage3_rejects_choch_inside_unclosed_15m_sweep_candle():
+    engine = RRCEEngine()
+    engine._find_swings = _patched_swings
+
+    # A 15m sweep candle opening at 00:15 closes at 00:30. A 5m CHOCH at
+    # 00:25 is inside that sweep candle and must not count as post-sweep
+    # confirmation.
+    result = engine.stage3_confirmation(
+        _ltf_fixture(),
+        "LONG",
+        sweep_time=pd.Timestamp("2026-09-19 00:30:00", tz="UTC"),
+        confirmation_bars=3,
+    )
+
+    assert result["passed"] is False
+    assert result["reason"] == "no_choch"
