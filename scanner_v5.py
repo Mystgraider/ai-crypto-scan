@@ -543,9 +543,19 @@ def main():
                                     trace_extra[_key] = _s2[_key]
                         if fail_stage == "stage3_confirmation":
                             _s3 = rrce_result.get("stage3") or {}
-                            for _key in ("break_time", "choch_level", "reason"):
+                            for _key in ("break_time", "choch_level", "reason", "saw_choch",
+                                         "candidate_diagnostics"):
                                 if _s3.get(_key) is not None:
                                     trace_extra[_key] = _s3[_key]
+                            _s2 = rrce_result.get("stage2") or {}
+                            for _key in ("range_low", "range_high", "pool_level",
+                                         "pool_distance_from_range_extreme_pct",
+                                         "sweep_candle_time", "sweep_time",
+                                         "sweep_extreme", "near_pool_count",
+                                         "all_pool_count", "proximity_pct",
+                                         "patience_bars"):
+                                if _s2.get(_key) is not None:
+                                    trace_extra[_key] = _s2[_key]
                     _trace(symbol, "rrce_invalid", **trace_extra)
                     stage_key = f"rrce_fail_{fail_stage}"
                     skip[stage_key] = skip.get(stage_key, 0) + 1
