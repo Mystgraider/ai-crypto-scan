@@ -207,8 +207,8 @@ def main():
 
     TRACE_SYMBOLS = {"ETH/USDT:USDT", "SOL/USDT:USDT", "BNB/USDT:USDT", "XRP/USDT:USDT", "LTC/USDT:USDT"}
     symbol_trace_log = []
-    def _trace(sym, stage, **extra):
-        if sym in TRACE_SYMBOLS:
+    def _trace(sym, stage, force=False, **extra):
+        if force or sym in TRACE_SYMBOLS:
             symbol_trace_log.append({"symbol": sym, "stage": stage, **extra})
     skip = {
         "cooldown": 0, "dated": 0, "btc": 0, "trend": 0,
@@ -556,7 +556,12 @@ def main():
                                          "patience_bars"):
                                 if _s2.get(_key) is not None:
                                     trace_extra[_key] = _s2[_key]
-                    _trace(symbol, "rrce_invalid", **trace_extra)
+                    _trace(
+                        symbol,
+                        "rrce_invalid",
+                        force=(fail_stage == "stage3_confirmation"),
+                        **trace_extra,
+                    )
                     stage_key = f"rrce_fail_{fail_stage}"
                     skip[stage_key] = skip.get(stage_key, 0) + 1
                     if fail_stage == "stage1_range" and rrce_result:
