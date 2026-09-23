@@ -26,8 +26,8 @@
   "NEO/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-23T11:39:34.075177+00:00",
-    "last_seen": "2026-09-23T11:39:34.075177+00:00",
-    "observations": 1,
+    "last_seen": "2026-09-23T12:10:09.385928+00:00",
+    "observations": 2,
     "pool_level": 2.662,
     "range_high": 2.662,
     "range_low": 2.603,
@@ -62,13 +62,13 @@
   "THETA/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-23T09:33:08.223547+00:00",
-    "last_seen": "2026-09-23T09:33:08.223547+00:00",
-    "observations": 1,
+    "last_seen": "2026-09-23T12:10:00.174376+00:00",
+    "observations": 2,
     "pool_level": 0.227,
     "range_high": 0.2367,
-    "range_low": 0.2285,
+    "range_low": 0.2264,
     "regime": "RANGE",
-    "sweep_extreme": 0.2264,
+    "sweep_extreme": 0.2258,
     "symbol": "THETA/USDT:USDT"
   },
   "WOO/USDT:USDT|SHORT": {
