@@ -1,62 +1,14 @@
 {
-  "ETH/USDT:USDT|SHORT": {
+  "STG/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-09-23T00:10:43.165670+00:00",
-    "last_seen": "2026-09-23T00:10:43.165670+00:00",
+    "first_seen": "2026-09-23T04:42:17.439855+00:00",
+    "last_seen": "2026-09-23T04:42:17.439855+00:00",
     "observations": 1,
-    "pool_level": 2763.4849999999997,
-    "range_high": 2762.97,
-    "range_low": 2715.0,
+    "pool_level": 0.1298,
+    "range_high": 0.1298,
+    "range_low": 0.1259,
     "regime": "BULL",
-    "sweep_extreme": 2768.22,
-    "symbol": "ETH/USDT:USDT"
-  },
-  "KAVA/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-09-22T22:00:57.102580+00:00",
-    "last_seen": "2026-09-22T22:00:57.102580+00:00",
-    "observations": 1,
-    "pool_level": 0.07005,
-    "range_high": 0.07042,
-    "range_low": 0.06967,
-    "regime": "BULL",
-    "sweep_extreme": 0.07008,
-    "symbol": "KAVA/USDT:USDT"
-  },
-  "KSM/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-09-22T22:00:45.749661+00:00",
-    "last_seen": "2026-09-22T22:00:45.749661+00:00",
-    "observations": 1,
-    "pool_level": 4.670000000000001,
-    "range_high": 4.738,
-    "range_low": 4.545,
-    "regime": "BULL",
-    "sweep_extreme": 4.68,
-    "symbol": "KSM/USDT:USDT"
-  },
-  "USDC/USDT:USDT|LONG": {
-    "direction": "LONG",
-    "first_seen": "2026-09-22T22:01:15.854904+00:00",
-    "last_seen": "2026-09-23T00:11:27.388291+00:00",
-    "observations": 2,
-    "pool_level": 0.9992888888888891,
-    "range_high": 0.9994,
-    "range_low": 0.9992,
-    "regime": "BULL",
-    "sweep_extreme": 0.9992,
-    "symbol": "USDC/USDT:USDT"
-  },
-  "XMR/USDT:USDT|LONG": {
-    "direction": "LONG",
-    "first_seen": "2026-09-22T22:00:55.638759+00:00",
-    "last_seen": "2026-09-23T00:11:08.252392+00:00",
-    "observations": 2,
-    "pool_level": 567.425,
-    "range_high": 577.96,
-    "range_low": 562.64,
-    "regime": "BULL",
-    "sweep_extreme": 565.66,
-    "symbol": "XMR/USDT:USDT"
+    "sweep_extreme": 0.1302,
+    "symbol": "STG/USDT:USDT"
   }
 }
