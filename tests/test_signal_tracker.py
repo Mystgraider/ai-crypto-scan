@@ -1,6 +1,7 @@
 import unittest
 import sys
 import types
+from unittest.mock import patch
 from datetime import datetime, timezone
 
 # Keep these tests runnable without pandas/numpy installed.
@@ -157,6 +158,29 @@ class SignalTrackerLifecycleTests(unittest.TestCase):
         now = datetime.now(timezone.utc)
         future = now.replace(year=now.year + 1).isoformat()
         self.assertGreater(self.tracker._parse_signal_timestamp(future), now)
+
+    def test_run_skips_future_signal_without_market_fetch_or_update(self):
+        now = datetime.now(timezone.utc)
+        future = now.replace(year=now.year + 1).isoformat()
+        future_signal = {
+            "symbol": "ETH/USDT:USDT",
+            "direction": "LONG",
+            "entry": 100.0,
+            "sl": 98.0,
+            "tp1": 102.0,
+            "tp2": 104.0,
+            "tp3": 106.0,
+            "status": "OPEN",
+            "timestamp": future,
+        }
+        self.tracker.loader = unittest.mock.Mock()
+
+        with patch("tracker.signal_tracker.load_signals", return_value=[future_signal]), \
+             patch("tracker.signal_tracker.update_signal_tracking") as update_tracking:
+            self.tracker.run()
+
+        self.tracker.loader.get_ohlcv.assert_not_called()
+        update_tracking.assert_not_called()
 
     def test_invalid_direction_is_ignored(self):
         result = self.tracker._check(
