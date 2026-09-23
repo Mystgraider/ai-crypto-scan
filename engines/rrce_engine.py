@@ -397,6 +397,7 @@ class RRCEEngine:
         saw_choch_without_fvg = False
         last_choch_level = None
         last_break_time = None
+        candidate_diagnostics = []
 
         for break_idx in candidate_indices:
             # Rebuild structure from data available BEFORE the candidate break.
@@ -417,6 +418,19 @@ class RRCEEngine:
 
             close = float(closed["close"].iloc[break_idx])
             choch = close > choch_level if direction == "LONG" else close < choch_level
+            candidate_diag = {
+                "index": int(break_idx),
+                "timestamp": str(break_time) if break_time is not None else None,
+                "close": close,
+                "choch_level": choch_level,
+                "break_distance_pct": round(
+                    abs(close - choch_level) / abs(choch_level) * 100, 5
+                ) if choch_level else None,
+                "choch": bool(choch),
+                "fvg": False,
+                "eligible_after_sweep": True,
+            }
+            candidate_diagnostics.append(candidate_diag)
             if not choch:
                 continue
 
@@ -427,6 +441,7 @@ class RRCEEngine:
                 # timestamp that is not strictly after the sweep is ineligible.
                 if pd.to_datetime(break_time, utc=True, errors="raise") <= sweep_ts:
                     saw_choch_before_sweep = True
+                    candidate_diag["eligible_after_sweep"] = False
                     continue
 
             fvg = self._detect_fvg_near(closed, direction, break_idx=break_idx)
@@ -436,12 +451,14 @@ class RRCEEngine:
                 saw_choch_without_fvg = True
                 continue
 
+            candidate_diag["fvg"] = True
             return {
                 "passed": True,
                 "choch_level": choch_level,
                 "fvg": fvg,
                 "break_idx": break_idx,
                 "break_time": break_time,
+                "candidate_diagnostics": candidate_diagnostics,
             }
 
         if saw_choch_before_sweep and sweep_time is not None and not saw_choch_without_fvg:
@@ -449,6 +466,7 @@ class RRCEEngine:
                 "passed": False,
                 "reason": "choch_not_after_sweep",
                 "choch_level": last_choch_level,
+                "candidate_diagnostics": candidate_diagnostics,
             }
 
         if saw_choch_without_fvg:
@@ -457,6 +475,7 @@ class RRCEEngine:
                 "reason": "choch_without_break_fvg",
                 "choch_level": last_choch_level,
                 "break_time": last_break_time,
+                "candidate_diagnostics": candidate_diagnostics,
             }
 
         return {
@@ -464,6 +483,7 @@ class RRCEEngine:
             "reason": "no_choch",
             "choch_level": last_choch_level,
             "saw_choch": saw_choch,
+            "candidate_diagnostics": candidate_diagnostics,
         }
 
     # ── Stage 4: EXECUTION (LTF, finest) ─────────────────────────────────
