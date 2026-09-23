@@ -437,6 +437,50 @@ class RRCEEngine:
 
             close = float(closed["close"].iloc[break_idx])
             choch = close > choch_level if direction == "LONG" else close < choch_level
+            # Diagnostic only: compare the same candidate against smaller
+            # confirmed-swing fractals. Production eligibility remains locked
+            # to self.swing_lookback (currently 10). This isolates whether a
+            # stale 10-bar fractal is the reason a post-sweep break is missed.
+            swing_sensitivity = {}
+            for sensitivity_n in (3, 5, 7, 10):
+                sensitivity_structure = self._find_swings(
+                    closed.iloc[:break_idx + 1],
+                    n=sensitivity_n,
+                ).tail(lookback)
+                sensitivity_levels = (
+                    sensitivity_structure["swing_high"].dropna()
+                    if direction == "LONG"
+                    else sensitivity_structure["swing_low"].dropna()
+                )
+                if sensitivity_levels.empty:
+                    swing_sensitivity[str(sensitivity_n)] = None
+                    continue
+                sensitivity_level = float(sensitivity_levels.iloc[-1])
+                sensitivity_index = sensitivity_levels.index[-1]
+                try:
+                    sensitivity_positions = closed.index.get_indexer([sensitivity_index])
+                    sensitivity_pos = (
+                        int(sensitivity_positions[0])
+                        if len(sensitivity_positions) and sensitivity_positions[0] >= 0
+                        else None
+                    )
+                except (TypeError, ValueError):
+                    sensitivity_pos = None
+                swing_sensitivity[str(sensitivity_n)] = {
+                    "level": sensitivity_level,
+                    "index": str(sensitivity_index),
+                    "age_bars": (
+                        int(break_idx - sensitivity_pos)
+                        if sensitivity_pos is not None and break_idx >= sensitivity_pos
+                        else None
+                    ),
+                    "choch": bool(
+                        close > sensitivity_level
+                        if direction == "LONG"
+                        else close < sensitivity_level
+                    ),
+                }
+
             candidate_diag = {
                 "index": int(break_idx),
                 "timestamp": str(break_time) if break_time is not None else None,
@@ -451,6 +495,7 @@ class RRCEEngine:
                 "choch": bool(choch),
                 "fvg": False,
                 "eligible_after_sweep": True,
+                "swing_sensitivity": swing_sensitivity,
             }
             candidate_diagnostics.append(candidate_diag)
             if not choch:
