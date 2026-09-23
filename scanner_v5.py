@@ -562,6 +562,15 @@ def main():
                         force=(fail_stage == "stage3_confirmation"),
                         **trace_extra,
                     )
+                    if fail_stage == "stage3_confirmation":
+                        print(
+                            "RRCE_STAGE3_DIAGNOSTIC "
+                            + _json.dumps(
+                                {"symbol": symbol, **trace_extra},
+                                default=str,
+                                sort_keys=True,
+                            )
+                        )
                     stage_key = f"rrce_fail_{fail_stage}"
                     skip[stage_key] = skip.get(stage_key, 0) + 1
                     if fail_stage == "stage1_range" and rrce_result:
