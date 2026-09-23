@@ -312,6 +312,7 @@ class RRCEEngine:
             "sweep_window_start": str(window["timestamp"].iloc[0]) if "timestamp" in window.columns and not window.empty else None,
             "sweep_window_end": str(window["timestamp"].iloc[-1]) if "timestamp" in window.columns and not window.empty else None,
             "sweep_extreme": sweep_extreme,
+            "sweep_candle_time": sweep_candle_time,
             "sweep_time": sweep_time,
         }
 
