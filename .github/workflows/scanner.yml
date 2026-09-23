@@ -52,9 +52,23 @@ jobs:
         run: |
           git config user.name "Elite Scanner Bot"
           git config user.email "bot@elitescanner.dev"
+
+          # The scanner may run from a checkout that became stale while
+          # another workflow/manual merge updated main. Re-anchor the local
+          # branch to the current remote main while preserving generated
+          # state in the working tree, then commit only the state files.
+          git fetch origin main
+          git reset --mixed origin/main
+
           git add storage/signals.csv storage/cooldown.json storage/circuit_breaker.json storage/rrce_watchlist.json storage/scan_debug_log.jsonl storage/symbol_trace_log.jsonl || true
-          git diff --staged --quiet || git commit -m "chore: update scanner state"
-          git push
+
+          if git diff --staged --quiet; then
+            echo "No generated scanner state changes to commit."
+            exit 0
+          fi
+
+          git commit -m "chore: update scanner state"
+          git push origin HEAD:main
 
   daily_report:
     if: github.event_name == 'schedule' && github.event.schedule == '0 0 * * *'
@@ -94,6 +108,18 @@ jobs:
         run: |
           git config user.name "Elite Scanner Bot"
           git config user.email "bot@elitescanner.dev"
+
+          # Re-anchor before pushing so manual merges or other state commits
+          # cannot cause a non-fast-forward failure.
+          git fetch origin main
+          git reset --mixed origin/main
+
           git add storage/signals.csv || true
-          git diff --staged --quiet || git commit -m "chore: update signal statuses [skip ci]"
-          git push
+
+          if git diff --staged --quiet; then
+            echo "No updated signal statuses to commit."
+            exit 0
+          fi
+
+          git commit -m "chore: update signal statuses [skip ci]"
+          git push origin HEAD:main
