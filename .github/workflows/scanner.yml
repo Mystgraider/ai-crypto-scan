@@ -5,6 +5,12 @@ on:
     - cron: '*/5 * * * *'
     - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      scan_ref:
+        description: "Branch or tag to scan (default: main)"
+        required: false
+        default: "main"
+        type: string
 
 jobs:
   scan:
@@ -28,7 +34,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.scan_ref || github.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show scan ref
+        run: |
+          echo "Workflow ref: $GITHUB_REF"
+          echo "Workflow SHA: $GITHUB_SHA"
+          echo "Requested scan ref: ${{ inputs.scan_ref || github.ref }}"
 
       - name: Setup Python
         uses: actions/setup-python@v5
