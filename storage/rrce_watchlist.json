@@ -1,26 +1,14 @@
 {
   "BAT/USDT:USDT|LONG": {
     "direction": "LONG",
-    "first_seen": "2026-09-23T18:06:18.606841+00:00",
-    "last_seen": "2026-09-23T18:06:18.606841+00:00",
+    "first_seen": "2026-09-23T18:17:27.483810+00:00",
+    "last_seen": "2026-09-23T18:17:27.483810+00:00",
     "observations": 1,
     "pool_level": 0.08844,
     "range_high": 0.0958,
     "range_low": 0.08613,
     "regime": "RANGE",
-    "sweep_extreme": 0.08758,
+    "sweep_extreme": 0.08829,
     "symbol": "BAT/USDT:USDT"
-  },
-  "USDC/USDT:USDT|LONG": {
-    "direction": "LONG",
-    "first_seen": "2026-09-23T18:06:24.638141+00:00",
-    "last_seen": "2026-09-23T18:06:24.638141+00:00",
-    "observations": 1,
-    "pool_level": 0.9991863636363637,
-    "range_high": 0.9996,
-    "range_low": 0.9991,
-    "regime": "RANGE",
-    "sweep_extreme": 0.9991,
-    "symbol": "USDC/USDT:USDT"
   }
 }
