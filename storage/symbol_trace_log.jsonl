@@ -147,3 +147,4 @@
 {"ts": "2026-09-23T00:11:33.720054+00:00", "trace": [{"symbol": "ETH/USDT:USDT", "stage": "rrce_invalid", "direction": "LONG"}, {"symbol": "ETH/USDT:USDT", "stage": "rrce_invalid", "direction": "SHORT"}, {"symbol": "SOL/USDT:USDT", "stage": "rrce_invalid", "direction": "LONG"}, {"symbol": "SOL/USDT:USDT", "stage": "rrce_invalid", "direction": "SHORT"}, {"symbol": "BNB/USDT:USDT", "stage": "rrce_invalid", "direction": "LONG"}, {"symbol": "BNB/USDT:USDT", "stage": "rrce_invalid", "direction": "SHORT"}]}
 {"ts": "2026-09-23T04:42:34.752334+00:00", "trace": []}
 {"ts": "2026-09-23T09:34:04.587611+00:00", "trace": [{"symbol": "LTC/USDT:USDT", "stage": "rrce_invalid", "direction": "LONG"}, {"symbol": "LTC/USDT:USDT", "stage": "rrce_invalid", "direction": "SHORT"}]}
+{"ts": "2026-09-23T11:40:07.359049+00:00", "trace": []}
