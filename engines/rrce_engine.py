@@ -283,8 +283,17 @@ class RRCEEngine:
             return {"passed": False, "reason": "invalid_direction", "pools": []}
 
         sweep_time = None
+        sweep_candle_time = None
         if swept and "timestamp" in window.columns:
-            sweep_time = window.loc[swept_mask, "timestamp"].iloc[-1]
+            # Exchange OHLCV timestamps identify candle OPEN time. Stage 3 runs
+            # on 5m candles, so the confirmation clock must begin only after
+            # the complete 15m sweep candle has CLOSED. Using the 15m open
+            # timestamp here would incorrectly admit 5m candles that occurred
+            # inside the sweep candle itself.
+            sweep_candle_time = window.loc[swept_mask, "timestamp"].iloc[-1]
+            sweep_time = pd.to_datetime(
+                sweep_candle_time, utc=True, errors="raise"
+            ) + pd.Timedelta(minutes=15)
 
         pool_distance_pct = abs(pool["level"] - range_extreme) / range_extreme * 100 if range_extreme else None
 
@@ -303,6 +312,7 @@ class RRCEEngine:
             "sweep_window_start": str(window["timestamp"].iloc[0]) if "timestamp" in window.columns and not window.empty else None,
             "sweep_window_end": str(window["timestamp"].iloc[-1]) if "timestamp" in window.columns and not window.empty else None,
             "sweep_extreme": sweep_extreme,
+            "sweep_candle_time": sweep_candle_time,
             "sweep_time": sweep_time,
         }
 

@@ -140,7 +140,8 @@ def test_stage2_selects_a_swept_qualifying_pool_over_a_closer_unswept_pool():
     assert result["passed"] is True
     assert result["pool_level"] == 102.0
     assert result["pool_distance_from_range_extreme_pct"] == 2.0
-    assert result["sweep_time"] == df["timestamp"].iloc[5]
+    assert result["sweep_candle_time"] == df["timestamp"].iloc[5]
+    assert result["sweep_time"] == df["timestamp"].iloc[5] + pd.Timedelta(minutes=15)
 
 def test_stage2_pool_discovery_is_cut_off_before_sweep_window():
     engine = RRCEEngine()
@@ -175,7 +176,8 @@ def test_stage2_pool_discovery_is_cut_off_before_sweep_window():
     assert observed_lengths == [16]
     assert result["passed"] is True
     assert result["pool_level"] == 100.0
-    assert result["sweep_time"] == df["timestamp"].iloc[-2]
+    assert result["sweep_candle_time"] == df["timestamp"].iloc[-2]
+    assert result["sweep_time"] == df["timestamp"].iloc[-2] + pd.Timedelta(minutes=15)
 
 
 def test_stage2_does_not_use_future_confirmed_swing_as_pool():
@@ -208,3 +210,34 @@ def test_stage2_does_not_use_future_confirmed_swing_as_pool():
 
     assert result["passed"] is False
     assert result["reason"] == "no_equal_lows_near_range_low"
+
+
+def test_stage2_sweep_time_is_candle_close_for_ltf_confirmation_boundary():
+    engine = RRCEEngine()
+    rows = 20
+    df = pd.DataFrame({
+        "high": [103.0] * rows,
+        "low": [99.0] * rows,
+        "close": [100.0] * rows,
+        "timestamp": pd.date_range("2026-09-19", periods=rows, freq="15min", tz="UTC"),
+    })
+    df.loc[16:18, "close"] = 100.5
+
+    def fake_find_swings(frame):
+        swings = frame.copy()
+        swings["swing_high"] = np.nan
+        swings["swing_low"] = np.nan
+        swings.loc[1, "swing_low"] = 100.0
+        swings.loc[3, "swing_low"] = 100.0
+        return swings
+
+    engine._find_swings = fake_find_swings
+    result = engine.stage2_retail_liquidity(
+        df, "LONG", range_low=100.0, range_high=110.0,
+        proximity_pct=5.0, patience_bars=3,
+    )
+
+    sweep_open = df["timestamp"].iloc[-2]
+    assert result["passed"] is True
+    assert result["sweep_candle_time"] == sweep_open
+    assert result["sweep_time"] == sweep_open + pd.Timedelta(minutes=15)
