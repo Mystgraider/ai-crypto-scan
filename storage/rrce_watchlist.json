@@ -1,8 +1,8 @@
 {
   "BAT/USDT:USDT|LONG": {
     "direction": "LONG",
-    "first_seen": "2026-09-23T17:51:47.498711+00:00",
-    "last_seen": "2026-09-23T17:51:47.498711+00:00",
+    "first_seen": "2026-09-23T17:57:29.680547+00:00",
+    "last_seen": "2026-09-23T17:57:29.680547+00:00",
     "observations": 1,
     "pool_level": 0.08844,
     "range_high": 0.0958,
@@ -13,8 +13,8 @@
   },
   "USDC/USDT:USDT|LONG": {
     "direction": "LONG",
-    "first_seen": "2026-09-23T17:51:54.283050+00:00",
-    "last_seen": "2026-09-23T17:51:54.283050+00:00",
+    "first_seen": "2026-09-23T17:57:36.842266+00:00",
+    "last_seen": "2026-09-23T17:57:36.842266+00:00",
     "observations": 1,
     "pool_level": 0.9991866666666668,
     "range_high": 0.9996,
