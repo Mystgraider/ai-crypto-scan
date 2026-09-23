@@ -412,9 +412,28 @@ class RRCEEngine:
                 continue
 
             choch_level = float(swing_levels.iloc[-1])
+            choch_index = swing_levels.index[-1]
             break_time = closed["timestamp"].iloc[break_idx] if "timestamp" in closed.columns else None
             last_choch_level = choch_level
             last_break_time = break_time
+
+            # Diagnostic only: measure how old the structural level is at the
+            # candidate break. This does not alter CHOCH eligibility.
+            try:
+                swing_positions = closed.index.get_indexer([choch_index])
+                swing_pos = int(swing_positions[0]) if len(swing_positions) and swing_positions[0] >= 0 else None
+            except (TypeError, ValueError):
+                swing_pos = None
+            choch_age_bars = (
+                int(break_idx - swing_pos)
+                if swing_pos is not None and break_idx >= swing_pos
+                else None
+            )
+            choch_time = (
+                closed["timestamp"].iloc[swing_pos]
+                if swing_pos is not None and "timestamp" in closed.columns
+                else None
+            )
 
             close = float(closed["close"].iloc[break_idx])
             choch = close > choch_level if direction == "LONG" else close < choch_level
@@ -423,6 +442,9 @@ class RRCEEngine:
                 "timestamp": str(break_time) if break_time is not None else None,
                 "close": close,
                 "choch_level": choch_level,
+                "choch_index": str(choch_index),
+                "choch_time": str(choch_time) if choch_time is not None else None,
+                "choch_age_bars": choch_age_bars,
                 "break_distance_pct": round(
                     abs(close - choch_level) / abs(choch_level) * 100, 5
                 ) if choch_level else None,
