@@ -1,4 +1,40 @@
 {
+  "APE/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-23T12:35:30.153301+00:00",
+    "last_seen": "2026-09-23T12:35:30.153301+00:00",
+    "observations": 1,
+    "pool_level": 0.1614,
+    "range_high": 0.1657,
+    "range_low": 0.1576,
+    "regime": "RANGE",
+    "sweep_extreme": 0.1626,
+    "symbol": "APE/USDT:USDT"
+  },
+  "BAND/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-23T12:35:53.627065+00:00",
+    "last_seen": "2026-09-23T12:35:53.627065+00:00",
+    "observations": 1,
+    "pool_level": 0.2242,
+    "range_high": 0.2309,
+    "range_low": 0.2242,
+    "regime": "RANGE",
+    "sweep_extreme": 0.2241,
+    "symbol": "BAND/USDT:USDT"
+  },
+  "COMP/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-23T12:35:44.147306+00:00",
+    "last_seen": "2026-09-23T12:35:44.147306+00:00",
+    "observations": 1,
+    "pool_level": 22.72,
+    "range_high": 23.47,
+    "range_low": 22.72,
+    "regime": "RANGE",
+    "sweep_extreme": 22.58,
+    "symbol": "COMP/USDT:USDT"
+  },
   "CRV/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-23T09:33:14.092109+00:00",
@@ -26,8 +62,8 @@
   "NEO/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-23T11:39:34.075177+00:00",
-    "last_seen": "2026-09-23T12:10:09.385928+00:00",
-    "observations": 2,
+    "last_seen": "2026-09-23T12:35:23.869797+00:00",
+    "observations": 3,
     "pool_level": 2.662,
     "range_high": 2.662,
     "range_low": 2.603,
@@ -62,13 +98,13 @@
   "THETA/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-23T09:33:08.223547+00:00",
-    "last_seen": "2026-09-23T12:10:00.174376+00:00",
-    "observations": 2,
+    "last_seen": "2026-09-23T12:35:15.973497+00:00",
+    "observations": 3,
     "pool_level": 0.227,
     "range_high": 0.2367,
     "range_low": 0.2264,
     "regime": "RANGE",
-    "sweep_extreme": 0.2258,
+    "sweep_extreme": 0.2251,
     "symbol": "THETA/USDT:USDT"
   },
   "WOO/USDT:USDT|SHORT": {
