@@ -355,6 +355,12 @@ def main():
                             stage1_position_samples.append(_s1["position_pct"])
                         _fail_key = "rrce_fail_stage1_range"
                         skip[_fail_key] = skip.get(_fail_key, 0) + 1
+                        _trace(
+                            symbol, "rrce_stage1_prefilter_block",
+                            direction=_direction,
+                            reason="stage1_range",
+                            position_pct=_s1.get("position_pct") if _s1 else None,
+                        )
                     continue
 
             funding_result_base = {"funding_pct": 0.0, "funding_pct_raw": 0.0, "short_score_adj": 0}
@@ -515,8 +521,32 @@ def main():
 
                 if not rrce_result or not rrce_result.get("valid"):
                     skip["rrce_invalid"] = skip.get("rrce_invalid", 0) + 1
-                    _trace(symbol, "rrce_invalid", direction=direction)
                     fail_stage = rrce_result.get("failed_at", "no_data") if rrce_result else "fetch_error"
+                    trace_extra = {"direction": direction, "failed_at": fail_stage}
+                    if rrce_result:
+                        for _stage_name in ("stage1", "stage2", "stage3", "stage4"):
+                            _stage_data = rrce_result.get(_stage_name)
+                            if isinstance(_stage_data, dict):
+                                _reason = _stage_data.get("reason")
+                                if _reason:
+                                    trace_extra[f"{_stage_name}_reason"] = _reason
+                        if fail_stage == "stage1_range":
+                            _s1 = rrce_result.get("stage1") or {}
+                            if "position_pct" in _s1:
+                                trace_extra["position_pct"] = _s1["position_pct"]
+                        if fail_stage == "stage2_retail_liquidity":
+                            _s2 = rrce_result.get("stage2") or {}
+                            for _key in ("near_pool_count", "all_pool_count",
+                                         "pool_distance_from_range_extreme_pct",
+                                         "sweep_time", "sweep_candle_time"):
+                                if _s2.get(_key) is not None:
+                                    trace_extra[_key] = _s2[_key]
+                        if fail_stage == "stage3_confirmation":
+                            _s3 = rrce_result.get("stage3") or {}
+                            for _key in ("break_time", "choch_level", "reason"):
+                                if _s3.get(_key) is not None:
+                                    trace_extra[_key] = _s3[_key]
+                    _trace(symbol, "rrce_invalid", **trace_extra)
                     stage_key = f"rrce_fail_{fail_stage}"
                     skip[stage_key] = skip.get(stage_key, 0) + 1
                     if fail_stage == "stage1_range" and rrce_result:
