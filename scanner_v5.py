@@ -19,6 +19,8 @@ V6.1 (data-driven, unchanged):
   - Vol > 3.0x hard block (extreme spike = reversal risk)
 """
 
+import json as _json
+
 from loaders.top_symbols_loader  import TopSymbolsLoader
 from loaders.market_data_loader  import MarketDataLoader
 from indicators.indicators       import Indicators
@@ -794,7 +796,6 @@ def main():
     _runtime_metrics["scan_elapsed_sec"] = round(_time.perf_counter() - _scan_start_time, 3)
     _runtime_metrics["stage_time_sec"]["ranking"] = 0.0
     try:
-        import json as _json
         from datetime import datetime as _dt, timezone as _tz
         debug_row = {
             "ts": _dt.now(_tz.utc).isoformat(),
