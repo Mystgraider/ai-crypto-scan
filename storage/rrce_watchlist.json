@@ -1,14 +1,1 @@
-{
-  "BAT/USDT:USDT|LONG": {
-    "direction": "LONG",
-    "first_seen": "2026-09-23T18:17:27.483810+00:00",
-    "last_seen": "2026-09-23T18:28:09.031304+00:00",
-    "observations": 2,
-    "pool_level": 0.08844,
-    "range_high": 0.0958,
-    "range_low": 0.08613,
-    "regime": "RANGE",
-    "sweep_extreme": 0.08829,
-    "symbol": "BAT/USDT:USDT"
-  }
-}
+{}
