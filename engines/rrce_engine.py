@@ -443,7 +443,11 @@ class RRCEEngine:
             # stale 10-bar fractal is the reason a post-sweep break is missed.
             swing_sensitivity = {}
             for sensitivity_n in (3, 5, 7, 10):
-                sensitivity_structure = self._find_swings(
+                # Call the real helper directly so tests that monkeypatch
+                # instance-level _find_swings for temporal fixtures do not
+                # interfere with this diagnostic-only sensitivity probe.
+                sensitivity_structure = RRCEEngine._find_swings(
+                    self,
                     closed.iloc[:break_idx + 1],
                     n=sensitivity_n,
                 ).tail(lookback)
