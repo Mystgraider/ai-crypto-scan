@@ -836,7 +836,7 @@ def main():
     try:
         trace_row = {"ts": _dt.now(_tz.utc).isoformat(), "trace": symbol_trace_log}
         with open("storage/symbol_trace_log.jsonl", "a") as f:
-            f.write(_json.dumps(trace_row) + "\n")
+            f.write(_json.dumps(trace_row, default=str) + "\n")
     except Exception as _e:
         print(f"      ⚠️  trace log write failed: {_e}")
 
