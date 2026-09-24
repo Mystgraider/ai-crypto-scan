@@ -532,6 +532,62 @@ class RRCEEngine:
                 "candidate_diagnostics": candidate_diagnostics,
             }
 
+        # Diagnostic only: inspect the next 8 CLOSED candles after the
+        # production confirmation window. This does NOT expand production
+        # eligibility; it only tells us whether a delayed CHOCH/FVG appears
+        # immediately after the locked confirmation window.
+        delayed_confirmation_diagnostics = []
+        if candidate_indices:
+            diagnostic_start = candidate_indices[-1] + 1
+            diagnostic_end = min(window_end, diagnostic_start + 7)
+            for delayed_idx in range(diagnostic_start, diagnostic_end + 1):
+                delayed_structure = self._find_swings(
+                    closed.iloc[:delayed_idx + 1]
+                ).tail(lookback)
+                delayed_levels = (
+                    delayed_structure["swing_high"].dropna()
+                    if direction == "LONG"
+                    else delayed_structure["swing_low"].dropna()
+                )
+                if delayed_levels.empty:
+                    continue
+                delayed_level = float(delayed_levels.iloc[-1])
+                delayed_close = float(closed["close"].iloc[delayed_idx])
+                delayed_break_time = (
+                    closed["timestamp"].iloc[delayed_idx]
+                    if "timestamp" in closed.columns
+                    else None
+                )
+                delayed_choch = (
+                    delayed_close > delayed_level
+                    if direction == "LONG"
+                    else delayed_close < delayed_level
+                )
+                delayed_fvg = (
+                    self._detect_fvg_near(
+                        closed, direction, break_idx=delayed_idx
+                    )
+                    if delayed_choch
+                    else None
+                )
+                delayed_confirmation_diagnostics.append({
+                    "index": int(delayed_idx),
+                    "timestamp": (
+                        str(delayed_break_time)
+                        if delayed_break_time is not None
+                        else None
+                    ),
+                    "close": delayed_close,
+                    "choch_level": delayed_level,
+                    "choch": bool(delayed_choch),
+                    "fvg": bool(delayed_fvg),
+                    "break_distance_pct": round(
+                        abs(delayed_close - delayed_level)
+                        / abs(delayed_level) * 100,
+                        5,
+                    ) if delayed_level else None,
+                })
+
         if saw_choch_before_sweep and sweep_time is not None and not saw_choch_without_fvg:
             return {
                 "passed": False,
