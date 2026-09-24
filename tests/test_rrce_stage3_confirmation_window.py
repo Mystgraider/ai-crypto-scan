@@ -139,7 +139,7 @@ def test_stage3_tuning_is_configured_and_scanner_wires_it():
         encoding="utf-8"
     )
 
-    assert CONFIG["rrce_stage3_confirmation_bars"] == 3
+    assert CONFIG["rrce_stage3_confirmation_bars"] == 6
     assert 'confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"]' in scanner
 
 
