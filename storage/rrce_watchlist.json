@@ -1,14 +1,1 @@
-{
-  "APE/USDT:USDT|LONG": {
-    "direction": "LONG",
-    "first_seen": "2026-09-24T04:46:36.684173+00:00",
-    "last_seen": "2026-09-24T04:46:36.684173+00:00",
-    "observations": 1,
-    "pool_level": 0.1469,
-    "range_high": 0.1498,
-    "range_low": 0.1454,
-    "regime": "BEAR_CAUTION",
-    "sweep_extreme": 0.1468,
-    "symbol": "APE/USDT:USDT"
-  }
-}
+{}
