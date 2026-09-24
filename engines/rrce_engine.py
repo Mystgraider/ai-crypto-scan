@@ -504,6 +504,8 @@ class RRCEEngine:
             # rules used by production. It does not change eligibility.
             post_sweep_handoff_replay = {
                 "sweep_time": str(sweep_ts) if sweep_ts is not None else None,
+                "replay_max_candles": 25,
+                "replay_candles_inspected": 0,
                 "first_confirmed_swing": None,
                 "first_choch_after_confirmation": None,
             }
@@ -515,7 +517,10 @@ class RRCEEngine:
                     post_sweep_indices = [
                         int(i) for i in range(len(closed))
                         if replay_ts.iloc[i] > sweep_ts
-                    ]
+                    ][:25]
+                    post_sweep_handoff_replay["replay_candles_inspected"] = len(
+                        post_sweep_indices
+                    )
                     for replay_idx in post_sweep_indices:
                         replay_structure = self._find_swings(
                             closed.iloc[:replay_idx + 1]
