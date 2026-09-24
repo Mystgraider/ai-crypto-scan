@@ -498,6 +498,57 @@ class RRCEEngine:
                 except (TypeError, ValueError, OverflowError):
                     choch_relation = "UNKNOWN"
 
+            # Diagnostic only: isolate the latest CONFIRMED structural swing
+            # that formed after the completed Stage-2 sweep. Production CHOCH
+            # remains anchored to the locked structural reference above.
+            post_sweep_structure = None
+            post_sweep_level = None
+            post_sweep_index = None
+            post_sweep_time = None
+            post_sweep_age_bars = None
+            post_sweep_choch = False
+            if sweep_ts is not None and "timestamp" in closed.columns:
+                try:
+                    structure_times = pd.to_datetime(
+                        structure["timestamp"], utc=True, errors="raise"
+                    )
+                    post_sweep_levels = swing_levels[
+                        structure_times.loc[swing_levels.index] > sweep_ts
+                    ]
+                    if not post_sweep_levels.empty:
+                        post_sweep_level = float(post_sweep_levels.iloc[-1])
+                        post_sweep_index = post_sweep_levels.index[-1]
+                        try:
+                            post_positions = closed.index.get_indexer([post_sweep_index])
+                            post_pos = (
+                                int(post_positions[0])
+                                if len(post_positions) and post_positions[0] >= 0
+                                else None
+                            )
+                        except (TypeError, ValueError):
+                            post_pos = None
+                        if post_pos is not None:
+                            post_sweep_time = closed["timestamp"].iloc[post_pos]
+                            post_sweep_age_bars = (
+                                int(break_idx - post_pos)
+                                if break_idx >= post_pos
+                                else None
+                            )
+                        post_sweep_choch = (
+                            close > post_sweep_level
+                            if direction == "LONG"
+                            else close < post_sweep_level
+                        )
+                        post_sweep_structure = {
+                            "level": post_sweep_level,
+                            "index": str(post_sweep_index),
+                            "time": str(post_sweep_time) if post_sweep_time is not None else None,
+                            "age_bars": post_sweep_age_bars,
+                            "choch": bool(post_sweep_choch),
+                        }
+                except (TypeError, ValueError, OverflowError, KeyError):
+                    post_sweep_structure = None
+
             candidate_diag = {
                 "index": int(break_idx),
                 "timestamp": str(break_time) if break_time is not None else None,
@@ -507,6 +558,7 @@ class RRCEEngine:
                 "choch_time": str(choch_time) if choch_time is not None else None,
                 "choch_age_bars": choch_age_bars,
                 "choch_relation": choch_relation,
+                "post_sweep_structure": post_sweep_structure,
                 "break_distance_pct": round(
                     abs(close - choch_level) / abs(choch_level) * 100, 5
                 ) if choch_level else None,
