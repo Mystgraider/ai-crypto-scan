@@ -594,6 +594,7 @@ class RRCEEngine:
                 "reason": "choch_not_after_sweep",
                 "choch_level": last_choch_level,
                 "candidate_diagnostics": candidate_diagnostics,
+                "delayed_confirmation_diagnostics": delayed_confirmation_diagnostics,
             }
 
         if saw_choch_without_fvg:
@@ -603,6 +604,7 @@ class RRCEEngine:
                 "choch_level": last_choch_level,
                 "break_time": last_break_time,
                 "candidate_diagnostics": candidate_diagnostics,
+                "delayed_confirmation_diagnostics": delayed_confirmation_diagnostics,
             }
 
         return {
@@ -611,6 +613,7 @@ class RRCEEngine:
             "choch_level": last_choch_level,
             "saw_choch": saw_choch,
             "candidate_diagnostics": candidate_diagnostics,
+            "delayed_confirmation_diagnostics": delayed_confirmation_diagnostics,
         }
 
     # ── Stage 4: EXECUTION (LTF, finest) ─────────────────────────────────
