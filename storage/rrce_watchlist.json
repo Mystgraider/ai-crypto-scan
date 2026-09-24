@@ -2,8 +2,8 @@
   "ARB/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-24T17:38:40.361028+00:00",
-    "last_seen": "2026-09-24T17:41:04.591902+00:00",
-    "observations": 2,
+    "last_seen": "2026-09-24T17:47:55.052452+00:00",
+    "observations": 3,
     "pool_level": 0.2146,
     "range_high": 0.22348,
     "range_low": 0.21031,
@@ -14,8 +14,8 @@
   "ETH/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-24T17:37:30.021438+00:00",
-    "last_seen": "2026-09-24T17:39:49.221018+00:00",
-    "observations": 2,
+    "last_seen": "2026-09-24T17:46:41.896105+00:00",
+    "observations": 3,
     "pool_level": 2700.0033333333336,
     "range_high": 2698.65,
     "range_low": 2626.39,
