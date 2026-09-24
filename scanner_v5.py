@@ -546,7 +546,7 @@ def main():
                         if fail_stage == "stage3_confirmation":
                             _s3 = rrce_result.get("stage3") or {}
                             for _key in ("break_time", "choch_level", "reason", "saw_choch",
-                                         "candidate_diagnostics"):
+                                         "candidate_diagnostics", "delayed_confirmation_diagnostics"):
                                 if _s3.get(_key) is not None:
                                     trace_extra[_key] = _s3[_key]
                             _s2 = rrce_result.get("stage2") or {}
