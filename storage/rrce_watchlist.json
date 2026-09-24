@@ -1,8 +1,8 @@
 {
   "APE/USDT:USDT|LONG": {
     "direction": "LONG",
-    "first_seen": "2026-09-24T04:17:56.996424+00:00",
-    "last_seen": "2026-09-24T04:17:56.996424+00:00",
+    "first_seen": "2026-09-24T04:25:35.225222+00:00",
+    "last_seen": "2026-09-24T04:25:35.225222+00:00",
     "observations": 1,
     "pool_level": 0.1469,
     "range_high": 0.1498,
@@ -13,8 +13,8 @@
   },
   "KNC/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-09-24T04:17:58.210679+00:00",
-    "last_seen": "2026-09-24T04:17:58.210679+00:00",
+    "first_seen": "2026-09-24T04:25:36.396485+00:00",
+    "last_seen": "2026-09-24T04:25:36.396485+00:00",
     "observations": 1,
     "pool_level": 0.1414,
     "range_high": 0.1414,
