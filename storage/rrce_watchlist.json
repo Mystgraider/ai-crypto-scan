@@ -22,5 +22,29 @@
     "regime": "RANGE",
     "sweep_extreme": 2705.77,
     "symbol": "ETH/USDT:USDT"
+  },
+  "SSV/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-24T20:48:01.549777+00:00",
+    "last_seen": "2026-09-24T20:48:01.549777+00:00",
+    "observations": 1,
+    "pool_level": 3.127,
+    "range_high": 3.127,
+    "range_low": 2.989,
+    "regime": "RANGE",
+    "sweep_extreme": 3.137,
+    "symbol": "SSV/USDT:USDT"
+  },
+  "USDC/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-24T20:48:02.464078+00:00",
+    "last_seen": "2026-09-24T20:48:02.464078+00:00",
+    "observations": 1,
+    "pool_level": 0.9995116279069766,
+    "range_high": 0.9998,
+    "range_low": 0.9994,
+    "regime": "RANGE",
+    "sweep_extreme": 0.9998,
+    "symbol": "USDC/USDT:USDT"
   }
 }
