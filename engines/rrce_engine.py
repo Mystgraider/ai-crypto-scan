@@ -498,6 +498,91 @@ class RRCEEngine:
                 except (TypeError, ValueError, OverflowError):
                     choch_relation = "UNKNOWN"
 
+            # Diagnostic only: replay the post-sweep structural handoff
+            # candle-by-candle. This measures when a confirmed post-sweep
+            # swing first becomes KNOWABLE under the same centered-fractal
+            # rules used by production. It does not change eligibility.
+            post_sweep_handoff_replay = {
+                "sweep_time": str(sweep_ts) if sweep_ts is not None else None,
+                "first_confirmed_swing": None,
+                "first_choch_after_confirmation": None,
+            }
+            if sweep_ts is not None and "timestamp" in closed.columns:
+                try:
+                    replay_ts = pd.to_datetime(
+                        closed["timestamp"], utc=True, errors="raise"
+                    )
+                    post_sweep_indices = [
+                        int(i) for i in range(len(closed))
+                        if replay_ts.iloc[i] > sweep_ts
+                    ]
+                    for replay_idx in post_sweep_indices:
+                        replay_structure = self._find_swings(
+                            closed.iloc[:replay_idx + 1]
+                        ).tail(lookback)
+                        replay_levels = (
+                            replay_structure["swing_high"].dropna()
+                            if direction == "LONG"
+                            else replay_structure["swing_low"].dropna()
+                        )
+                        post_levels = [
+                            idx for idx in replay_levels.index
+                            if pd.to_datetime(
+                                replay_structure.loc[idx, "timestamp"],
+                                utc=True,
+                                errors="raise",
+                            ) > sweep_ts
+                        ]
+                        if not post_levels:
+                            continue
+                        replay_level_idx = post_levels[-1]
+                        replay_level = float(replay_levels.loc[replay_level_idx])
+                        replay_level_pos = closed.index.get_indexer([replay_level_idx])
+                        replay_pos = (
+                            int(replay_level_pos[0])
+                            if len(replay_level_pos) and replay_level_pos[0] >= 0
+                            else None
+                        )
+                        if replay_pos is None:
+                            continue
+                        replay_level_time = closed["timestamp"].iloc[replay_pos]
+                        replay_age = replay_idx - replay_pos
+                        replay_close = float(closed["close"].iloc[replay_idx])
+                        replay_choch = (
+                            replay_close > replay_level
+                            if direction == "LONG"
+                            else replay_close < replay_level
+                        )
+                        if post_sweep_handoff_replay["first_confirmed_swing"] is None:
+                            post_sweep_handoff_replay["first_confirmed_swing"] = {
+                                "level": replay_level,
+                                "index": str(replay_level_idx),
+                                "time": str(replay_level_time),
+                                "available_at_index": replay_idx,
+                                "available_at_time": str(closed["timestamp"].iloc[replay_idx]),
+                                "confirmation_age_bars": int(replay_age),
+                            }
+                        if replay_choch:
+                            post_sweep_handoff_replay["first_choch_after_confirmation"] = {
+                                "level": replay_level,
+                                "index": str(replay_level_idx),
+                                "time": str(replay_level_time),
+                                "break_index": replay_idx,
+                                "break_time": str(closed["timestamp"].iloc[replay_idx]),
+                                "break_distance_pct": round(
+                                    abs(replay_close - replay_level) / abs(replay_level) * 100,
+                                    5,
+                                ) if replay_level else None,
+                            }
+                            break
+                except (TypeError, ValueError, OverflowError, KeyError):
+                    post_sweep_handoff_replay = {
+                        "sweep_time": str(sweep_ts) if sweep_ts is not None else None,
+                        "first_confirmed_swing": None,
+                        "first_choch_after_confirmation": None,
+                        "error": "replay_failed",
+                    }
+
             # Diagnostic only: isolate the latest CONFIRMED structural swing
             # that formed after the completed Stage-2 sweep. Production CHOCH
             # remains anchored to the locked structural reference above.
@@ -559,6 +644,7 @@ class RRCEEngine:
                 "choch_age_bars": choch_age_bars,
                 "choch_relation": choch_relation,
                 "post_sweep_structure": post_sweep_structure,
+                "post_sweep_handoff_replay": post_sweep_handoff_replay,
                 "break_distance_pct": round(
                     abs(close - choch_level) / abs(choch_level) * 100, 5
                 ) if choch_level else None,
