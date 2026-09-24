@@ -485,6 +485,19 @@ class RRCEEngine:
                     ),
                 }
 
+            choch_relation = "UNKNOWN"
+            if sweep_ts is not None and choch_time is not None:
+                try:
+                    choch_ts = pd.to_datetime(choch_time, utc=True, errors="raise")
+                    if choch_ts < sweep_ts:
+                        choch_relation = "PRE_SWEEP"
+                    elif choch_ts > sweep_ts:
+                        choch_relation = "POST_SWEEP"
+                    else:
+                        choch_relation = "SAME_CANDLE"
+                except (TypeError, ValueError, OverflowError):
+                    choch_relation = "UNKNOWN"
+
             candidate_diag = {
                 "index": int(break_idx),
                 "timestamp": str(break_time) if break_time is not None else None,
@@ -493,6 +506,7 @@ class RRCEEngine:
                 "choch_index": str(choch_index),
                 "choch_time": str(choch_time) if choch_time is not None else None,
                 "choch_age_bars": choch_age_bars,
+                "choch_relation": choch_relation,
                 "break_distance_pct": round(
                     abs(close - choch_level) / abs(choch_level) * 100, 5
                 ) if choch_level else None,
