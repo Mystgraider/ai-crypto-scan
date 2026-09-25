@@ -236,7 +236,9 @@ def test_rrce_evaluate_rejects_break_candle_atr_mismatch():
 
 def test_stage3_post_sweep_structural_handoff_uses_confirmed_post_sweep_swing():
     engine = RRCEEngine(swing_lookback=10)
-    timestamps = pd.date_range("2026-09-20 00:00:00", periods=14, freq="5min", tz="UTC")
+    timestamps = pd.date_range(
+        "2026-09-20 00:00:00", periods=16, freq="5min", tz="UTC"
+    )
     rows = [
         {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
         {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
@@ -246,12 +248,19 @@ def test_stage3_post_sweep_structural_handoff_uses_confirmed_post_sweep_swing():
         {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
         {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
         {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
+        # Stage-2 sweep has completed before this post-sweep microstructure.
         {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
-        {"open": 100.0, "high": 101.0, "low": 101.5, "close": 101.2},
-        {"open": 101.2, "high": 101.4, "low": 100.8, "close": 101.1},
-        {"open": 101.1, "high": 103.0, "low": 101.1, "close": 102.8},
-        {"open": 102.8, "high": 103.0, "low": 102.0, "close": 102.5},
-        {"open": 102.5, "high": 102.7, "low": 102.0, "close": 102.4},
+        # Post-sweep swing high. n=3 needs three completed candles to its right
+        # before this swing can be structurally confirmed.
+        {"open": 100.0, "high": 102.0, "low": 100.0, "close": 101.5},
+        {"open": 101.5, "high": 101.4, "low": 100.8, "close": 101.1},
+        {"open": 101.1, "high": 101.5, "low": 100.9, "close": 101.2},
+        {"open": 101.2, "high": 101.4, "low": 100.9, "close": 101.1},
+        # Exact CHOCH break candle: it closes above the confirmed post-sweep
+        # swing and creates the required break-candle FVG versus candle 11.
+        {"open": 101.1, "high": 104.0, "low": 103.0, "close": 103.8},
+        {"open": 103.8, "high": 104.0, "low": 102.8, "close": 103.5},
+        {"open": 103.5, "high": 103.8, "low": 102.7, "close": 103.2},
     ]
     df = pd.DataFrame(rows).assign(timestamp=timestamps)
 
@@ -259,10 +268,11 @@ def test_stage3_post_sweep_structural_handoff_uses_confirmed_post_sweep_swing():
         df,
         "LONG",
         sweep_time=timestamps[8],
-        confirmation_bars=3,
+        confirmation_bars=6,
     )
 
     assert result["passed"] is True
     assert result["structure_handoff"] is True
     assert result["structure_lookback"] in (3, 5, 7)
-    assert result["break_idx"] == 11
+    assert result["break_idx"] == 13
+    assert result["fvg"]["break_idx"] == 13
