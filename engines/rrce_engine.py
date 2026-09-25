@@ -397,6 +397,7 @@ class RRCEEngine:
         handoff_ready_details = []
         handoff_choch_indices = []
         handoff_fvg_indices = []
+        handoff_end = None
 
         # Second pass: bounded structural handoff. A later break candle is
         # eligible only after a post-sweep swing is actually confirmed by that
@@ -538,13 +539,13 @@ class RRCEEngine:
                 "reason": "choch_not_after_sweep",
                 "choch_level": last_choch_level,
                 "handoff_diagnostics": {
-                "primary_end": primary_end,
-                "handoff_end": handoff_end if sweep_ts is not None else None,
-                "handoff_candidates": handoff_candidates,
-                "handoff_ready_details": handoff_ready_details,
-                "handoff_choch_indices": handoff_choch_indices,
-                "handoff_choch_without_fvg_indices": handoff_fvg_indices,
-            },
+                    "primary_end": primary_end,
+                    "handoff_end": handoff_end,
+                    "handoff_candidates": handoff_candidates,
+                    "handoff_ready_details": handoff_ready_details,
+                    "handoff_choch_indices": handoff_choch_indices,
+                    "handoff_choch_without_fvg_indices": handoff_fvg_indices,
+                },
             }
 
         if saw_choch_without_fvg:
@@ -555,7 +556,7 @@ class RRCEEngine:
                 "break_time": last_break_time,
                 "handoff_diagnostics": {
                 "primary_end": primary_end,
-                "handoff_end": handoff_end if sweep_ts is not None else None,
+                "handoff_end": handoff_end,
                 "handoff_candidates": handoff_candidates,
                 "handoff_ready_details": handoff_ready_details,
                 "handoff_choch_indices": handoff_choch_indices,
