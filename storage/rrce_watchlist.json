@@ -26,8 +26,8 @@
   "KSM/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-25T22:58:09.775708+00:00",
-    "last_seen": "2026-09-25T22:58:09.775708+00:00",
-    "observations": 1,
+    "last_seen": "2026-09-25T23:27:25.338128+00:00",
+    "observations": 2,
     "pool_level": 4.764,
     "range_high": 4.764,
     "range_low": 4.25,
@@ -38,8 +38,8 @@
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-25T22:58:52.535059+00:00",
-    "last_seen": "2026-09-25T22:58:52.535059+00:00",
-    "observations": 1,
+    "last_seen": "2026-09-25T23:27:58.625460+00:00",
+    "observations": 2,
     "pool_level": 0.9996842105263157,
     "range_high": 1.0002,
     "range_low": 0.9972,
