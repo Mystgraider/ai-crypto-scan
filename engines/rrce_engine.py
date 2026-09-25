@@ -109,16 +109,13 @@ class RRCEEngine:
         if highs.empty or lows.empty:
             return None
 
-        last_high_idx = highs.index[-1]
-        last_low_idx  = lows.index[-1]
-        if last_high_idx > last_low_idx:
-            range_high = float(highs.iloc[-1])
-            prior_lows = lows[lows.index < last_high_idx]
-            range_low = float(prior_lows.iloc[-1]) if not prior_lows.empty else float(lows.min())
-        else:
-            range_low = float(lows.iloc[-1])
-            prior_highs = highs[highs.index < last_low_idx]
-            range_high = float(prior_highs.iloc[-1]) if not prior_highs.empty else float(highs.max())
+        # V6.9 contract: the HTF range is the swing envelope over the
+        # configured lookback — highest confirmed swing high and lowest
+        # confirmed swing low. Do not replace this with an alternating
+        # "latest high/latest low pair"; that changes the range itself and
+        # can move the Discount/Premium boundary between decisions.
+        range_high = float(highs.max())
+        range_low = float(lows.min())
 
         if range_high <= range_low:
             return None
