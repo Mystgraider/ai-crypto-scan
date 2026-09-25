@@ -25,7 +25,7 @@ def _ltf_fixture():
     ).assign(timestamp=timestamps)
 
 
-def _patched_swings(df):
+def _patched_swings(df, n=None):
     d = df.copy()
     d["swing_high"] = np.nan
     d["swing_low"] = np.nan
@@ -105,7 +105,7 @@ def test_stage3_continues_after_choch_without_fvg():
 def test_stage3_uses_structure_available_before_each_candidate_break():
     engine = RRCEEngine()
 
-    def _temporal_swings(df):
+    def _temporal_swings(df, n=None):
         d = df.copy()
         d["swing_high"] = np.nan
         d["swing_low"] = np.nan
