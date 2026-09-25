@@ -485,6 +485,71 @@ class RRCEEngine:
                     ),
                 }
 
+            # Diagnostic-only shadow replay: test whether a smaller confirmed
+            # fractal would produce the required CHOCH + exact break-candle FVG,
+            # and classify that level relative to the completed sweep. Production
+            # eligibility remains locked to self.swing_lookback.
+            shadow_sensitivity = {}
+            for shadow_n in (3, 5, 7):
+                shadow_structure = RRCEEngine._find_swings(
+                    self,
+                    closed.iloc[:break_idx + 1],
+                    n=shadow_n,
+                ).tail(lookback)
+                shadow_levels = (
+                    shadow_structure["swing_high"].dropna()
+                    if direction == "LONG"
+                    else shadow_structure["swing_low"].dropna()
+                )
+                if shadow_levels.empty:
+                    shadow_sensitivity[str(shadow_n)] = None
+                    continue
+                shadow_level = float(shadow_levels.iloc[-1])
+                shadow_index = shadow_levels.index[-1]
+                try:
+                    shadow_positions = closed.index.get_indexer([shadow_index])
+                    shadow_pos = int(shadow_positions[0]) if len(shadow_positions) and shadow_positions[0] >= 0 else None
+                except (TypeError, ValueError):
+                    shadow_pos = None
+                shadow_time = (
+                    closed["timestamp"].iloc[shadow_pos]
+                    if shadow_pos is not None and "timestamp" in closed.columns
+                    else None
+                )
+                shadow_relation = "UNKNOWN"
+                if sweep_ts is not None and shadow_time is not None:
+                    try:
+                        shadow_ts = pd.to_datetime(shadow_time, utc=True, errors="raise")
+                        if shadow_ts < sweep_ts:
+                            shadow_relation = "PRE_SWEEP"
+                        elif shadow_ts > sweep_ts:
+                            shadow_relation = "POST_SWEEP"
+                        else:
+                            shadow_relation = "SAME_CANDLE"
+                    except (TypeError, ValueError, OverflowError):
+                        shadow_relation = "UNKNOWN"
+                shadow_choch = (
+                    close > shadow_level if direction == "LONG" else close < shadow_level
+                )
+                shadow_fvg = (
+                    self._detect_fvg_near(closed, direction, break_idx=break_idx)
+                    if shadow_choch else None
+                )
+                shadow_sensitivity[str(shadow_n)] = {
+                    "level": shadow_level,
+                    "index": str(shadow_index),
+                    "time": str(shadow_time) if shadow_time is not None else None,
+                    "age_bars": (
+                        int(break_idx - shadow_pos)
+                        if shadow_pos is not None and break_idx >= shadow_pos
+                        else None
+                    ),
+                    "relation": shadow_relation,
+                    "choch": bool(shadow_choch),
+                    "fvg": bool(shadow_fvg),
+                    "choch_fvg": bool(shadow_choch and shadow_fvg),
+                }
+
             choch_relation = "UNKNOWN"
             if sweep_ts is not None and choch_time is not None:
                 try:
