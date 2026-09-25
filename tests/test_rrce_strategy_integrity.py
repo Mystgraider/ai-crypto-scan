@@ -232,3 +232,37 @@ def test_rrce_evaluate_rejects_break_candle_atr_mismatch():
     assert result["valid"] is False
     assert result["failed_at"] == "stage3_dataframe_alignment"
     assert result["stage3"]["reason"] == "break_candle_atr_mismatch"
+
+
+def test_stage3_post_sweep_structural_handoff_uses_confirmed_post_sweep_swing():
+    engine = RRCEEngine(swing_lookback=10)
+    timestamps = pd.date_range("2026-09-20 00:00:00", periods=14, freq="5min", tz="UTC")
+    rows = [
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0},
+        {"open": 100.0, "high": 101.0, "low": 101.5, "close": 101.2},
+        {"open": 101.2, "high": 101.4, "low": 100.8, "close": 101.1},
+        {"open": 101.1, "high": 103.0, "low": 101.1, "close": 102.8},
+        {"open": 102.8, "high": 103.0, "low": 102.0, "close": 102.5},
+        {"open": 102.5, "high": 102.7, "low": 102.0, "close": 102.4},
+    ]
+    df = pd.DataFrame(rows).assign(timestamp=timestamps)
+
+    result = engine.stage3_confirmation(
+        df,
+        "LONG",
+        sweep_time=timestamps[8],
+        confirmation_bars=3,
+    )
+
+    assert result["passed"] is True
+    assert result["structure_handoff"] is True
+    assert result["structure_lookback"] in (3, 5, 7)
+    assert result["break_idx"] == 11

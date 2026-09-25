@@ -398,51 +398,78 @@ class RRCEEngine:
         last_choch_level = None
         last_break_time = None
 
+        # Primary structure remains the locked n=10 RRCE structure. If it does
+        # not produce a valid CHOCH+FVG, a bounded post-sweep handoff may use a
+        # more responsive confirmed microstructure. The fallback is deliberately
+        # restricted to swings whose own timestamp is after the completed sweep;
+        # this prevents a pre-sweep swing from being relabeled as post-sweep
+        # structure and keeps the handoff free of look-ahead.
+        structure_lookbacks = [self.swing_lookback, 3, 5, 7]
+
         for break_idx in candidate_indices:
-            # Rebuild structure from data available BEFORE the candidate break.
-            # This prevents future-confirmed swings from becoming a look-ahead
-            # input when the confirmation window contains earlier candles.
-            structure = self._find_swings(closed.iloc[:break_idx + 1]).tail(lookback)
-            if direction == "LONG":
-                swing_levels = structure["swing_high"].dropna()
-            else:
-                swing_levels = structure["swing_low"].dropna()
-            if swing_levels.empty:
-                continue
-
-            choch_level = float(swing_levels.iloc[-1])
             break_time = closed["timestamp"].iloc[break_idx] if "timestamp" in closed.columns else None
-            last_choch_level = choch_level
-            last_break_time = break_time
-
+            break_ts = (
+                pd.to_datetime(break_time, utc=True, errors="raise")
+                if break_time is not None else None
+            )
             close = float(closed["close"].iloc[break_idx])
-            choch = close > choch_level if direction == "LONG" else close < choch_level
-            if not choch:
-                continue
 
-            saw_choch = True
+            for structure_n in structure_lookbacks:
+                structure = self._find_swings(
+                    closed.iloc[:break_idx + 1], n=structure_n
+                ).tail(lookback)
+                if direction == "LONG":
+                    swing_series = structure["swing_high"]
+                else:
+                    swing_series = structure["swing_low"]
 
-            if sweep_ts is not None:
-                # sweep_ts and break_ts were normalized with UTC above. Any
-                # timestamp that is not strictly after the sweep is ineligible.
-                if pd.to_datetime(break_time, utc=True, errors="raise") <= sweep_ts:
-                    saw_choch_before_sweep = True
+                swing_levels = swing_series.dropna()
+                if swing_levels.empty:
                     continue
 
-            fvg = self._detect_fvg_near(closed, direction, break_idx=break_idx)
-            if not fvg:
-                # Keep searching: a later CHOCH in the same bounded window may
-                # be the first valid CHOCH+FVG pair.
-                saw_choch_without_fvg = True
-                continue
+                swing_idx = swing_levels.index[-1]
+                if structure_n != self.swing_lookback and sweep_ts is not None:
+                    if "timestamp" not in closed.columns:
+                        continue
+                    swing_ts = pd.to_datetime(
+                        closed["timestamp"].loc[swing_idx], utc=True, errors="raise"
+                    )
+                    if swing_ts <= sweep_ts:
+                        continue
 
-            return {
-                "passed": True,
-                "choch_level": choch_level,
-                "fvg": fvg,
-                "break_idx": break_idx,
-                "break_time": break_time,
-            }
+                choch_level = float(swing_levels.iloc[-1])
+                last_choch_level = choch_level
+                last_break_time = break_time
+
+                choch = close > choch_level if direction == "LONG" else close < choch_level
+                if not choch:
+                    continue
+
+                saw_choch = True
+
+                if sweep_ts is not None:
+                    # sweep_ts and break_ts were normalized with UTC above. Any
+                    # timestamp that is not strictly after the sweep is ineligible.
+                    if break_ts is not None and break_ts <= sweep_ts:
+                        saw_choch_before_sweep = True
+                        continue
+
+                fvg = self._detect_fvg_near(closed, direction, break_idx=break_idx)
+                if not fvg:
+                    # Keep searching: another structure sensitivity or a later
+                    # break in the bounded window may produce the valid pair.
+                    saw_choch_without_fvg = True
+                    continue
+
+                return {
+                    "passed": True,
+                    "choch_level": choch_level,
+                    "fvg": fvg,
+                    "break_idx": break_idx,
+                    "break_time": break_time,
+                    "structure_lookback": structure_n,
+                    "structure_handoff": structure_n != self.swing_lookback,
+                }
 
         if saw_choch_before_sweep and sweep_time is not None and not saw_choch_without_fvg:
             return {
@@ -465,7 +492,6 @@ class RRCEEngine:
             "choch_level": last_choch_level,
             "saw_choch": saw_choch,
         }
-
     # ── Stage 4: EXECUTION (LTF, finest) ─────────────────────────────────
     def _order_block(self, df: pd.DataFrame, direction: str, break_idx: int = None,
                       lookback: int = 15) -> dict | None:
