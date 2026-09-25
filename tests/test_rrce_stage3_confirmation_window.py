@@ -189,13 +189,22 @@ def test_stage3_tuning_is_configured_and_scanner_wires_it():
     assert 'confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"]' in scanner
 
 
-def test_stage3_window_is_anchored_to_sweep_not_latest_bars():
+def test_stage3_window_is_anchored_to_sweep_without_post_sweep_structure():
     engine = RRCEEngine()
-    engine._find_swings = _patched_swings
+
+    def _pre_sweep_only_swings(df, n=None):
+        d = df.copy()
+        d["swing_high"] = np.nan
+        d["swing_low"] = np.nan
+        d.loc[0, "swing_high"] = 100.0
+        d.loc[2, "swing_low"] = 90.0
+        return d
+
+    engine._find_swings = _pre_sweep_only_swings
 
     fixture = _ltf_fixture().copy()
-    # Sweep occurs early; CHOCH is 4 closed candles after it. With a
-    # 3-bar post-sweep window, the stale CHOCH must not be accepted.
+    # The CHOCH occurs after the primary window, but there is no confirmed
+    # post-sweep structure to authorize a structural handoff.
     result = engine.stage3_confirmation(
         fixture,
         "LONG",
