@@ -325,25 +325,42 @@ def main():
                 skip["btc"] += len(candidate_directions)
                 continue
 
-            # RRCE Stage-1 is the cheap structural gate. Fetch only the 15m
-            # context needed to evaluate the range first; defer 5m/4h network
-            # calls until at least one direction survives Stage-1.
+            # RRCE timeframe contract:
+            #   Stage 1 RANGE      -> 4H
+            #   Stage 2 LIQUIDITY  -> 1H
+            #   Stage 3 CONFIRM    -> 15m
+            #   Stage 4 EXECUTION  -> 5m
+            #
+            # Stage-1 is still the cheap structural prefilter, but it must
+            # use the RRCE 4H range. The existing 1H dataframe is reused for
+            # Stage-2; no second 1H fetch is required.
             df_rrce_15m = None
+            df_4h = None
             _rrce_data_start = _time.perf_counter()
+            try:
+                df_rrce_4h_raw = market_loader.get_4h(symbol)
+                df_4h = Indicators.apply(df_rrce_4h_raw)
+            except Exception:
+                df_4h = None
             try:
                 df_rrce_15m = Indicators.apply(market_loader.get_15m(symbol))
             except Exception:
-                pass
+                df_rrce_15m = None
             _runtime_metrics["stage_time_sec"]["rrce_data"] += _time.perf_counter() - _rrce_data_start
 
             rrce_stage1_prefilter = {}
-            if df_rrce_15m is not None and len(df_rrce_15m) >= 20:
+            if (
+                df_4h is not None
+                and len(df_4h) >= 20
+                and df_1h is not None
+                and len(df_1h) >= 20
+            ):
                 _prefilter_is_range = btc_regime["regime"] == "RANGE"
                 _prefilter_engine = range_rrce_engine if _prefilter_is_range else rrce_engine
                 for _direction in allowed_directions:
                     try:
                         rrce_stage1_prefilter[_direction] = _prefilter_engine.stage1_range(
-                            df_rrce_15m, _direction, price
+                            df_4h, _direction, price
                         )
                     except Exception:
                         rrce_stage1_prefilter[_direction] = None
@@ -383,23 +400,15 @@ def main():
                 finally:
                     _runtime_metrics["stage_time_sec"]["oi"] += _time.perf_counter() - _t
 
-            # Stage-1 already has the shared 15m context. Only now fetch
-            # the lower-timeframe / MTF data required by later RRCE stages.
+            # Stage-1 already has the shared 4H context and Stage-2
+            # reuses the symbol's existing 1H dataframe. Fetch only the
+            # lower-timeframe data still required by RRCE.
             df_rrce_5m = None
-            df_4h = None
             _rrce_data_start = _time.perf_counter()
             try:
                 df_rrce_5m = Indicators.apply(market_loader.get_5m(symbol))
             except Exception:
-                pass
-            if CONFIG["mtf_enabled"]:
-                for _attempt in range(2):
-                    try:
-                        df_4h = Indicators.apply(market_loader.get_4h(symbol))
-                        break
-                    except Exception:
-                        if _attempt == 1:
-                            df_4h = None
+                df_rrce_5m = None
             _runtime_metrics["stage_time_sec"]["rrce_data"] += _time.perf_counter() - _rrce_data_start
 
             # These are symbol-level calculations; direction only changes the
@@ -466,7 +475,16 @@ def main():
                     _df_rrce_15m = df_rrce_15m
                     _df_rrce_5m = df_rrce_5m
 
-                    if _df_rrce_15m is not None and _df_rrce_5m is not None and len(_df_rrce_15m) >= 20 and len(_df_rrce_5m) >= 20:
+                    if (
+                        df_4h is not None
+                        and df_1h is not None
+                        and _df_rrce_15m is not None
+                        and _df_rrce_5m is not None
+                        and len(df_4h) >= 20
+                        and len(df_1h) >= 20
+                        and len(_df_rrce_15m) >= 20
+                        and len(_df_rrce_5m) >= 20
+                    ):
                         is_range_regime = btc_regime["regime"] == "RANGE"
                         active_rrce_engine = range_rrce_engine if is_range_regime else rrce_engine
                         patience_bars = (
@@ -474,8 +492,10 @@ def main():
                             else CONFIG["rrce_default_patience_bars"]
                         )
                         rrce_result = active_rrce_engine.evaluate(
-                            df_htf=_df_rrce_15m, df_mtf=_df_rrce_15m,
-                            df_ltf_confirm=_df_rrce_5m, df_ltf_exec=_df_rrce_5m,
+                            df_htf=df_4h,
+                            df_mtf=df_1h,
+                            df_ltf_confirm=_df_rrce_15m,
+                            df_ltf_exec=_df_rrce_5m,
                             direction=direction, price=price,
                             patience_bars=patience_bars,
                             confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
