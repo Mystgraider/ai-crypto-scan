@@ -132,6 +132,52 @@ def test_stage3_uses_structure_available_before_each_candidate_break():
     assert result["break_idx"] == 5
     assert result["choch_level"] == 100.0
 
+def test_stage3_handoff_waits_for_late_confirmed_post_sweep_structure():
+    engine = RRCEEngine()
+
+    timestamps = pd.date_range(
+        "2026-09-19 00:00:00", periods=10, freq="5min", tz="UTC"
+    )
+    rows = [
+        (100, 101, 99, 100),
+        (89, 90, 88, 89),      # sweep candle
+        (95, 99, 94, 98),
+        (98, 100, 97, 99),
+        (99, 100, 98, 100),    # post-sweep swing high
+        (100, 101, 99, 100),
+        (100, 100, 99, 100),
+        (100, 101, 99, 100),
+        (100, 110, 106, 108),  # late CHOCH + exact break-candle FVG
+        (108, 109, 107, 108),  # incomplete
+    ]
+    fixture = pd.DataFrame(
+        rows,
+        columns=["open", "high", "low", "close"],
+    ).assign(timestamp=timestamps)
+
+    def _late_swings(df, n=None):
+        d = df.copy()
+        d["swing_high"] = np.nan
+        d["swing_low"] = np.nan
+        if len(df) > 7:
+            d.loc[4, "swing_high"] = 100.0
+        return d
+
+    engine._find_swings = _late_swings
+
+    result = engine.stage3_confirmation(
+        fixture,
+        "LONG",
+        sweep_time=pd.Timestamp("2026-09-19 00:05:00", tz="UTC"),
+        confirmation_bars=3,
+    )
+
+    assert result["passed"] is True
+    assert result["break_idx"] == 8
+    assert result["structure_handoff"] is True
+    assert result["fvg"]["break_idx"] == 8
+
+
 def test_stage3_tuning_is_configured_and_scanner_wires_it():
     from pathlib import Path
 
@@ -143,13 +189,22 @@ def test_stage3_tuning_is_configured_and_scanner_wires_it():
     assert 'confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"]' in scanner
 
 
-def test_stage3_window_is_anchored_to_sweep_not_latest_bars():
+def test_stage3_window_is_anchored_to_sweep_without_post_sweep_structure():
     engine = RRCEEngine()
-    engine._find_swings = _patched_swings
+
+    def _pre_sweep_only_swings(df, n=None):
+        d = df.copy()
+        d["swing_high"] = np.nan
+        d["swing_low"] = np.nan
+        d.loc[0, "swing_high"] = 100.0
+        d.loc[2, "swing_low"] = 90.0
+        return d
+
+    engine._find_swings = _pre_sweep_only_swings
 
     fixture = _ltf_fixture().copy()
-    # Sweep occurs early; CHOCH is 4 closed candles after it. With a
-    # 3-bar post-sweep window, the stale CHOCH must not be accepted.
+    # The CHOCH occurs after the primary window, but there is no confirmed
+    # post-sweep structure to authorize a structural handoff.
     result = engine.stage3_confirmation(
         fixture,
         "LONG",

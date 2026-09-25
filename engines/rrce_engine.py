@@ -342,12 +342,13 @@ class RRCEEngine:
     def stage3_confirmation(self, df_ltf: pd.DataFrame, direction: str,
                             lookback: int = 60, sweep_time=None,
                             confirmation_bars: int = 3) -> dict | None:
-        """Confirm CHOCH within a bounded post-sweep closed-candle window.
+        """Confirm CHOCH/FVG using a bounded sweep-anchored window.
 
-        Tuning change: the CHOCH/FVG pair no longer has to occur on the
-        latest closed candle. The break must still occur after the Stage-2
-        sweep, and the FVG must still be created by that exact CHOCH candle.
-        This recovers delayed confirmations without accepting an unrelated FVG.
+        The primary confirmation window remains anchored to the Stage-2 sweep.
+        If no valid pair is found there, a bounded structural handoff may extend
+        the search only after a post-sweep swing has become objectively
+        confirmed. This accounts for centered-swing confirmation latency
+        without turning Stage 3 into an unbounded "wait until CHOCH" rule.
         """
         closed = df_ltf.iloc[:-1].copy() if len(df_ltf) >= 2 else df_ltf.iloc[0:0].copy()
         if len(closed) < 3:
@@ -358,39 +359,80 @@ class RRCEEngine:
             return {"passed": False, "reason": "invalid_confirmation_bars"}
 
         window_end = len(closed) - 1
-
-        # The confirmation window is anchored to the actual Stage-2 sweep.
-        # "confirmation_bars=3" means the next 3 CLOSED LTF candles after the
-        # sweep, not simply the latest 3 candles at scan time. This prevents a
-        # stale CHOCH from becoming valid merely because it is still recent.
         sweep_ts = None
-        candidate_indices = []
         if sweep_time is not None:
             if "timestamp" not in closed.columns:
                 return {"passed": False, "reason": "missing_ltf_timestamp"}
-
             try:
                 sweep_ts = pd.to_datetime(sweep_time, utc=True, errors="raise")
-                break_ts = pd.to_datetime(closed["timestamp"], utc=True, errors="raise")
+                break_ts_series = pd.to_datetime(
+                    closed["timestamp"], utc=True, errors="raise"
+                )
             except (TypeError, ValueError, OverflowError):
                 return {"passed": False, "reason": "invalid_sweep_timestamp"}
-
-            if break_ts.duplicated().any():
+            if break_ts_series.duplicated().any():
                 return {"passed": False, "reason": "duplicate_ltf_timestamps"}
-
             post_sweep = [
                 int(i) for i in range(len(closed))
-                if break_ts.iloc[i] > sweep_ts
+                if break_ts_series.iloc[i] > sweep_ts
             ]
-            candidate_indices = post_sweep[:confirmation_bars]
+            primary_candidates = post_sweep[:confirmation_bars]
         else:
             window_start = max(2, window_end - confirmation_bars + 1)
-            candidate_indices = list(range(window_start, window_end + 1))
+            primary_candidates = list(range(window_start, window_end + 1))
 
-        candidate_indices = [
-            i for i in candidate_indices
-            if 2 <= i <= window_end
+        primary_candidates = [
+            i for i in primary_candidates if 2 <= i <= window_end
         ]
+        if not primary_candidates:
+            return {"passed": False, "reason": "no_choch", "saw_choch": False}
+
+        primary_end = primary_candidates[-1]
+        structure_lookbacks = [self.swing_lookback, 3, 5, 7]
+
+        # First pass: preserve the original hard sweep-anchored confirmation
+        # window. No delayed handoff is admitted until this pass fails.
+        candidate_indices = list(primary_candidates)
+
+        # Second pass: bounded structural handoff. A later break candle is
+        # eligible only after a post-sweep swing is actually confirmed by that
+        # candle. This is the key latency fix: the clock for a late structure
+        # starts when the structure becomes knowable, not when its swing point
+        # merely appears on the chart.
+        if sweep_ts is not None and primary_end < window_end:
+            max_extension = max(structure_lookbacks)
+            handoff_end = min(window_end, primary_end + max_extension)
+            for break_idx in range(primary_end + 1, handoff_end + 1):
+                handoff_ready = False
+                for structure_n in structure_lookbacks:
+                    if structure_n <= 0:
+                        continue
+                    structure = self._find_swings(
+                        closed.iloc[:break_idx + 1], n=structure_n
+                    )
+                    if direction == "LONG":
+                        swing_series = structure["swing_high"]
+                    else:
+                        swing_series = structure["swing_low"]
+                    swing_levels = swing_series.dropna()
+                    if swing_levels.empty:
+                        continue
+                    swing_idx = swing_levels.index[-1]
+                    try:
+                        swing_ts = pd.to_datetime(
+                            closed["timestamp"].loc[swing_idx],
+                            utc=True,
+                            errors="raise",
+                        )
+                    except (TypeError, ValueError, OverflowError):
+                        continue
+                    if swing_ts > sweep_ts:
+                        handoff_ready = True
+                        break
+                if handoff_ready:
+                    candidate_indices.append(break_idx)
+
+        candidate_indices = sorted(set(candidate_indices))
 
         saw_choch = False
         saw_choch_before_sweep = False
@@ -398,16 +440,11 @@ class RRCEEngine:
         last_choch_level = None
         last_break_time = None
 
-        # Primary structure remains the locked n=10 RRCE structure. If it does
-        # not produce a valid CHOCH+FVG, a bounded post-sweep handoff may use a
-        # more responsive confirmed microstructure. The fallback is deliberately
-        # restricted to swings whose own timestamp is after the completed sweep;
-        # this prevents a pre-sweep swing from being relabeled as post-sweep
-        # structure and keeps the handoff free of look-ahead.
-        structure_lookbacks = [self.swing_lookback, 3, 5, 7]
-
         for break_idx in candidate_indices:
-            break_time = closed["timestamp"].iloc[break_idx] if "timestamp" in closed.columns else None
+            break_time = (
+                closed["timestamp"].iloc[break_idx]
+                if "timestamp" in closed.columns else None
+            )
             break_ts = (
                 pd.to_datetime(break_time, utc=True, errors="raise")
                 if break_time is not None else None
@@ -428,36 +465,45 @@ class RRCEEngine:
                     continue
 
                 swing_idx = swing_levels.index[-1]
-                if structure_n != self.swing_lookback and sweep_ts is not None:
+                if sweep_ts is not None:
                     if "timestamp" not in closed.columns:
                         continue
                     swing_ts = pd.to_datetime(
-                        closed["timestamp"].loc[swing_idx], utc=True, errors="raise"
+                        closed["timestamp"].loc[swing_idx],
+                        utc=True,
+                        errors="raise",
                     )
-                    if swing_ts <= sweep_ts:
+                    # A structural handoff may only use a swing that formed
+                    # after the completed sweep. The primary n=10 structure is
+                    # also subject to this rule once evaluation moves beyond
+                    # the original confirmation window.
+                    if break_idx > primary_end and swing_ts <= sweep_ts:
+                        continue
+                    if structure_n != self.swing_lookback and swing_ts <= sweep_ts:
                         continue
 
                 choch_level = float(swing_levels.iloc[-1])
                 last_choch_level = choch_level
                 last_break_time = break_time
 
-                choch = close > choch_level if direction == "LONG" else close < choch_level
+                choch = (
+                    close > choch_level
+                    if direction == "LONG"
+                    else close < choch_level
+                )
                 if not choch:
                     continue
 
                 saw_choch = True
 
-                if sweep_ts is not None:
-                    # sweep_ts and break_ts were normalized with UTC above. Any
-                    # timestamp that is not strictly after the sweep is ineligible.
-                    if break_ts is not None and break_ts <= sweep_ts:
-                        saw_choch_before_sweep = True
-                        continue
+                if sweep_ts is not None and break_ts is not None and break_ts <= sweep_ts:
+                    saw_choch_before_sweep = True
+                    continue
 
-                fvg = self._detect_fvg_near(closed, direction, break_idx=break_idx)
+                fvg = self._detect_fvg_near(
+                    closed, direction, break_idx=break_idx
+                )
                 if not fvg:
-                    # Keep searching: another structure sensitivity or a later
-                    # break in the bounded window may produce the valid pair.
                     saw_choch_without_fvg = True
                     continue
 
@@ -468,7 +514,7 @@ class RRCEEngine:
                     "break_idx": break_idx,
                     "break_time": break_time,
                     "structure_lookback": structure_n,
-                    "structure_handoff": structure_n != self.swing_lookback,
+                    "structure_handoff": break_idx > primary_end,
                 }
 
         if saw_choch_before_sweep and sweep_time is not None and not saw_choch_without_fvg:
@@ -492,6 +538,7 @@ class RRCEEngine:
             "choch_level": last_choch_level,
             "saw_choch": saw_choch,
         }
+
     # ── Stage 4: EXECUTION (LTF, finest) ─────────────────────────────────
     def _order_block(self, df: pd.DataFrame, direction: str, break_idx: int = None,
                       lookback: int = 15) -> dict | None:

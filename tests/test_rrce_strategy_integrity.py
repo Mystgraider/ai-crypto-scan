@@ -268,7 +268,7 @@ def test_stage3_post_sweep_structural_handoff_uses_confirmed_post_sweep_swing():
         df,
         "LONG",
         sweep_time=timestamps[8],
-        confirmation_bars=6,
+        confirmation_bars=3,
     )
 
     assert result["passed"] is True
