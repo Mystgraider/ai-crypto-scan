@@ -116,6 +116,8 @@ class RRCEEngine:
         # can move the Discount/Premium boundary between decisions.
         range_high = float(highs.max())
         range_low = float(lows.min())
+        last_high_idx = highs.idxmax()
+        last_low_idx = lows.idxmin()
 
         if range_high <= range_low:
             return None
