@@ -397,6 +397,7 @@ class RRCEEngine:
         saw_choch_without_fvg = False
         last_choch_level = None
         last_break_time = None
+        candidate_diagnostics = []
 
         # Primary structure remains the locked n=10 RRCE structure. If it does
         # not produce a valid CHOCH+FVG, a bounded post-sweep handoff may use a
@@ -406,6 +407,321 @@ class RRCEEngine:
         # structure and keeps the handoff free of look-ahead.
         structure_lookbacks = [self.swing_lookback, 3, 5, 7]
 
+            choch_level = float(swing_levels.iloc[-1])
+            choch_index = swing_levels.index[-1]
+            break_time = closed["timestamp"].iloc[break_idx] if "timestamp" in closed.columns else None
+            last_choch_level = choch_level
+            last_break_time = break_time
+
+            # Diagnostic only: measure how old the structural level is at the
+            # candidate break. This does not alter CHOCH eligibility.
+            try:
+                swing_positions = closed.index.get_indexer([choch_index])
+                swing_pos = int(swing_positions[0]) if len(swing_positions) and swing_positions[0] >= 0 else None
+            except (TypeError, ValueError):
+                swing_pos = None
+            choch_age_bars = (
+                int(break_idx - swing_pos)
+                if swing_pos is not None and break_idx >= swing_pos
+                else None
+            )
+            choch_time = (
+                closed["timestamp"].iloc[swing_pos]
+                if swing_pos is not None and "timestamp" in closed.columns
+                else None
+            )
+
+            close = float(closed["close"].iloc[break_idx])
+            choch = close > choch_level if direction == "LONG" else close < choch_level
+            # Diagnostic only: compare the same candidate against smaller
+            # confirmed-swing fractals. Production eligibility remains locked
+            # to self.swing_lookback (currently 10). This isolates whether a
+            # stale 10-bar fractal is the reason a post-sweep break is missed.
+            swing_sensitivity = {}
+            for sensitivity_n in (3, 5, 7, 10):
+                # Call the real helper directly so tests that monkeypatch
+                # instance-level _find_swings for temporal fixtures do not
+                # interfere with this diagnostic-only sensitivity probe.
+                sensitivity_structure = RRCEEngine._find_swings(
+                    self,
+                    closed.iloc[:break_idx + 1],
+                    n=sensitivity_n,
+                ).tail(lookback)
+                sensitivity_levels = (
+                    sensitivity_structure["swing_high"].dropna()
+                    if direction == "LONG"
+                    else sensitivity_structure["swing_low"].dropna()
+                )
+                if sensitivity_levels.empty:
+                    swing_sensitivity[str(sensitivity_n)] = None
+                    continue
+                sensitivity_level = float(sensitivity_levels.iloc[-1])
+                sensitivity_index = sensitivity_levels.index[-1]
+                try:
+                    sensitivity_positions = closed.index.get_indexer([sensitivity_index])
+                    sensitivity_pos = (
+                        int(sensitivity_positions[0])
+                        if len(sensitivity_positions) and sensitivity_positions[0] >= 0
+                        else None
+                    )
+                except (TypeError, ValueError):
+                    sensitivity_pos = None
+                swing_sensitivity[str(sensitivity_n)] = {
+                    "level": sensitivity_level,
+                    "index": str(sensitivity_index),
+                    "age_bars": (
+                        int(break_idx - sensitivity_pos)
+                        if sensitivity_pos is not None and break_idx >= sensitivity_pos
+                        else None
+                    ),
+                    "choch": bool(
+                        close > sensitivity_level
+                        if direction == "LONG"
+                        else close < sensitivity_level
+                    ),
+                }
+
+            # Diagnostic-only shadow replay: test whether a smaller confirmed
+            # fractal would produce the required CHOCH + exact break-candle FVG,
+            # and classify that level relative to the completed sweep. Production
+            # eligibility remains locked to self.swing_lookback.
+            shadow_sensitivity = {}
+            for shadow_n in (3, 5, 7):
+                shadow_structure = RRCEEngine._find_swings(
+                    self,
+                    closed.iloc[:break_idx + 1],
+                    n=shadow_n,
+                ).tail(lookback)
+                shadow_levels = (
+                    shadow_structure["swing_high"].dropna()
+                    if direction == "LONG"
+                    else shadow_structure["swing_low"].dropna()
+                )
+                if shadow_levels.empty:
+                    shadow_sensitivity[str(shadow_n)] = None
+                    continue
+                shadow_level = float(shadow_levels.iloc[-1])
+                shadow_index = shadow_levels.index[-1]
+                try:
+                    shadow_positions = closed.index.get_indexer([shadow_index])
+                    shadow_pos = int(shadow_positions[0]) if len(shadow_positions) and shadow_positions[0] >= 0 else None
+                except (TypeError, ValueError):
+                    shadow_pos = None
+                shadow_time = (
+                    closed["timestamp"].iloc[shadow_pos]
+                    if shadow_pos is not None and "timestamp" in closed.columns
+                    else None
+                )
+                shadow_relation = "UNKNOWN"
+                if sweep_ts is not None and shadow_time is not None:
+                    try:
+                        shadow_ts = pd.to_datetime(shadow_time, utc=True, errors="raise")
+                        if shadow_ts < sweep_ts:
+                            shadow_relation = "PRE_SWEEP"
+                        elif shadow_ts > sweep_ts:
+                            shadow_relation = "POST_SWEEP"
+                        else:
+                            shadow_relation = "SAME_CANDLE"
+                    except (TypeError, ValueError, OverflowError):
+                        shadow_relation = "UNKNOWN"
+                shadow_choch = (
+                    close > shadow_level if direction == "LONG" else close < shadow_level
+                )
+                shadow_fvg = (
+                    self._detect_fvg_near(closed, direction, break_idx=break_idx)
+                    if shadow_choch else None
+                )
+                shadow_sensitivity[str(shadow_n)] = {
+                    "level": shadow_level,
+                    "index": str(shadow_index),
+                    "time": str(shadow_time) if shadow_time is not None else None,
+                    "age_bars": (
+                        int(break_idx - shadow_pos)
+                        if shadow_pos is not None and break_idx >= shadow_pos
+                        else None
+                    ),
+                    "relation": shadow_relation,
+                    "choch": bool(shadow_choch),
+                    "fvg": bool(shadow_fvg),
+                    "choch_fvg": bool(shadow_choch and shadow_fvg),
+                }
+
+            choch_relation = "UNKNOWN"
+            if sweep_ts is not None and choch_time is not None:
+                try:
+                    choch_ts = pd.to_datetime(choch_time, utc=True, errors="raise")
+                    if choch_ts < sweep_ts:
+                        choch_relation = "PRE_SWEEP"
+                    elif choch_ts > sweep_ts:
+                        choch_relation = "POST_SWEEP"
+                    else:
+                        choch_relation = "SAME_CANDLE"
+                except (TypeError, ValueError, OverflowError):
+                    choch_relation = "UNKNOWN"
+
+            # Diagnostic only: replay the post-sweep structural handoff
+            # candle-by-candle. This measures when a confirmed post-sweep
+            # swing first becomes KNOWABLE under the same centered-fractal
+            # rules used by production. It does not change eligibility.
+            post_sweep_handoff_replay = {
+                "sweep_time": str(sweep_ts) if sweep_ts is not None else None,
+                "replay_max_candles": 25,
+                "replay_candles_inspected": 0,
+                "first_confirmed_swing": None,
+                "first_choch_after_confirmation": None,
+            }
+            if sweep_ts is not None and "timestamp" in closed.columns:
+                try:
+                    replay_ts = pd.to_datetime(
+                        closed["timestamp"], utc=True, errors="raise"
+                    )
+                    post_sweep_indices = [
+                        int(i) for i in range(len(closed))
+                        if replay_ts.iloc[i] > sweep_ts
+                    ][:25]
+                    post_sweep_handoff_replay["replay_candles_inspected"] = len(
+                        post_sweep_indices
+                    )
+                    for replay_idx in post_sweep_indices:
+                        replay_structure = self._find_swings(
+                            closed.iloc[:replay_idx + 1]
+                        ).tail(lookback)
+                        replay_levels = (
+                            replay_structure["swing_high"].dropna()
+                            if direction == "LONG"
+                            else replay_structure["swing_low"].dropna()
+                        )
+                        post_levels = [
+                            idx for idx in replay_levels.index
+                            if pd.to_datetime(
+                                replay_structure.loc[idx, "timestamp"],
+                                utc=True,
+                                errors="raise",
+                            ) > sweep_ts
+                        ]
+                        if not post_levels:
+                            continue
+                        replay_level_idx = post_levels[-1]
+                        replay_level = float(replay_levels.loc[replay_level_idx])
+                        replay_level_pos = closed.index.get_indexer([replay_level_idx])
+                        replay_pos = (
+                            int(replay_level_pos[0])
+                            if len(replay_level_pos) and replay_level_pos[0] >= 0
+                            else None
+                        )
+                        if replay_pos is None:
+                            continue
+                        replay_level_time = closed["timestamp"].iloc[replay_pos]
+                        replay_age = replay_idx - replay_pos
+                        replay_close = float(closed["close"].iloc[replay_idx])
+                        replay_choch = (
+                            replay_close > replay_level
+                            if direction == "LONG"
+                            else replay_close < replay_level
+                        )
+                        if post_sweep_handoff_replay["first_confirmed_swing"] is None:
+                            post_sweep_handoff_replay["first_confirmed_swing"] = {
+                                "level": replay_level,
+                                "index": str(replay_level_idx),
+                                "time": str(replay_level_time),
+                                "available_at_index": replay_idx,
+                                "available_at_time": str(closed["timestamp"].iloc[replay_idx]),
+                                "confirmation_age_bars": int(replay_age),
+                            }
+                        if replay_choch:
+                            post_sweep_handoff_replay["first_choch_after_confirmation"] = {
+                                "level": replay_level,
+                                "index": str(replay_level_idx),
+                                "time": str(replay_level_time),
+                                "break_index": replay_idx,
+                                "break_time": str(closed["timestamp"].iloc[replay_idx]),
+                                "break_distance_pct": round(
+                                    abs(replay_close - replay_level) / abs(replay_level) * 100,
+                                    5,
+                                ) if replay_level else None,
+                            }
+                            break
+                except (TypeError, ValueError, OverflowError, KeyError):
+                    post_sweep_handoff_replay = {
+                        "sweep_time": str(sweep_ts) if sweep_ts is not None else None,
+                        "first_confirmed_swing": None,
+                        "first_choch_after_confirmation": None,
+                        "error": "replay_failed",
+                    }
+
+            # Diagnostic only: isolate the latest CONFIRMED structural swing
+            # that formed after the completed Stage-2 sweep. Production CHOCH
+            # remains anchored to the locked structural reference above.
+            post_sweep_structure = None
+            post_sweep_level = None
+            post_sweep_index = None
+            post_sweep_time = None
+            post_sweep_age_bars = None
+            post_sweep_choch = False
+            if sweep_ts is not None and "timestamp" in closed.columns:
+                try:
+                    structure_times = pd.to_datetime(
+                        structure["timestamp"], utc=True, errors="raise"
+                    )
+                    post_sweep_levels = swing_levels[
+                        structure_times.loc[swing_levels.index] > sweep_ts
+                    ]
+                    if not post_sweep_levels.empty:
+                        post_sweep_level = float(post_sweep_levels.iloc[-1])
+                        post_sweep_index = post_sweep_levels.index[-1]
+                        try:
+                            post_positions = closed.index.get_indexer([post_sweep_index])
+                            post_pos = (
+                                int(post_positions[0])
+                                if len(post_positions) and post_positions[0] >= 0
+                                else None
+                            )
+                        except (TypeError, ValueError):
+                            post_pos = None
+                        if post_pos is not None:
+                            post_sweep_time = closed["timestamp"].iloc[post_pos]
+                            post_sweep_age_bars = (
+                                int(break_idx - post_pos)
+                                if break_idx >= post_pos
+                                else None
+                            )
+                        post_sweep_choch = (
+                            close > post_sweep_level
+                            if direction == "LONG"
+                            else close < post_sweep_level
+                        )
+                        post_sweep_structure = {
+                            "level": post_sweep_level,
+                            "index": str(post_sweep_index),
+                            "time": str(post_sweep_time) if post_sweep_time is not None else None,
+                            "age_bars": post_sweep_age_bars,
+                            "choch": bool(post_sweep_choch),
+                        }
+                except (TypeError, ValueError, OverflowError, KeyError):
+                    post_sweep_structure = None
+
+            candidate_diag = {
+                "index": int(break_idx),
+                "timestamp": str(break_time) if break_time is not None else None,
+                "close": close,
+                "choch_level": choch_level,
+                "choch_index": str(choch_index),
+                "choch_time": str(choch_time) if choch_time is not None else None,
+                "choch_age_bars": choch_age_bars,
+                "choch_relation": choch_relation,
+                "post_sweep_structure": post_sweep_structure,
+                "post_sweep_handoff_replay": post_sweep_handoff_replay,
+                "break_distance_pct": round(
+                    abs(close - choch_level) / abs(choch_level) * 100, 5
+                ) if choch_level else None,
+                "choch": bool(choch),
+                "fvg": False,
+                "eligible_after_sweep": True,
+                "swing_sensitivity": swing_sensitivity,
+            }
+            candidate_diagnostics.append(candidate_diag)
+            if not choch:
+                continue
         for break_idx in candidate_indices:
             break_time = closed["timestamp"].iloc[break_idx] if "timestamp" in closed.columns else None
             break_ts = (
@@ -427,6 +743,12 @@ class RRCEEngine:
                 if swing_levels.empty:
                     continue
 
+            if sweep_ts is not None:
+                # sweep_ts and break_ts were normalized with UTC above. Any
+                # timestamp that is not strictly after the sweep is ineligible.
+                if pd.to_datetime(break_time, utc=True, errors="raise") <= sweep_ts:
+                    saw_choch_before_sweep = True
+                    candidate_diag["eligible_after_sweep"] = False
                 swing_idx = swing_levels.index[-1]
                 if structure_n != self.swing_lookback and sweep_ts is not None:
                     if "timestamp" not in closed.columns:
@@ -447,6 +769,15 @@ class RRCEEngine:
 
                 saw_choch = True
 
+            candidate_diag["fvg"] = True
+            return {
+                "passed": True,
+                "choch_level": choch_level,
+                "fvg": fvg,
+                "break_idx": break_idx,
+                "break_time": break_time,
+                "candidate_diagnostics": candidate_diagnostics,
+            }
                 if sweep_ts is not None:
                     # sweep_ts and break_ts were normalized with UTC above. Any
                     # timestamp that is not strictly after the sweep is ineligible.
@@ -471,11 +802,69 @@ class RRCEEngine:
                     "structure_handoff": structure_n != self.swing_lookback,
                 }
 
+        # Diagnostic only: inspect the next 8 CLOSED candles after the
+        # production confirmation window. This does NOT expand production
+        # eligibility; it only tells us whether a delayed CHOCH/FVG appears
+        # immediately after the locked confirmation window.
+        delayed_confirmation_diagnostics = []
+        if candidate_indices:
+            diagnostic_start = candidate_indices[-1] + 1
+            diagnostic_end = min(window_end, diagnostic_start + 7)
+            for delayed_idx in range(diagnostic_start, diagnostic_end + 1):
+                delayed_structure = self._find_swings(
+                    closed.iloc[:delayed_idx + 1]
+                ).tail(lookback)
+                delayed_levels = (
+                    delayed_structure["swing_high"].dropna()
+                    if direction == "LONG"
+                    else delayed_structure["swing_low"].dropna()
+                )
+                if delayed_levels.empty:
+                    continue
+                delayed_level = float(delayed_levels.iloc[-1])
+                delayed_close = float(closed["close"].iloc[delayed_idx])
+                delayed_break_time = (
+                    closed["timestamp"].iloc[delayed_idx]
+                    if "timestamp" in closed.columns
+                    else None
+                )
+                delayed_choch = (
+                    delayed_close > delayed_level
+                    if direction == "LONG"
+                    else delayed_close < delayed_level
+                )
+                delayed_fvg = (
+                    self._detect_fvg_near(
+                        closed, direction, break_idx=delayed_idx
+                    )
+                    if delayed_choch
+                    else None
+                )
+                delayed_confirmation_diagnostics.append({
+                    "index": int(delayed_idx),
+                    "timestamp": (
+                        str(delayed_break_time)
+                        if delayed_break_time is not None
+                        else None
+                    ),
+                    "close": delayed_close,
+                    "choch_level": delayed_level,
+                    "choch": bool(delayed_choch),
+                    "fvg": bool(delayed_fvg),
+                    "break_distance_pct": round(
+                        abs(delayed_close - delayed_level)
+                        / abs(delayed_level) * 100,
+                        5,
+                    ) if delayed_level else None,
+                })
+
         if saw_choch_before_sweep and sweep_time is not None and not saw_choch_without_fvg:
             return {
                 "passed": False,
                 "reason": "choch_not_after_sweep",
                 "choch_level": last_choch_level,
+                "candidate_diagnostics": candidate_diagnostics,
+                "delayed_confirmation_diagnostics": delayed_confirmation_diagnostics,
             }
 
         if saw_choch_without_fvg:
@@ -484,6 +873,8 @@ class RRCEEngine:
                 "reason": "choch_without_break_fvg",
                 "choch_level": last_choch_level,
                 "break_time": last_break_time,
+                "candidate_diagnostics": candidate_diagnostics,
+                "delayed_confirmation_diagnostics": delayed_confirmation_diagnostics,
             }
 
         return {
@@ -491,6 +882,8 @@ class RRCEEngine:
             "reason": "no_choch",
             "choch_level": last_choch_level,
             "saw_choch": saw_choch,
+            "candidate_diagnostics": candidate_diagnostics,
+            "delayed_confirmation_diagnostics": delayed_confirmation_diagnostics,
         }
     # ── Stage 4: EXECUTION (LTF, finest) ─────────────────────────────────
     def _order_block(self, df: pd.DataFrame, direction: str, break_idx: int = None,

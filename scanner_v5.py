@@ -19,6 +19,8 @@ V6.1 (data-driven, unchanged):
   - Vol > 3.0x hard block (extreme spike = reversal risk)
 """
 
+import json as _json
+
 from loaders.top_symbols_loader  import TopSymbolsLoader
 from loaders.market_data_loader  import MarketDataLoader
 from indicators.indicators       import Indicators
@@ -207,8 +209,8 @@ def main():
 
     TRACE_SYMBOLS = {"ETH/USDT:USDT", "SOL/USDT:USDT", "BNB/USDT:USDT", "XRP/USDT:USDT", "LTC/USDT:USDT"}
     symbol_trace_log = []
-    def _trace(sym, stage, **extra):
-        if sym in TRACE_SYMBOLS:
+    def _trace(sym, stage, force=False, **extra):
+        if force or sym in TRACE_SYMBOLS:
             symbol_trace_log.append({"symbol": sym, "stage": stage, **extra})
     skip = {
         "cooldown": 0, "dated": 0, "btc": 0, "trend": 0,
@@ -543,10 +545,34 @@ def main():
                                     trace_extra[_key] = _s2[_key]
                         if fail_stage == "stage3_confirmation":
                             _s3 = rrce_result.get("stage3") or {}
-                            for _key in ("break_time", "choch_level", "reason"):
+                            for _key in ("break_time", "choch_level", "reason", "saw_choch",
+                                         "candidate_diagnostics", "delayed_confirmation_diagnostics"):
                                 if _s3.get(_key) is not None:
                                     trace_extra[_key] = _s3[_key]
-                    _trace(symbol, "rrce_invalid", **trace_extra)
+                            _s2 = rrce_result.get("stage2") or {}
+                            for _key in ("range_low", "range_high", "pool_level",
+                                         "pool_distance_from_range_extreme_pct",
+                                         "sweep_candle_time", "sweep_time",
+                                         "sweep_extreme", "near_pool_count",
+                                         "all_pool_count", "proximity_pct",
+                                         "patience_bars"):
+                                if _s2.get(_key) is not None:
+                                    trace_extra[_key] = _s2[_key]
+                    _trace(
+                        symbol,
+                        "rrce_invalid",
+                        force=(fail_stage == "stage3_confirmation"),
+                        **trace_extra,
+                    )
+                    if fail_stage == "stage3_confirmation":
+                        print(
+                            "RRCE_STAGE3_DIAGNOSTIC "
+                            + _json.dumps(
+                                {"symbol": symbol, **trace_extra},
+                                default=str,
+                                sort_keys=True,
+                            )
+                        )
                     stage_key = f"rrce_fail_{fail_stage}"
                     skip[stage_key] = skip.get(stage_key, 0) + 1
                     if fail_stage == "stage1_range" and rrce_result:
@@ -770,7 +796,6 @@ def main():
     _runtime_metrics["scan_elapsed_sec"] = round(_time.perf_counter() - _scan_start_time, 3)
     _runtime_metrics["stage_time_sec"]["ranking"] = 0.0
     try:
-        import json as _json
         from datetime import datetime as _dt, timezone as _tz
         debug_row = {
             "ts": _dt.now(_tz.utc).isoformat(),
@@ -821,7 +846,7 @@ def main():
     try:
         trace_row = {"ts": _dt.now(_tz.utc).isoformat(), "trace": symbol_trace_log}
         with open("storage/symbol_trace_log.jsonl", "a") as f:
-            f.write(_json.dumps(trace_row) + "\n")
+            f.write(_json.dumps(trace_row, default=str) + "\n")
     except Exception as _e:
         print(f"      ⚠️  trace log write failed: {_e}")
 
@@ -982,7 +1007,6 @@ def main():
     # stages are included in the persisted telemetry for this run.
     _runtime_metrics["scan_elapsed_sec"] = round(_time.perf_counter() - _scan_start_time, 3)
     try:
-        import json as _json
         from datetime import datetime as _dt, timezone as _tz
         runtime_final_row = {
             "ts": _dt.now(_tz.utc).isoformat(),
