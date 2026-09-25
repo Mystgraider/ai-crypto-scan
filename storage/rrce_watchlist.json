@@ -50,13 +50,13 @@
   "DASH/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-09-25T10:04:31.020458+00:00",
-    "last_seen": "2026-09-25T10:04:31.020458+00:00",
-    "observations": 1,
+    "last_seen": "2026-09-25T12:15:48.881664+00:00",
+    "observations": 2,
     "pool_level": 63.98666666666666,
-    "range_high": 63.9,
+    "range_high": 64.76,
     "range_low": 61.91,
     "regime": "RANGE",
-    "sweep_extreme": 64.45,
+    "sweep_extreme": 65.25,
     "symbol": "DASH/USDT:USDT"
   },
   "ID/USDT:USDT|SHORT": {
@@ -70,6 +70,18 @@
     "regime": "RANGE",
     "sweep_extreme": 0.03798,
     "symbol": "ID/USDT:USDT"
+  },
+  "LUNC/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-25T12:16:23.647609+00:00",
+    "last_seen": "2026-09-25T12:16:23.647609+00:00",
+    "observations": 1,
+    "pool_level": 5.5347500000000005e-05,
+    "range_high": 5.531e-05,
+    "range_low": 5.431e-05,
+    "regime": "RANGE",
+    "sweep_extreme": 5.535e-05,
+    "symbol": "LUNC/USDT:USDT"
   },
   "QTUM/USDT:USDT|SHORT": {
     "direction": "SHORT",
@@ -106,5 +118,17 @@
     "regime": "RANGE",
     "sweep_extreme": 0.3209,
     "symbol": "STX/USDT:USDT"
+  },
+  "USDC/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-09-25T12:16:36.388107+00:00",
+    "last_seen": "2026-09-25T12:16:36.388107+00:00",
+    "observations": 1,
+    "pool_level": 0.9993941176470588,
+    "range_high": 0.9996,
+    "range_low": 0.9993,
+    "regime": "RANGE",
+    "sweep_extreme": 0.9993,
+    "symbol": "USDC/USDT:USDT"
   }
 }
