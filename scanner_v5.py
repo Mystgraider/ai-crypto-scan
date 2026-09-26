@@ -114,6 +114,11 @@ def main():
             "current_stage2_pass": 0, "raw_v69_stage2_pass": 0,
             "both_stage2_evaluable_current_fail_raw_pass": 0,
             "both_stage2_evaluable_current_pass_raw_fail": 0,
+            "current_stage3_evaluable": 0, "raw_v69_stage3_evaluable": 0,
+            "current_stage3_pass": 0, "raw_v69_stage3_pass": 0,
+            "both_stage3_current_fail_raw_pass": 0,
+            "both_stage3_current_pass_raw_fail": 0,
+            "current_stage3_reasons": {}, "raw_v69_stage3_reasons": {},
         },
         "stage_time_sec": {
             "symbol_1h": 0.0,
@@ -407,6 +412,28 @@ def main():
                             _cur2_pass = bool(_cur_s2.get("passed"))
                             _shadow["both_stage2_evaluable_current_fail_raw_pass"] += int(_raw2_pass and not _cur2_pass)
                             _shadow["both_stage2_evaluable_current_pass_raw_fail"] += int(_cur2_pass and not _raw2_pass)
+                        if _cur_s2 is not None and _cur_s2.get("passed"):
+                            _shadow["current_stage3_evaluable"] += 1
+                            _cur3 = _prefilter_engine.stage3_confirmation(
+                                df_rrce_15m, _direction,
+                                sweep_time=_cur_s2.get("sweep_time"),
+                                confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
+                            )
+                            _raw3 = _prefilter_engine.stage3_v69_shadow(df_rrce_15m, _direction)
+                            _cur3_pass = bool(_cur3 and _cur3.get("passed"))
+                            _raw3_pass = bool(_raw3 and _raw3.get("passed"))
+                            _shadow["current_stage3_pass"] += int(_cur3_pass)
+                            _shadow["raw_v69_stage3_evaluable"] += 1
+                            _shadow["raw_v69_stage3_pass"] += int(_raw3_pass)
+                            for key, obj, bucket in (
+                                ("current_stage3_reasons", _cur3, "reason"),
+                                ("raw_v69_stage3_reasons", _raw3, "reason"),
+                            ):
+                                reason = (obj or {}).get(bucket)
+                                if reason:
+                                    _shadow[key][reason] = _shadow[key].get(reason, 0) + 1
+                            _shadow["both_stage3_current_fail_raw_pass"] += int(_raw3_pass and not _cur3_pass)
+                            _shadow["both_stage3_current_pass_raw_fail"] += int(_cur3_pass and not _raw3_pass)
                     except Exception as _shadow_e:
                         print(f"      ⚠️ RRCE shadow diagnostic failed for {symbol}/{_direction}: {_shadow_e}")
 
