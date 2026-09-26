@@ -34,6 +34,7 @@ from engines.relative_strength   import RelativeStrengthEngine
 from engines.support_resistance  import SupportResistanceEngine
 from engines.volume_profile      import VolumeProfileEngine
 from engines.rrce_engine         import RRCEEngine
+from engines.rrce_v672_legacy    import LegacyV672RRCEEngine
 from engines.position_sizer      import PositionSizer
 from engines.live_entry_integrity import revalidate as revalidate_live_entry
 from engines.funding_engine      import FundingEngine
@@ -119,6 +120,9 @@ def main():
             "both_stage3_current_fail_raw_pass": 0,
             "both_stage3_current_pass_raw_fail": 0,
             "current_stage3_reasons": {}, "raw_v69_stage3_reasons": {},
+            "legacy_v672_directions": 0, "legacy_v672_stage_counts": {},
+            "legacy_v672_full_sequence": 0, "legacy_v672_bonus_sum": 0.0,
+            "legacy_v672_full_current_v69_invalid": 0,
         },
         "stage_time_sec": {
             "symbol_1h": 0.0,
@@ -150,6 +154,9 @@ def main():
     range_rrce_engine = RRCEEngine(
         eq_tolerance_pct=CONFIG["rrce_range_eq_tolerance_pct"]
     )
+    # Diagnostic-only replay of the exact V6.7.2 RRCE contract on the same
+    # 1H dataframe used by the historical scanner. This never gates signals.
+    legacy_v672_engine = LegacyV672RRCEEngine()
 
     sizer          = PositionSizer()
     funding_engine = FundingEngine()
@@ -573,6 +580,24 @@ def main():
                             confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
                         )
                         rrce_bonus = rrce_result["bonus"]
+
+                        # Exact historical V6.7.2 replay on the same 1H frame.
+                        # Telemetry only; production remains on V6.9.
+                        try:
+                            legacy = legacy_v672_engine.evaluate(df_1h, direction, price)
+                            shadow = _runtime_metrics["rrce_shadow"]
+                            shadow["legacy_v672_directions"] += 1
+                            shadow["legacy_v672_bonus_sum"] += float(legacy.get("bonus", 0.0))
+                            k = str(int(legacy.get("stages_passed", 0)))
+                            shadow["legacy_v672_stage_counts"][k] = (
+                                shadow["legacy_v672_stage_counts"].get(k, 0) + 1
+                            )
+                            if int(legacy.get("stages_passed", 0)) >= 5:
+                                shadow["legacy_v672_full_sequence"] += 1
+                            if rrce_result.get("valid") is False and int(legacy.get("stages_passed", 0)) >= 5:
+                                shadow["legacy_v672_full_current_v69_invalid"] += 1
+                        except Exception as _legacy_e:
+                            print(f"      ⚠️  {symbol} V6.7.2 replay failed: {_legacy_e}")
                 except Exception as _rrce_e:
                     print(f"      ⚠️  {symbol} RRCE multi-TF fetch/eval failed: {_rrce_e}")
 
