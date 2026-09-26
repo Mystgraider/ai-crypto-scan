@@ -107,6 +107,14 @@ def main():
         "symbols_attempted": 0,
         "symbols_completed": 0,
         "symbol_time_samples": [],
+        "rrce_shadow": {
+            "directions": 0, "current_stage1_pass": 0, "raw_v69_stage1_pass": 0,
+            "raw_stage1_pass_current_fail": 0, "current_stage1_pass_raw_fail": 0,
+            "current_stage2_evaluable": 0, "raw_stage2_evaluable": 0,
+            "current_stage2_pass": 0, "raw_v69_stage2_pass": 0,
+            "both_stage2_evaluable_current_fail_raw_pass": 0,
+            "both_stage2_evaluable_current_pass_raw_fail": 0,
+        },
         "stage_time_sec": {
             "symbol_1h": 0.0,
             "funding": 0.0,
@@ -364,6 +372,43 @@ def main():
                         )
                     except Exception:
                         rrce_stage1_prefilter[_direction] = None
+
+                    # Shadow only: replay raw V6.9 Stage 1/2 on the exact
+                    # same fetched 4H/1H frames. Never changes production gating.
+                    try:
+                        _shadow = _runtime_metrics["rrce_shadow"]
+                        _shadow["directions"] += 1
+                        _raw_s1 = _prefilter_engine.stage1_v69_shadow(df_4h, _direction, price)
+                        _cur_s1 = rrce_stage1_prefilter[_direction]
+                        _raw_s1_pass = bool(_raw_s1 and _raw_s1.get("passed"))
+                        _cur_s1_pass = bool(_cur_s1 and _cur_s1.get("passed"))
+                        _shadow["raw_v69_stage1_pass"] += int(_raw_s1_pass)
+                        _shadow["current_stage1_pass"] += int(_cur_s1_pass)
+                        _shadow["raw_stage1_pass_current_fail"] += int(_raw_s1_pass and not _cur_s1_pass)
+                        _shadow["current_stage1_pass_raw_fail"] += int(_cur_s1_pass and not _raw_s1_pass)
+
+                        _raw_s2 = None
+                        _cur_s2 = None
+                        if _raw_s1_pass:
+                            _shadow["raw_stage2_evaluable"] += 1
+                            _raw_s2 = _prefilter_engine.stage2_v69_shadow(
+                                df_1h, _direction, _raw_s1["range_low"], _raw_s1["range_high"]
+                            )
+                            _shadow["raw_v69_stage2_pass"] += int(bool(_raw_s2 and _raw_s2.get("passed")))
+                        if _cur_s1_pass:
+                            _shadow["current_stage2_evaluable"] += 1
+                            _cur_s2 = _prefilter_engine.stage2_retail_liquidity(
+                                df_1h, _direction, _cur_s1["range_low"], _cur_s1["range_high"],
+                                patience_bars=(CONFIG["rrce_range_patience_bars"] if _prefilter_is_range else CONFIG["rrce_default_patience_bars"])
+                            )
+                            _shadow["current_stage2_pass"] += int(bool(_cur_s2 and _cur_s2.get("passed")))
+                        if _raw_s1_pass and _cur_s1_pass and _raw_s2 is not None and _cur_s2 is not None:
+                            _raw2_pass = bool(_raw_s2.get("passed"))
+                            _cur2_pass = bool(_cur_s2.get("passed"))
+                            _shadow["both_stage2_evaluable_current_fail_raw_pass"] += int(_raw2_pass and not _cur2_pass)
+                            _shadow["both_stage2_evaluable_current_pass_raw_fail"] += int(_cur2_pass and not _raw2_pass)
+                    except Exception as _shadow_e:
+                        print(f"      ⚠️ RRCE shadow diagnostic failed for {symbol}/{_direction}: {_shadow_e}")
 
                 if not any(
                     result and result.get("passed")
@@ -841,6 +886,7 @@ def main():
             "stage2_all_pool_count_avg": round(sum(stage2_all_pool_counts)/len(stage2_all_pool_counts), 2) if stage2_all_pool_counts else None,
             "stage2_selected_pool_distance_avg_pct": round(sum(stage2_selected_pool_distances)/len(stage2_selected_pool_distances), 4) if stage2_selected_pool_distances else None,
             "rrce_watchlist_active": active_count(CONFIG["rrce_watchlist_hours"]),
+            "rrce_shadow": _runtime_metrics["rrce_shadow"],
             "runtime": {
                 "scan_elapsed_sec": _runtime_metrics["scan_elapsed_sec"],
                 "symbols_attempted": _runtime_metrics["symbols_attempted"],

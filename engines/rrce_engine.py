@@ -100,6 +100,62 @@ class RRCEEngine:
         )
         return d
 
+    def _find_swings_v69_shadow(self, df: pd.DataFrame, n: int = None) -> pd.DataFrame:
+        """Raw V6.9 shadow swing detector; intentionally keeps the forming row."""
+        n = n or self.swing_lookback
+        d = df.copy()
+        d["swing_high"] = d["high"].where(
+            d["high"] == d["high"].rolling(2 * n + 1, center=True).max()
+        )
+        d["swing_low"] = d["low"].where(
+            d["low"] == d["low"].rolling(2 * n + 1, center=True).min()
+        )
+        return d
+
+    def stage1_v69_shadow(self, df_htf: pd.DataFrame, direction: str, price: float,
+                          lookback: int = 60) -> dict | None:
+        """Non-blocking replay of raw V6.9 Stage 1 for diagnostics only."""
+        d = self._find_swings_v69_shadow(df_htf).tail(lookback)
+        highs = d["swing_high"].dropna()
+        lows = d["swing_low"].dropna()
+        if highs.empty or lows.empty:
+            return None
+        range_high = float(highs.max())
+        range_low = float(lows.min())
+        if range_high <= range_low:
+            return None
+        midpoint = (range_high + range_low) / 2.0
+        position_pct = (price - range_low) / (range_high - range_low) * 100
+        passed = price <= midpoint if direction == "LONG" else price >= midpoint
+        return {"passed": bool(passed), "range_high": range_high,
+                "range_low": range_low, "position_pct": round(position_pct, 1)}
+
+    def stage2_v69_shadow(self, df_mtf: pd.DataFrame, direction: str,
+                          range_low: float, range_high: float,
+                          proximity_pct: float = 5.0, lookback: int = 80) -> dict | None:
+        """Non-blocking replay of raw V6.9 Stage 2 for diagnostics only."""
+        d = self._find_swings_v69_shadow(df_mtf).tail(lookback)
+        if len(df_mtf) < 2:
+            return None
+        last = df_mtf.iloc[-2]
+        if direction == "LONG":
+            pools = self._equal_levels(d["swing_low"].dropna().tolist())
+            near = [p for p in pools if abs(p["level"] - range_low) / range_low * 100 <= proximity_pct]
+            if not near:
+                return {"passed": False, "reason": "no_equal_lows_near_range_low"}
+            pool = min(near, key=lambda p: abs(p["level"] - range_low))
+            swept = float(last["low"]) < pool["level"] and float(last["close"]) > pool["level"]
+        elif direction == "SHORT":
+            pools = self._equal_levels(d["swing_high"].dropna().tolist())
+            near = [p for p in pools if abs(p["level"] - range_high) / range_high * 100 <= proximity_pct]
+            if not near:
+                return {"passed": False, "reason": "no_equal_highs_near_range_high"}
+            pool = min(near, key=lambda p: abs(p["level"] - range_high))
+            swept = float(last["high"]) > pool["level"] and float(last["close"]) < pool["level"]
+        else:
+            return None
+        return {"passed": bool(swept), "reason": None if swept else "pool_found_not_swept"}
+
     # ── Stage 1: RANGE (HTF) ─────────────────────────────────────────────
     def stage1_range(self, df_htf: pd.DataFrame, direction: str, price: float,
                       lookback: int = 45, zone_threshold_pct: float = 60.0) -> dict | None:
