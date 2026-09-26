@@ -1,9 +1,21 @@
 {
+  "IOTA/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-26T21:27:39.666367+00:00",
+    "last_seen": "2026-09-26T21:27:39.666367+00:00",
+    "observations": 1,
+    "pool_level": 0.05107,
+    "range_high": 0.05077,
+    "range_low": 0.04493,
+    "regime": "RANGE",
+    "sweep_extreme": 0.05151,
+    "symbol": "IOTA/USDT:USDT"
+  },
   "LQTY/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-09-26T18:34:28.208931+00:00",
-    "last_seen": "2026-09-26T18:34:28.208931+00:00",
-    "observations": 1,
+    "last_seen": "2026-09-26T21:28:16.092221+00:00",
+    "observations": 2,
     "pool_level": 0.2299,
     "range_high": 0.2526,
     "range_low": 0.22,
