@@ -265,3 +265,26 @@ def test_stage3_rejects_choch_inside_unclosed_15m_sweep_candle():
 
     assert result["passed"] is False
     assert result["reason"] == "no_choch"
+
+
+def test_raw_v69_stage3_shadow_replays_latest_closed_candle():
+    engine = RRCEEngine()
+    timestamps = pd.date_range("2026-09-19 00:00:00", periods=5, freq="15min", tz="UTC")
+    rows = [
+        (100, 101, 99, 100),
+        (100, 101, 99, 100),
+        (100, 101, 99, 100),
+        (100, 106, 105, 105),
+        (105, 106, 104, 105),
+    ]
+    df = pd.DataFrame(rows, columns=["open", "high", "low", "close"]).assign(timestamp=timestamps)
+    def swings(d, n=None):
+        x = d.copy()
+        x["swing_high"] = np.nan
+        x["swing_low"] = np.nan
+        x.loc[2, "swing_high"] = 100.0
+        return x
+    engine._find_swings_v69_shadow = swings
+    result = engine.stage3_v69_shadow(df, "LONG")
+    assert result["passed"] is True
+    assert result["break_idx"] == 3
