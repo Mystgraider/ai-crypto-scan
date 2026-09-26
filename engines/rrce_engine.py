@@ -156,6 +156,47 @@ class RRCEEngine:
             return None
         return {"passed": bool(swept), "reason": None if swept else "pool_found_not_swept"}
 
+    def stage3_v69_shadow(self, df_ltf: pd.DataFrame, direction: str,
+                           lookback: int = 60) -> dict | None:
+        """Non-blocking replay of the raw V6.9 Stage 3 for diagnostics only."""
+        d = self._find_swings_v69_shadow(df_ltf).tail(lookback)
+        if len(df_ltf) < 3:
+            return {"passed": False, "reason": "insufficient_closed_candles"}
+        last_close = float(df_ltf["close"].iloc[-2])
+        if direction == "LONG":
+            levels = d["swing_high"].dropna()
+            if levels.empty:
+                return {"passed": False, "reason": "no_structure"}
+            choch_level = float(levels.iloc[-1])
+            choch = last_close > choch_level
+        elif direction == "SHORT":
+            levels = d["swing_low"].dropna()
+            if levels.empty:
+                return {"passed": False, "reason": "no_structure"}
+            choch_level = float(levels.iloc[-1])
+            choch = last_close < choch_level
+        else:
+            return {"passed": False, "reason": "invalid_direction"}
+        if not choch:
+            return {"passed": False, "reason": "no_choch", "choch_level": choch_level}
+        fvg = self._detect_fvg_near_v69_shadow(df_ltf, direction)
+        if not fvg:
+            return {"passed": False, "reason": "choch_without_fvg", "choch_level": choch_level}
+        return {"passed": True, "choch_level": choch_level, "fvg": fvg,
+                "break_idx": len(df_ltf) - 2,
+                "break_time": df_ltf["timestamp"].iloc[-2] if "timestamp" in df_ltf.columns else None}
+
+    def _detect_fvg_near_v69_shadow(self, df: pd.DataFrame, direction: str,
+                                    lookback: int = 10) -> dict | None:
+        d = df.tail(lookback + 2).reset_index(drop=True)
+        for i in range(2, len(d)):
+            c0, c2 = d.iloc[i - 2], d.iloc[i]
+            if direction == "LONG" and c2["low"] > c0["high"]:
+                return {"top": float(c2["low"]), "bottom": float(c0["high"]), "break_idx": i}
+            if direction == "SHORT" and c2["high"] < c0["low"]:
+                return {"top": float(c0["low"]), "bottom": float(c2["high"]), "break_idx": i}
+        return None
+
     # ── Stage 1: RANGE (HTF) ─────────────────────────────────────────────
     def stage1_range(self, df_htf: pd.DataFrame, direction: str, price: float,
                       lookback: int = 45, zone_threshold_pct: float = 60.0) -> dict | None:
