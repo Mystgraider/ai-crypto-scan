@@ -1,14 +1,14 @@
 {
-  "XTZ/USDT:USDT|LONG": {
+  "LQTY/USDT:USDT|LONG": {
     "direction": "LONG",
-    "first_seen": "2026-09-26T11:46:37.773359+00:00",
-    "last_seen": "2026-09-26T11:46:37.773359+00:00",
+    "first_seen": "2026-09-26T18:34:28.208931+00:00",
+    "last_seen": "2026-09-26T18:34:28.208931+00:00",
     "observations": 1,
-    "pool_level": 0.32375,
-    "range_high": 0.3973,
-    "range_low": 0.3166,
+    "pool_level": 0.2299,
+    "range_high": 0.2526,
+    "range_low": 0.22,
     "regime": "RANGE",
-    "sweep_extreme": 0.3227,
-    "symbol": "XTZ/USDT:USDT"
+    "sweep_extreme": 0.2286,
+    "symbol": "LQTY/USDT:USDT"
   }
 }
