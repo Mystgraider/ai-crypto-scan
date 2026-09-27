@@ -134,6 +134,23 @@ def main():
             "stage1_variant_inside_stage4_valid": 0,
             "stage1_variant_midpoint_reasons": {},
             "stage1_variant_inside_reasons": {},
+            "stage2_stage3_replay": {
+                "directions": 0,
+                "variants": {
+                    "current": {"stage2_pass": 0, "stage3_pass": 0, "stage2_reasons": {}, "stage3_reasons": {}},
+                    "patience_12": {"stage2_pass": 0, "stage3_pass": 0, "stage2_reasons": {}, "stage3_reasons": {}},
+                    "patience_16": {"stage2_pass": 0, "stage3_pass": 0, "stage2_reasons": {}, "stage3_reasons": {}},
+                    "eq_tolerance_030": {"stage2_pass": 0, "stage3_pass": 0, "stage2_reasons": {}, "stage3_reasons": {}},
+                    "proximity_10": {"stage2_pass": 0, "stage3_pass": 0, "stage2_reasons": {}, "stage3_reasons": {}},
+                    "broad": {"stage2_pass": 0, "stage3_pass": 0, "stage2_reasons": {}, "stage3_reasons": {}},
+                },
+                "stage3_confirmation_variants": {
+                    "3": {"evaluable": 0, "pass": 0, "reasons": {}},
+                    "6": {"evaluable": 0, "pass": 0, "reasons": {}},
+                    "12": {"evaluable": 0, "pass": 0, "reasons": {}},
+                    "24": {"evaluable": 0, "pass": 0, "reasons": {}},
+                },
+            },
         },
         "stage_time_sec": {
             "symbol_1h": 0.0,
@@ -652,6 +669,63 @@ def main():
                                 _run_s1_variant("inside", _inside)
                         except Exception as _s1v_e:
                             print(f"      ⚠️  Stage-1 variant replay failed: {_s1v_e}")
+
+                        # Diagnostic-only Stage-2 -> Stage-3 replay.
+                        # Production remains on the current RRCE settings. This isolates
+                        # liquidity-pool/sweep sensitivity from the CHOCH confirmation window.
+                        try:
+                            _s23 = _runtime_metrics["rrce_shadow"]["stage2_stage3_replay"]
+                            _s23["directions"] += 1
+                            _base_eq = float(active_rrce_engine.eq_tolerance_pct)
+                            _variants = {
+                                "current": {"patience": int(patience_bars), "eq": _base_eq, "proximity": 5.0},
+                                "patience_12": {"patience": 12, "eq": _base_eq, "proximity": 5.0},
+                                "patience_16": {"patience": 16, "eq": _base_eq, "proximity": 5.0},
+                                "eq_tolerance_030": {"patience": int(patience_bars), "eq": 0.30, "proximity": 5.0},
+                                "proximity_10": {"patience": int(patience_bars), "eq": _base_eq, "proximity": 10.0},
+                                "broad": {"patience": 16, "eq": 0.30, "proximity": 10.0},
+                            }
+                            for _name, _cfg in _variants.items():
+                                _diag_engine = active_rrce_engine
+                                if float(_cfg["eq"]) != _base_eq:
+                                    _diag_engine = RRCEEngine(eq_tolerance_pct=float(_cfg["eq"]))
+                                _s2d = _diag_engine.stage2_retail_liquidity(
+                                    df_1h, direction, _s1v["range_low"], _s1v["range_high"],
+                                    proximity_pct=float(_cfg["proximity"]),
+                                    patience_bars=int(_cfg["patience"]),
+                                )
+                                _bucket = _s23["variants"][_name]
+                                if not _s2d or not _s2d.get("passed"):
+                                    _reason = (_s2d or {}).get("reason", "no_stage2")
+                                    _bucket["stage2_reasons"][_reason] = (
+                                        _bucket["stage2_reasons"].get(_reason, 0) + 1
+                                    )
+                                    continue
+                                _bucket["stage2_pass"] += 1
+                                for _cb in (3, 6, 12, 24):
+                                    _s3d = _diag_engine.stage3_confirmation(
+                                        _df_rrce_15m, direction,
+                                        sweep_time=_s2d.get("sweep_time"),
+                                        confirmation_bars=_cb,
+                                    )
+                                    _ck = str(_cb)
+                                    _c_bucket = _s23["stage3_confirmation_variants"][_ck]
+                                    _c_bucket["evaluable"] += 1
+                                    if _s3d and _s3d.get("passed"):
+                                        _c_bucket["pass"] += 1
+                                        if _cb == CONFIG["rrce_stage3_confirmation_bars"]:
+                                            _bucket["stage3_pass"] += 1
+                                    else:
+                                        _reason = (_s3d or {}).get("reason", "no_stage3")
+                                        _c_bucket["reasons"][_reason] = (
+                                            _c_bucket["reasons"].get(_reason, 0) + 1
+                                        )
+                                        if _cb == CONFIG["rrce_stage3_confirmation_bars"]:
+                                            _bucket["stage3_reasons"][_reason] = (
+                                                _bucket["stage3_reasons"].get(_reason, 0) + 1
+                                            )
+                        except Exception as _s23_e:
+                            print(f"      ⚠️  Stage-2/3 replay failed: {_s23_e}")
 
                         # Exact historical V6.7.2 replay on the same 1H frame.
                         # Telemetry only; production remains on V6.9.
