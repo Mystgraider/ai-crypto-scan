@@ -1,26 +1,38 @@
 {
-  "ETH/USDT:USDT|SHORT": {
+  "BAND/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-09-27T11:51:50.005464+00:00",
-    "last_seen": "2026-09-27T13:00:17.141658+00:00",
-    "observations": 8,
-    "pool_level": 2704.66,
-    "range_high": 2806.73,
-    "range_low": 2626.39,
+    "first_seen": "2026-09-27T17:37:43.615892+00:00",
+    "last_seen": "2026-09-27T17:37:43.615892+00:00",
+    "observations": 1,
+    "pool_level": 0.2294,
+    "range_high": 0.2315,
+    "range_low": 0.2076,
     "regime": "RANGE",
-    "sweep_extreme": 2712.6,
-    "symbol": "ETH/USDT:USDT"
+    "sweep_extreme": 0.23,
+    "symbol": "BAND/USDT:USDT"
+  },
+  "STG/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-09-27T17:37:46.223159+00:00",
+    "last_seen": "2026-09-27T17:37:46.223159+00:00",
+    "observations": 1,
+    "pool_level": 0.1416,
+    "range_high": 0.1419,
+    "range_low": 0.1178,
+    "regime": "RANGE",
+    "sweep_extreme": 0.1426,
+    "symbol": "STG/USDT:USDT"
   },
   "XTZ/USDT:USDT|LONG": {
     "direction": "LONG",
-    "first_seen": "2026-09-27T11:52:03.136406+00:00",
-    "last_seen": "2026-09-27T13:00:37.630811+00:00",
-    "observations": 8,
+    "first_seen": "2026-09-27T17:36:57.973034+00:00",
+    "last_seen": "2026-09-27T17:36:57.973034+00:00",
+    "observations": 1,
     "pool_level": 0.32375,
     "range_high": 0.3433,
     "range_low": 0.3166,
     "regime": "RANGE",
-    "sweep_extreme": 0.3233,
+    "sweep_extreme": 0.3219,
     "symbol": "XTZ/USDT:USDT"
   }
 }
