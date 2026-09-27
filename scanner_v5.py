@@ -592,10 +592,32 @@ def main():
                             shadow["legacy_v672_stage_counts"][k] = (
                                 shadow["legacy_v672_stage_counts"].get(k, 0) + 1
                             )
-                            if int(legacy.get("stages_passed", 0)) >= 5:
+                            legacy_stages = int(legacy.get("stages_passed", 0))
+                            if legacy_stages >= 5:
                                 shadow["legacy_v672_full_sequence"] += 1
-                            if rrce_result.get("valid") is False and int(legacy.get("stages_passed", 0)) >= 5:
+                            if rrce_result.get("valid") is False and legacy_stages >= 5:
                                 shadow["legacy_v672_full_current_v69_invalid"] += 1
+
+                            # Diagnostic case trace only; no production gating change.
+                            if legacy_stages >= 4:
+                                _case = {
+                                    "symbol": symbol, "direction": direction, "price": price,
+                                    "legacy_stages_passed": legacy_stages,
+                                    "legacy_bonus": float(legacy.get("bonus", 0.0)),
+                                    "legacy_sweep": legacy.get("sweep"),
+                                    "legacy_choch_bos": legacy.get("choch_bos"),
+                                    "legacy_fvg": legacy.get("fvg") or [],
+                                    "legacy_ob": legacy.get("ob"),
+                                    "legacy_in_ote": bool(legacy.get("in_ote")),
+                                    "legacy_candle": legacy.get("candle"),
+                                    "current_v69_valid": bool(rrce_result.get("valid")),
+                                    "current_v69_failed_at": rrce_result.get("failed_at"),
+                                }
+                                for _stage_name in ("stage1", "stage2", "stage3", "stage4"):
+                                    _stage_data = rrce_result.get(_stage_name)
+                                    if isinstance(_stage_data, dict):
+                                        _case[f"current_{_stage_name}"] = _stage_data
+                                shadow.setdefault("legacy_v672_case_trace", []).append(_case)
                         except Exception as _legacy_e:
                             print(f"      ⚠️  {symbol} V6.7.2 replay failed: {_legacy_e}")
                 except Exception as _rrce_e:
