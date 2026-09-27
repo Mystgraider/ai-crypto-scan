@@ -73,7 +73,7 @@ jobs:
           git fetch origin main
           git reset --mixed origin/main
 
-          git add storage/signals.csv storage/cooldown.json storage/circuit_breaker.json storage/rrce_watchlist.json storage/scan_debug_log.jsonl storage/symbol_trace_log.jsonl || true
+          git add storage/signals.csv storage/cooldown.json storage/circuit_breaker.json storage/rrce_watchlist.json storage/scan_debug_log.jsonl storage/symbol_trace_log.jsonl storage/rrce_handoff_replay.jsonl || true
 
           if git diff --staged --quiet; then
             echo "No generated scanner state changes to commit."
