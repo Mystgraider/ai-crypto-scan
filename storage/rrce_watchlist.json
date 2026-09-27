@@ -1,8 +1,8 @@
 {
   "ETH/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-09-27T07:11:25.082860+00:00",
-    "last_seen": "2026-09-27T07:11:25.082860+00:00",
+    "first_seen": "2026-09-27T11:51:50.005464+00:00",
+    "last_seen": "2026-09-27T11:51:50.005464+00:00",
     "observations": 1,
     "pool_level": 2704.66,
     "range_high": 2806.73,
@@ -13,14 +13,14 @@
   },
   "XTZ/USDT:USDT|LONG": {
     "direction": "LONG",
-    "first_seen": "2026-09-27T07:11:39.945212+00:00",
-    "last_seen": "2026-09-27T07:11:39.945212+00:00",
+    "first_seen": "2026-09-27T11:52:03.136406+00:00",
+    "last_seen": "2026-09-27T11:52:03.136406+00:00",
     "observations": 1,
     "pool_level": 0.32375,
     "range_high": 0.3433,
     "range_low": 0.3166,
     "regime": "RANGE",
-    "sweep_extreme": 0.3207,
+    "sweep_extreme": 0.3233,
     "symbol": "XTZ/USDT:USDT"
   }
 }
