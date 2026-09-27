@@ -745,6 +745,22 @@ def main():
                                 except Exception as _ht_e:
                                     _r=f"handoff_replay_error:{type(_ht_e).__name__}"
                                     _s23["handoff_timestamp"]["corrected_reasons"][_r]=_s23["handoff_timestamp"]["corrected_reasons"].get(_r,0)+1
+                                # Explicit per-Stage2-pass persistence for timestamp replay.
+                                try:
+                                    _handoff_row = {"ts": _dt.now(_tz.utc).isoformat(),
+                                        "rrce_handoff_replay": {
+                                            "symbol": symbol, "direction": direction,
+                                            "sweep_candle_open": str(_sweep_open) if _sweep_open is not None else None,
+                                            "current_handoff_15m": str(_open_ts + pd.Timedelta(minutes=15)) if _sweep_open is not None else None,
+                                            "corrected_handoff_60m": str(_open_ts + pd.Timedelta(minutes=60)) if _sweep_open is not None else None,
+                                            "current_pass": _cur_pass if _sweep_open is not None else None,
+                                            "corrected_pass": _fix_pass if _sweep_open is not None else None,
+                                            "current_reason": (_cur3 or {}).get("reason") if _sweep_open is not None else "no_sweep_timestamp",
+                                            "corrected_reason": (_fix3 or {}).get("reason") if _sweep_open is not None else "no_sweep_timestamp"}}
+                                    with open("storage/rrce_handoff_replay.jsonl", "a") as _hf:
+                                        _hf.write(_json.dumps(_handoff_row) + "\n")
+                                except Exception as _hre:
+                                    print(f"      ⚠️  handoff replay record write failed: {_hre}")
 
                                 for _cb in (3, 6, 12, 24):
                                     _s3d = _diag_engine.stage3_confirmation(
