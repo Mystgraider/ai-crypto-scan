@@ -123,6 +123,17 @@ def main():
             "legacy_v672_directions": 0, "legacy_v672_stage_counts": {},
             "legacy_v672_full_sequence": 0, "legacy_v672_bonus_sum": 0.0,
             "legacy_v672_full_current_v69_invalid": 0,
+            "stage1_variant_directions": 0,
+            "stage1_variant_midpoint_pass": 0,
+            "stage1_variant_inside_range_pass": 0,
+            "stage1_variant_midpoint_stage2_pass": 0,
+            "stage1_variant_inside_stage2_pass": 0,
+            "stage1_variant_midpoint_stage3_pass": 0,
+            "stage1_variant_inside_stage3_pass": 0,
+            "stage1_variant_midpoint_stage4_valid": 0,
+            "stage1_variant_inside_stage4_valid": 0,
+            "stage1_variant_midpoint_reasons": {},
+            "stage1_variant_inside_reasons": {},
         },
         "stage_time_sec": {
             "symbol_1h": 0.0,
@@ -580,6 +591,67 @@ def main():
                             confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
                         )
                         rrce_bonus = rrce_result["bonus"]
+
+                        # Diagnostic-only Stage-1 variant replay. Production remains
+                        # on the current V6.9 Stage-1 gate. This measures whether the
+                        # directional Discount/Premium gate itself is removing viable
+                        # downstream RRCE paths; no signal gating is changed here.
+                        try:
+                            _shadow = _runtime_metrics["rrce_shadow"]
+                            _shadow["stage1_variant_directions"] += 1
+                            _s1v = rrce_result.get("stage1") if rrce_result else None
+                            if isinstance(_s1v, dict):
+                                _pos = float(_s1v.get("position_pct", float("nan")))
+                                _inside = bool(0.0 <= _pos <= 100.0)
+                                _midpoint = _inside and ((_pos <= 50.0) if direction == "LONG" else (_pos >= 50.0))
+                                if _midpoint:
+                                    _shadow["stage1_variant_midpoint_pass"] += 1
+                                if _inside:
+                                    _shadow["stage1_variant_inside_range_pass"] += 1
+
+                                def _run_s1_variant(_name, _passed):
+                                    if not _passed:
+                                        return
+                                    _s2v = active_rrce_engine.stage2_retail_liquidity(
+                                        df_1h, direction, _s1v["range_low"], _s1v["range_high"],
+                                        patience_bars=patience_bars,
+                                    )
+                                    if not _s2v or not _s2v.get("passed"):
+                                        _reason = (_s2v or {}).get("reason", "no_stage2")
+                                        _shadow[f"stage1_variant_{_name}_reasons"][_reason] = (
+                                            _shadow[f"stage1_variant_{_name}_reasons"].get(_reason, 0) + 1
+                                        )
+                                        return
+                                    _shadow[f"stage1_variant_{_name}_stage2_pass"] += 1
+                                    _s3v = active_rrce_engine.stage3_confirmation(
+                                        _df_rrce_15m, direction,
+                                        sweep_time=_s2v.get("sweep_time"),
+                                        confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
+                                    )
+                                    if not _s3v or not _s3v.get("passed"):
+                                        _reason = (_s3v or {}).get("reason", "no_stage3")
+                                        _shadow[f"stage1_variant_{_name}_reasons"][_reason] = (
+                                            _shadow[f"stage1_variant_{_name}_reasons"].get(_reason, 0) + 1
+                                        )
+                                        return
+                                    _shadow[f"stage1_variant_{_name}_stage3_pass"] += 1
+                                    _opposite_pool = _s1v["range_high"] if direction == "LONG" else _s1v["range_low"]
+                                    _s4v = active_rrce_engine.stage4_execution(
+                                        _df_rrce_5m, direction, _s3v["fvg"], _s2v["sweep_extreme"],
+                                        _opposite_pool, break_idx=_s3v.get("break_idx")
+                                    )
+                                    if _s4v.get("valid"):
+                                        _shadow[f"stage1_variant_{_name}_stage4_valid"] += 1
+                                    else:
+                                        _reason = _s4v.get("reason", "stage4_invalid")
+                                        _shadow[f"stage1_variant_{_name}_reasons"][_reason] = (
+                                            _shadow[f"stage1_variant_{_name}_reasons"].get(_reason, 0) + 1
+                                        )
+
+                                _run_s1_variant("midpoint", _midpoint)
+                                _run_s1_variant("inside", _inside)
+                        except Exception as _s1v_e:
+                            print(f"      ⚠️  Stage-1 variant replay failed: {_s1v_e}")
 
                         # Exact historical V6.7.2 replay on the same 1H frame.
                         # Telemetry only; production remains on V6.9.
