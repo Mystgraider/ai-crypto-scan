@@ -150,6 +150,12 @@ def main():
                     "12": {"evaluable": 0, "pass": 0, "reasons": {}},
                     "24": {"evaluable": 0, "pass": 0, "reasons": {}},
                 },
+                "handoff_timestamp": {
+                    "evaluable": 0, "current_15m_pass": 0,
+                    "corrected_60m_pass": 0, "current_reasons": {},
+                    "corrected_reasons": {}, "current_fail_corrected_pass": 0,
+                    "current_pass_corrected_fail": 0,
+                },
             },
         },
         "stage_time_sec": {
@@ -702,6 +708,44 @@ def main():
                                     )
                                     continue
                                 _bucket["stage2_pass"] += 1
+
+                                # Timestamp-only replay: Stage 2 is 1H and its
+                                # OHLCV timestamp is the candle OPEN time. The
+                                # current +15m handoff is compared with the
+                                # completed-1H +60m handoff using identical
+                                # Stage-3 rules and the same 15m dataframe.
+                                try:
+                                    _ht = _s23["handoff_timestamp"]
+                                    _ht["evaluable"] += 1
+                                    _sweep_open = _s2d.get("sweep_candle_time")
+                                    if _sweep_open is not None:
+                                        _open_ts = pd.to_datetime(_sweep_open, utc=True, errors="raise")
+                                        _cur3 = _diag_engine.stage3_confirmation(
+                                            _df_rrce_15m, direction,
+                                            sweep_time=_open_ts + pd.Timedelta(minutes=15),
+                                            confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
+                                        )
+                                        _fix3 = _diag_engine.stage3_confirmation(
+                                            _df_rrce_15m, direction,
+                                            sweep_time=_open_ts + pd.Timedelta(minutes=60),
+                                            confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
+                                        )
+                                        _cur_pass = bool(_cur3 and _cur3.get("passed"))
+                                        _fix_pass = bool(_fix3 and _fix3.get("passed"))
+                                        if _cur_pass: _ht["current_15m_pass"] += 1
+                                        else:
+                                            _r=(_cur3 or {}).get("reason","no_stage3")
+                                            _ht["current_reasons"][_r]=_ht["current_reasons"].get(_r,0)+1
+                                        if _fix_pass: _ht["corrected_60m_pass"] += 1
+                                        else:
+                                            _r=(_fix3 or {}).get("reason","no_stage3")
+                                            _ht["corrected_reasons"][_r]=_ht["corrected_reasons"].get(_r,0)+1
+                                        if (not _cur_pass) and _fix_pass: _ht["current_fail_corrected_pass"] += 1
+                                        if _cur_pass and (not _fix_pass): _ht["current_pass_corrected_fail"] += 1
+                                except Exception as _ht_e:
+                                    _r=f"handoff_replay_error:{type(_ht_e).__name__}"
+                                    _s23["handoff_timestamp"]["corrected_reasons"][_r]=_s23["handoff_timestamp"]["corrected_reasons"].get(_r,0)+1
+
                                 for _cb in (3, 6, 12, 24):
                                     _s3d = _diag_engine.stage3_confirmation(
                                         _df_rrce_15m, direction,
