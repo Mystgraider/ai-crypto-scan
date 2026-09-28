@@ -21,6 +21,7 @@ V6.1 (data-driven, unchanged):
 
 import json as _json
 from datetime import datetime as _dt, timezone as _tz
+import pandas as pd
 
 from loaders.top_symbols_loader  import TopSymbolsLoader
 from loaders.market_data_loader  import MarketDataLoader
@@ -715,10 +716,15 @@ def main():
                                 # current +15m handoff is compared with the
                                 # completed-1H +60m handoff using identical
                                 # Stage-3 rules and the same 15m dataframe.
+                                _sweep_open = _s2d.get("sweep_candle_time")
+                                _open_ts = None
+                                _cur3 = None
+                                _fix3 = None
+                                _cur_pass = False
+                                _fix_pass = False
                                 try:
                                     _ht = _s23["handoff_timestamp"]
                                     _ht["evaluable"] += 1
-                                    _sweep_open = _s2d.get("sweep_candle_time")
                                     if _sweep_open is not None:
                                         _open_ts = pd.to_datetime(_sweep_open, utc=True, errors="raise")
                                         _cur3 = _diag_engine.stage3_confirmation(
@@ -747,13 +753,8 @@ def main():
                                     _r=f"handoff_replay_error:{type(_ht_e).__name__}"
                                     _s23["handoff_timestamp"]["corrected_reasons"][_r]=_s23["handoff_timestamp"]["corrected_reasons"].get(_r,0)+1
                                 # Explicit per-Stage2-pass persistence for timestamp replay.
-                                # Initialize replay locals before the conditional so the
-                                # writer can never reference an unbound local.
-                                _open_ts = None
-                                _cur3 = None
-                                _fix3 = None
-                                _cur_pass = False
-                                _fix_pass = False
+                                # Replay locals are initialized before the comparison so
+                                # persistence always records the actual replay result.
                                 try:
                                     _handoff_row = {"ts": _dt.now(_tz.utc).isoformat(),
                                         "rrce_handoff_replay": {
