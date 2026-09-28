@@ -1,8 +1,8 @@
 {
   "BNB/USDT:USDT|LONG": {
     "direction": "LONG",
-    "first_seen": "2026-09-28T21:25:27.502026+00:00",
-    "last_seen": "2026-09-28T21:25:27.502026+00:00",
+    "first_seen": "2026-09-28T23:50:17.612883+00:00",
+    "last_seen": "2026-09-28T23:50:17.612883+00:00",
     "observations": 1,
     "pool_level": 766.65,
     "range_high": 807.1,
@@ -11,22 +11,10 @@
     "sweep_extreme": 764.8,
     "symbol": "BNB/USDT:USDT"
   },
-  "ETH/USDT:USDT|LONG": {
-    "direction": "LONG",
-    "first_seen": "2026-09-28T21:25:18.748873+00:00",
-    "last_seen": "2026-09-28T21:25:18.748873+00:00",
-    "observations": 1,
-    "pool_level": 2664.495,
-    "range_high": 2806.73,
-    "range_low": 2626.39,
-    "regime": "BEAR_UNCONFIRMED",
-    "sweep_extreme": 2653.06,
-    "symbol": "ETH/USDT:USDT"
-  },
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-09-28T21:26:23.064776+00:00",
-    "last_seen": "2026-09-28T21:26:23.064776+00:00",
+    "first_seen": "2026-09-28T23:51:12.013724+00:00",
+    "last_seen": "2026-09-28T23:51:12.013724+00:00",
     "observations": 1,
     "pool_level": 0.9996236842105262,
     "range_high": 1.0002,
