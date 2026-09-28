@@ -747,6 +747,13 @@ def main():
                                     _r=f"handoff_replay_error:{type(_ht_e).__name__}"
                                     _s23["handoff_timestamp"]["corrected_reasons"][_r]=_s23["handoff_timestamp"]["corrected_reasons"].get(_r,0)+1
                                 # Explicit per-Stage2-pass persistence for timestamp replay.
+                                # Initialize replay locals before the conditional so the
+                                # writer can never reference an unbound local.
+                                _open_ts = None
+                                _cur3 = None
+                                _fix3 = None
+                                _cur_pass = False
+                                _fix_pass = False
                                 try:
                                     _handoff_row = {"ts": _dt.now(_tz.utc).isoformat(),
                                         "rrce_handoff_replay": {
