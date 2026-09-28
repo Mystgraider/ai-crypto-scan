@@ -20,6 +20,8 @@ V6.1 (data-driven, unchanged):
 """
 
 import json as _json
+from datetime import datetime as _dt, timezone as _tz
+import pandas as pd
 
 from loaders.top_symbols_loader  import TopSymbolsLoader
 from loaders.market_data_loader  import MarketDataLoader
@@ -149,6 +151,12 @@ def main():
                     "6": {"evaluable": 0, "pass": 0, "reasons": {}},
                     "12": {"evaluable": 0, "pass": 0, "reasons": {}},
                     "24": {"evaluable": 0, "pass": 0, "reasons": {}},
+                },
+                "handoff_timestamp": {
+                    "evaluable": 0, "current_15m_pass": 0,
+                    "corrected_60m_pass": 0, "current_reasons": {},
+                    "corrected_reasons": {}, "current_fail_corrected_pass": 0,
+                    "current_pass_corrected_fail": 0,
                 },
             },
         },
@@ -702,6 +710,67 @@ def main():
                                     )
                                     continue
                                 _bucket["stage2_pass"] += 1
+
+                                # Timestamp-only replay: Stage 2 is 1H and its
+                                # OHLCV timestamp is the candle OPEN time. The
+                                # current +15m handoff is compared with the
+                                # completed-1H +60m handoff using identical
+                                # Stage-3 rules and the same 15m dataframe.
+                                _sweep_open = _s2d.get("sweep_candle_time")
+                                _open_ts = None
+                                _cur3 = None
+                                _fix3 = None
+                                _cur_pass = False
+                                _fix_pass = False
+                                try:
+                                    _ht = _s23["handoff_timestamp"]
+                                    _ht["evaluable"] += 1
+                                    if _sweep_open is not None:
+                                        _open_ts = pd.to_datetime(_sweep_open, utc=True, errors="raise")
+                                        _cur3 = _diag_engine.stage3_confirmation(
+                                            _df_rrce_15m, direction,
+                                            sweep_time=_open_ts + pd.Timedelta(minutes=15),
+                                            confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
+                                        )
+                                        _fix3 = _diag_engine.stage3_confirmation(
+                                            _df_rrce_15m, direction,
+                                            sweep_time=_open_ts + pd.Timedelta(minutes=60),
+                                            confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
+                                        )
+                                        _cur_pass = bool(_cur3 and _cur3.get("passed"))
+                                        _fix_pass = bool(_fix3 and _fix3.get("passed"))
+                                        if _cur_pass: _ht["current_15m_pass"] += 1
+                                        else:
+                                            _r=(_cur3 or {}).get("reason","no_stage3")
+                                            _ht["current_reasons"][_r]=_ht["current_reasons"].get(_r,0)+1
+                                        if _fix_pass: _ht["corrected_60m_pass"] += 1
+                                        else:
+                                            _r=(_fix3 or {}).get("reason","no_stage3")
+                                            _ht["corrected_reasons"][_r]=_ht["corrected_reasons"].get(_r,0)+1
+                                        if (not _cur_pass) and _fix_pass: _ht["current_fail_corrected_pass"] += 1
+                                        if _cur_pass and (not _fix_pass): _ht["current_pass_corrected_fail"] += 1
+                                except Exception as _ht_e:
+                                    _r=f"handoff_replay_error:{type(_ht_e).__name__}"
+                                    _s23["handoff_timestamp"]["corrected_reasons"][_r]=_s23["handoff_timestamp"]["corrected_reasons"].get(_r,0)+1
+                                # Explicit per-Stage2-pass persistence for timestamp replay.
+                                # Replay locals are initialized before the comparison so
+                                # persistence always records the actual replay result.
+                                try:
+                                    _handoff_row = {"ts": _dt.now(_tz.utc).isoformat(),
+                                        "rrce_handoff_replay": {
+                                            "symbol": symbol, "direction": direction,
+                                            "sweep_candle_open": str(_sweep_open) if _sweep_open is not None else None,
+                                            "current_handoff_15m": str(_open_ts + pd.Timedelta(minutes=15)) if _sweep_open is not None else None,
+                                            "corrected_handoff_60m": str(_open_ts + pd.Timedelta(minutes=60)) if _sweep_open is not None else None,
+                                            "current_pass": _cur_pass if _sweep_open is not None else None,
+                                            "corrected_pass": _fix_pass if _sweep_open is not None else None,
+                                            "current_reason": (_cur3 or {}).get("reason") if _sweep_open is not None else "no_sweep_timestamp",
+                                            "corrected_reason": (_fix3 or {}).get("reason") if _sweep_open is not None else "no_sweep_timestamp"}}
+                                    with open("storage/rrce_handoff_replay.jsonl", "a") as _hf:
+                                        _hf.write(_json.dumps(_handoff_row) + "\n")
+                                except Exception as _hre:
+                                    print(f"      ⚠️  handoff replay record write failed: {_hre}")
+
                                 for _cb in (3, 6, 12, 24):
                                     _s3d = _diag_engine.stage3_confirmation(
                                         _df_rrce_15m, direction,
@@ -1081,7 +1150,6 @@ def main():
     _runtime_metrics["scan_elapsed_sec"] = round(_time.perf_counter() - _scan_start_time, 3)
     _runtime_metrics["stage_time_sec"]["ranking"] = 0.0
     try:
-        from datetime import datetime as _dt, timezone as _tz
         debug_row = {
             "ts": _dt.now(_tz.utc).isoformat(),
             "symbols_scanned": len(symbols),
@@ -1293,7 +1361,6 @@ def main():
     # stages are included in the persisted telemetry for this run.
     _runtime_metrics["scan_elapsed_sec"] = round(_time.perf_counter() - _scan_start_time, 3)
     try:
-        from datetime import datetime as _dt, timezone as _tz
         runtime_final_row = {
             "ts": _dt.now(_tz.utc).isoformat(),
             "runtime_final": {

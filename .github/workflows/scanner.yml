@@ -5,12 +5,6 @@ on:
     - cron: '*/5 * * * *'
     - cron: '0 0 * * *'
   workflow_dispatch:
-    inputs:
-      scan_ref:
-        description: "Branch or tag to scan (default: main)"
-        required: false
-        default: "main"
-        type: string
 
 jobs:
   scan:
@@ -34,14 +28,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.scan_ref || github.ref }}
+          ref: ${{ github.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Show scan ref
         run: |
           echo "Workflow ref: $GITHUB_REF"
           echo "Workflow SHA: $GITHUB_SHA"
-          echo "Requested scan ref: ${{ inputs.scan_ref || github.ref }}"
+          echo "Effective scan ref: $GITHUB_REF"
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -73,7 +67,7 @@ jobs:
           git fetch origin main
           git reset --mixed origin/main
 
-          git add storage/signals.csv storage/cooldown.json storage/circuit_breaker.json storage/rrce_watchlist.json storage/scan_debug_log.jsonl storage/symbol_trace_log.jsonl || true
+          git add storage/signals.csv storage/cooldown.json storage/circuit_breaker.json storage/rrce_watchlist.json storage/scan_debug_log.jsonl storage/symbol_trace_log.jsonl storage/rrce_handoff_replay.jsonl || true
 
           if git diff --staged --quiet; then
             echo "No generated scanner state changes to commit."
