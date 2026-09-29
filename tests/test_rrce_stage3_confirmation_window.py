@@ -6,7 +6,7 @@ from engines.rrce_engine import RRCEEngine
 
 
 def _ltf_fixture():
-    timestamps = pd.date_range("2026-09-19 00:00:00", periods=9, freq="5min", tz="UTC")
+    timestamps = pd.date_range("2026-09-19 00:00:00", periods=9, freq="15min", tz="UTC")
     rows = [
         (100, 101, 99, 100),
         (100, 101, 99, 100),
@@ -136,7 +136,7 @@ def test_stage3_handoff_waits_for_late_confirmed_post_sweep_structure():
     engine = RRCEEngine()
 
     timestamps = pd.date_range(
-        "2026-09-19 00:00:00", periods=10, freq="5min", tz="UTC"
+        "2026-09-19 00:00:00", periods=10, freq="15min", tz="UTC"
     )
     rows = [
         (100, 101, 99, 100),
@@ -294,7 +294,7 @@ def test_stage3_handoff_allows_time_to_confirm_n10_structure_then_break():
     engine = RRCEEngine()
 
     timestamps = pd.date_range(
-        "2026-09-19 00:00:00", periods=24, freq="5min", tz="UTC"
+        "2026-09-19 00:00:00", periods=24, freq="15min", tz="UTC"
     )
     rows = [(100, 101, 99, 100) for _ in range(24)]
     rows[1] = (100, 101, 89, 90)       # completed sweep context
