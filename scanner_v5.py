@@ -1124,7 +1124,7 @@ def main():
         }
         debug_path = "storage/scan_debug_log.jsonl"
         with open(debug_path, "a") as f:
-            f.write(_json.dumps(debug_row) + "\n")
+            f.write(_json.dumps(debug_row, default=str) + "\n")
     except Exception as _e:
         print(f"      ⚠️  debug log write failed: {_e}")
 
@@ -1314,7 +1314,7 @@ def main():
             },
         }
         with open("storage/scan_debug_log.jsonl", "a") as f:
-            f.write(_json.dumps(runtime_final_row) + "\n")
+            f.write(_json.dumps(runtime_final_row, default=str) + "\n")
     except Exception as _e:
         print(f"      ⚠️  final runtime log write failed: {_e}")
 
