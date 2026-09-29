@@ -288,3 +288,46 @@ def test_raw_v69_stage3_shadow_replays_latest_closed_candle():
     result = engine.stage3_v69_shadow(df, "LONG")
     assert result["passed"] is True
     assert result["break_idx"] == 3
+
+
+def test_stage3_handoff_allows_time_to_confirm_n10_structure_then_break():
+    engine = RRCEEngine()
+
+    timestamps = pd.date_range(
+        "2026-09-19 00:00:00", periods=24, freq="5min", tz="UTC"
+    )
+    rows = [(100, 101, 99, 100) for _ in range(24)]
+    rows[1] = (100, 101, 89, 90)       # completed sweep context
+    rows[10] = (99, 101, 98, 100)      # post-sweep structural high
+    rows[20] = (100, 100, 99, 100)     # c0 for the break-candle FVG
+    rows[22] = (101, 106, 105, 106)    # late CHOCH + exact FVG
+    rows[23] = (106, 107, 105, 106)    # incomplete candle
+
+    fixture = pd.DataFrame(
+        rows,
+        columns=["open", "high", "low", "close"],
+    ).assign(timestamp=timestamps)
+
+    def _delayed_n10_structure(df, n=None):
+        d = df.copy()
+        d["swing_high"] = np.nan
+        d["swing_low"] = np.nan
+        # The post-sweep swing at index 10 is only made available to the
+        # caller once enough future candles exist to confirm the N=10 shape.
+        if len(df) >= 22:
+            d.loc[10, "swing_high"] = 100.0
+        return d
+
+    engine._find_swings = _delayed_n10_structure
+
+    result = engine.stage3_confirmation(
+        fixture,
+        "LONG",
+        sweep_time=pd.Timestamp("2026-09-19 00:05:00", tz="UTC"),
+        confirmation_bars=3,
+    )
+
+    assert result["passed"] is True
+    assert result["break_idx"] == 22
+    assert result["structure_handoff"] is True
+    assert result["fvg"]["break_idx"] == 22
