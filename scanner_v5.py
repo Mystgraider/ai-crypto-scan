@@ -1293,7 +1293,6 @@ def main():
     # stages are included in the persisted telemetry for this run.
     _runtime_metrics["scan_elapsed_sec"] = round(_time.perf_counter() - _scan_start_time, 3)
     try:
-        from datetime import datetime as _dt, timezone as _tz
         runtime_final_row = {
             "ts": _dt.now(_tz.utc).isoformat(),
             "runtime_final": {
