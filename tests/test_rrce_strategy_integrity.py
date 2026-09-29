@@ -153,7 +153,7 @@ def test_rrce_evaluate_accepts_matching_stage3_stage4_break_timestamp():
     assert result["stage4"] == s4
 
 
-def test_rrce_evaluate_rejects_break_candle_ohlc_mismatch():
+def test_rrce_evaluate_rejects_missing_5m_execution_candle():
     import numpy as np
     from unittest.mock import patch
 
@@ -167,7 +167,7 @@ def test_rrce_evaluate_rejects_break_candle_ohlc_mismatch():
         "atr": np.ones(8, dtype=float),
     })
     df_exec = df.copy()
-    df_exec.loc[5, "close"] = 999.0
+    df_exec.loc[5, "timestamp"] = pd.Timestamp("2026-09-19 01:00:00", tz="UTC")
 
     s1 = {"passed": True, "range_low": 90.0, "range_high": 110.0}
     s2 = {"passed": True, "sweep_time": df["timestamp"].iloc[4], "sweep_extreme": 89.0}
@@ -190,11 +190,10 @@ def test_rrce_evaluate_rejects_break_candle_ohlc_mismatch():
 
     assert result["valid"] is False
     assert result["failed_at"] == "stage3_dataframe_alignment"
-    assert result["stage3"]["reason"] == "break_candle_data_mismatch"
-    assert result["stage3"]["field"] == "close"
+    assert result["stage3"]["reason"] == "execution_candle_not_found"
 
 
-def test_rrce_evaluate_rejects_break_candle_atr_mismatch():
+def test_rrce_evaluate_rejects_duplicate_5m_execution_timestamps():
     import numpy as np
     from unittest.mock import patch
 
@@ -208,7 +207,7 @@ def test_rrce_evaluate_rejects_break_candle_atr_mismatch():
         "atr": np.ones(8, dtype=float),
     })
     df_exec = df.copy()
-    df_exec.loc[5, "atr"] = 2.0
+    df_exec.loc[6, "timestamp"] = df_exec.loc[5, "timestamp"]
 
     s1 = {"passed": True, "range_low": 90.0, "range_high": 110.0}
     s2 = {"passed": True, "sweep_time": df["timestamp"].iloc[4], "sweep_extreme": 89.0}
@@ -231,7 +230,7 @@ def test_rrce_evaluate_rejects_break_candle_atr_mismatch():
 
     assert result["valid"] is False
     assert result["failed_at"] == "stage3_dataframe_alignment"
-    assert result["stage3"]["reason"] == "break_candle_atr_mismatch"
+    assert result["stage3"]["reason"] == "duplicate_execution_timestamps"
 
 
 def test_stage3_post_sweep_structural_handoff_uses_confirmed_post_sweep_swing():
@@ -324,6 +323,6 @@ def test_rrce_evaluate_maps_15m_confirmation_break_to_5m_execution_candle():
         )
 
     assert result["valid"] is True
-    assert result["stage3"]["execution_break_idx"] == 6
+    assert result["stage3"]["execution_break_idx"] == 16
     assert result["stage3"]["execution_break_time"] == str(confirm["timestamp"].iloc[5])
     assert stage4_mock.call_args.kwargs["break_idx"] == 6
