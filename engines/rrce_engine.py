@@ -289,165 +289,96 @@ class RRCEEngine:
                                  range_low: float, range_high: float,
                                  proximity_pct: float = 5.0, lookback: int = 80,
                                  patience_bars: int = 6) -> dict | None:
-        """Find a recent equal-level liquidity pool and a CLOSED-candle sweep."""
-        # Liquidity pools must be knowable before the sweep window begins.
-        # Discovering swings from the full dataframe can let future-confirmed
-        # swing points become pools for an earlier sweep, creating look-ahead
-        # bias. Build the pool universe only from candles strictly before the
-        # bounded sweep window; the sweep itself is then evaluated separately
-        # on the closed candles inside that window.
+        """Detect a recent swing-liquidity sweep using restored V6.7.2 semantics.
+
+        Equal-high/equal-low clustering and range-extreme proximity are
+        diagnostics only; neither is a hard requirement. Liquidity is sourced
+        only from candles that precede the bounded sweep window, preserving
+        the no-look-ahead rule.
+        """
         pool_window_start = max(0, len(df_mtf) - (patience_bars + 1))
         pool_source = df_mtf.iloc[:pool_window_start]
         d = self._find_swings(pool_source).tail(lookback)
         window = df_mtf.iloc[-(patience_bars + 1):-1]
-
-        if direction == "LONG":
-            lows = d["swing_low"].dropna().tolist()
-            pools = self._equal_levels(lows)
-            near_pools = [p for p in pools
-                          if abs(p["level"] - range_low) / range_low * 100 <= proximity_pct]
-            range_extreme = range_low
-            pool_side = "low"
-            if not near_pools:
-                return {
-                    "passed": False,
-                    "reason": "no_equal_lows_near_range_low",
-                    "pools": pools,
-                    "near_pool_count": 0,
-                    "all_pool_count": len(pools),
-                    "proximity_pct": float(proximity_pct),
-                    "patience_bars": int(patience_bars),
-                    "sweep_window_start": str(window["timestamp"].iloc[0]) if "timestamp" in window.columns and not window.empty else None,
-                    "sweep_window_end": str(window["timestamp"].iloc[-1]) if "timestamp" in window.columns and not window.empty else None,
-                }
-            # Prefer a qualifying pool that was actually swept. If multiple
-            # qualifying pools were swept, keep the one closest to the range
-            # extreme. Do not let an unswept nearest pool hide a valid sweep
-            # on another qualifying liquidity pool.
-            swept_pools = []
-            for candidate in near_pools:
-                candidate_mask = (window["low"] < candidate["level"]) & (window["close"] > candidate["level"])
-                if bool(candidate_mask.any()):
-                    swept_pools.append((candidate, candidate_mask))
-            if swept_pools:
-                pool, swept_mask = min(
-                    swept_pools,
-                    key=lambda item: abs(item[0]["level"] - range_low)
-                )
-                swept = True
-            else:
-                pool = min(near_pools, key=lambda p: abs(p["level"] - range_low))
-                swept_mask = (window["low"] < pool["level"]) & (window["close"] > pool["level"])
-                swept = False
-            # Anchor the risk extreme to the actual/latest sweep candle,
-            # not every candle in the patience window that happens to sweep
-            # the same pool. Older sweeps must not silently widen the SL.
-            sweep_idx = swept_mask[swept_mask].index[-1] if swept else None
-            sweep_extreme = (
-                float(window.loc[sweep_idx, "low"])
-                if swept else float(window["low"].min())
-            )
-        elif direction == "SHORT":
-            highs = d["swing_high"].dropna().tolist()
-            pools = self._equal_levels(highs)
-            near_pools = [p for p in pools
-                          if abs(p["level"] - range_high) / range_high * 100 <= proximity_pct]
-            range_extreme = range_high
-            pool_side = "high"
-            if not near_pools:
-                return {
-                    "passed": False,
-                    "reason": "no_equal_highs_near_range_high",
-                    "pools": pools,
-                    "near_pool_count": 0,
-                    "all_pool_count": len(pools),
-                    "proximity_pct": float(proximity_pct),
-                    "patience_bars": int(patience_bars),
-                    "sweep_window_start": str(window["timestamp"].iloc[0]) if "timestamp" in window.columns and not window.empty else None,
-                    "sweep_window_end": str(window["timestamp"].iloc[-1]) if "timestamp" in window.columns and not window.empty else None,
-                }
-            swept_pools = []
-            for candidate in near_pools:
-                candidate_mask = (window["high"] > candidate["level"]) & (window["close"] < candidate["level"])
-                if bool(candidate_mask.any()):
-                    swept_pools.append((candidate, candidate_mask))
-            if swept_pools:
-                pool, swept_mask = min(
-                    swept_pools,
-                    key=lambda item: abs(item[0]["level"] - range_high)
-                )
-                swept = True
-            else:
-                pool = min(near_pools, key=lambda p: abs(p["level"] - range_high))
-                swept_mask = (window["high"] > pool["level"]) & (window["close"] < pool["level"])
-                swept = False
-            # Anchor the risk extreme to the actual/latest sweep candle,
-            # not every candle in the patience window that happens to sweep
-            # the same pool. Older sweeps must not silently widen the SL.
-            sweep_idx = swept_mask[swept_mask].index[-1] if swept else None
-            sweep_extreme = (
-                float(window.loc[sweep_idx, "high"])
-                if swept else float(window["high"].max())
-            )
-        else:
-            return {"passed": False, "reason": "invalid_direction", "pools": []}
-
-        sweep_time = None
-        sweep_candle_time = None
-        if swept and "timestamp" in window.columns:
-            # Exchange OHLCV timestamps identify candle OPEN time. Stage 2
-            # operates on the 1H dataframe, so the confirmation clock must
-            # begin only after the complete 1H sweep candle has CLOSED.
-            # Using a 15m offset here would admit 15m confirmation candles
-            # while the 1H sweep candle is still forming.
-            sweep_candle_time = window.loc[swept_mask, "timestamp"].iloc[-1]
-            sweep_time = pd.to_datetime(
-                sweep_candle_time, utc=True, errors="raise"
-            ) + pd.Timedelta(hours=1)
-
-        pool_distance_pct = abs(pool["level"] - range_extreme) / range_extreme * 100 if range_extreme else None
-
-        return {
-            "passed": bool(swept),
-            "reason": None if swept else "pool_found_not_swept",
-            "pools": pools,
-            "pool_level": pool["level"],
-            "selected_pool_side": pool_side,
+        base_window = {
+            "sweep_window_start": str(window["timestamp"].iloc[0])
+            if "timestamp" in window.columns and not window.empty else None,
+            "sweep_window_end": str(window["timestamp"].iloc[-1])
+            if "timestamp" in window.columns and not window.empty else None,
             "proximity_pct": float(proximity_pct),
-            "pool_touches": pool["touches"],
-            "pool_distance_from_range_extreme_pct": round(pool_distance_pct, 4) if pool_distance_pct is not None else None,
-            "near_pool_count": len(near_pools),
-            "all_pool_count": len(pools),
             "patience_bars": int(patience_bars),
-            "sweep_window_start": str(window["timestamp"].iloc[0]) if "timestamp" in window.columns and not window.empty else None,
-            "sweep_window_end": str(window["timestamp"].iloc[-1]) if "timestamp" in window.columns and not window.empty else None,
-            "sweep_extreme": sweep_extreme,
-            "sweep_candle_time": sweep_candle_time,
-            "sweep_time": sweep_time,
         }
+        if window.empty:
+            return {"passed": False, "reason": "empty_sweep_window",
+                    "pools": [], **base_window}
+        if direction == "LONG":
+            levels, side, range_extreme = d["swing_low"].dropna(), "low", range_low
+        elif direction == "SHORT":
+            levels, side, range_extreme = d["swing_high"].dropna(), "high", range_high
+        else:
+            return {"passed": False, "reason": "invalid_direction", "pools": [],
+                    **base_window}
+        if levels.empty:
+            return {"passed": False, "reason": f"no_liquidity_swing_{side}",
+                    "pools": [], "near_pool_count": 0, "all_pool_count": 0,
+                    **base_window}
+        pools = [{"level": float(level), "touches": 1} for level in levels.tolist()]
+        swept_candidates = []
+        for pool in reversed(pools):
+            level = pool["level"]
+            mask = ((window["low"] < level) & (window["close"] > level)
+                    if direction == "LONG"
+                    else (window["high"] > level) & (window["close"] < level))
+            if bool(mask.any()):
+                swept_candidates.append((pool, mask))
+                break
+        pool = swept_candidates[0][0] if swept_candidates else pools[-1]
+        level = float(pool["level"])
+        swept_mask = ((window["low"] < level) & (window["close"] > level)
+                      if direction == "LONG"
+                      else (window["high"] > level) & (window["close"] < level))
+        distance = abs(level - range_extreme) / abs(range_extreme) * 100 if range_extreme else None
+        result = {
+            "pools": pools, "pool_level": level,
+            "selected_pool_side": side, "pool_side": side,
+            "proximity_pct": float(proximity_pct),
+            "pool_touches": int(pool.get("touches", 1)),
+            "pool_distance_from_range_extreme_pct": round(distance, 4) if distance is not None else None,
+            "near_pool_count": len(pools), "all_pool_count": len(pools),
+            **base_window,
+        }
+        if not bool(swept_mask.any()):
+            return {"passed": False, "reason": "pool_found_not_swept", **result}
+        sweep_idx = swept_mask[swept_mask].index[-1]
+        sweep_extreme = float(window.loc[sweep_idx, "low"] if direction == "LONG" else window.loc[sweep_idx, "high"])
+        sweep_candle_time = window.loc[sweep_idx, "timestamp"] if "timestamp" in window.columns else None
+        sweep_time = (pd.to_datetime(sweep_candle_time, utc=True, errors="raise") + pd.Timedelta(hours=1)
+                      if sweep_candle_time is not None else None)
+        return {"passed": True, "reason": None, **result,
+                "sweep_extreme": sweep_extreme, "sweep_candle_time": sweep_candle_time,
+                "sweep_time": sweep_time}
 
-    # ── Stage 3: CONFIRMATION (LTF) ──────────────────────────────────────
+
     def _detect_fvg_near(self, df: pd.DataFrame, direction: str,
                          lookback: int = 10, break_idx: int = None) -> dict | None:
-        """Detect the FVG specifically created by the CHOCH break candle."""
-        if break_idx is not None:
-            if break_idx < 2 or break_idx >= len(df):
-                return None
-            c0, c2 = df.iloc[break_idx - 2], df.iloc[break_idx]
-            if direction == "LONG" and c2["low"] > c0["high"]:
-                return {"top": float(c2["low"]), "bottom": float(c0["high"]), "break_idx": break_idx}
-            if direction == "SHORT" and c2["high"] < c0["low"]:
-                return {"top": float(c0["low"]), "bottom": float(c2["high"]), "break_idx": break_idx}
+        """Detect a recent FVG without requiring it to be the CHOCH candle."""
+        if len(df) < 3:
             return None
-
-        d = df.tail(lookback + 2).reset_index(drop=True)
-        for i in range(2, len(d)):
-            c0, c2 = d.iloc[i - 2], d.iloc[i]
+        if break_idx is not None:
+            end = min(int(break_idx), len(df) - 1)
+            start = max(0, end - int(lookback) - 1)
+            indices = range(start + 2, end + 1)
+        else:
+            start = max(0, len(df) - int(lookback) - 2)
+            indices = range(start + 2, len(df))
+        for i in indices:
+            c0, c2 = df.iloc[i - 2], df.iloc[i]
             if direction == "LONG" and c2["low"] > c0["high"]:
                 return {"top": float(c2["low"]), "bottom": float(c0["high"]), "break_idx": i}
             if direction == "SHORT" and c2["high"] < c0["low"]:
                 return {"top": float(c0["low"]), "bottom": float(c2["high"]), "break_idx": i}
         return None
+
 
     def stage3_confirmation(self, df_ltf: pd.DataFrame, direction: str,
                             lookback: int = 60, sweep_time=None,
@@ -546,6 +477,10 @@ class RRCEEngine:
                     if swing_levels.empty:
                         continue
                     swing_idx = swing_levels.index[-1]
+                    # A swing used to confirm CHOCH must be structurally
+                    # knowable before the break candle itself.
+                    if swing_idx >= break_idx:
+                        continue
                     try:
                         swing_ts = pd.to_datetime(
                             closed["timestamp"].loc[swing_idx],
@@ -599,6 +534,10 @@ class RRCEEngine:
                     continue
 
                 swing_idx = swing_levels.index[-1]
+                # Never use the break candle itself as its own confirmed
+                # structural reference.
+                if swing_idx >= break_idx:
+                    continue
                 if sweep_ts is not None:
                     if "timestamp" not in closed.columns:
                         continue
@@ -636,17 +575,15 @@ class RRCEEngine:
                     saw_choch_before_sweep = True
                     continue
 
+                # FVG is optional under the restored strategy. Keep it as
+                # an entry-zone candidate when present, but CHOCH is the gate.
                 fvg = self._detect_fvg_near(
                     closed, direction, break_idx=break_idx
                 )
-                if not fvg:
-                    if break_idx > primary_end:
-                        handoff_fvg_indices.append(break_idx)
-                    saw_choch_without_fvg = True
-                    continue
-
                 return {
                     "passed": True,
+                    "choch": True,
+                    "bos": False,
                     "choch_level": choch_level,
                     "fvg": fvg,
                     "break_idx": break_idx,
@@ -654,6 +591,7 @@ class RRCEEngine:
                     "structure_lookback": structure_n,
                     "structure_handoff": break_idx > primary_end,
                     "handoff_candidates_checked": len(handoff_candidates),
+                    "fvg_exact_choch_required": False,
                 }
 
         if saw_choch_before_sweep and sweep_time is not None and not saw_choch_without_fvg:
@@ -705,42 +643,41 @@ class RRCEEngine:
     # ── Stage 4: EXECUTION (LTF, finest) ─────────────────────────────────
     def _order_block(self, df: pd.DataFrame, direction: str, break_idx: int = None,
                       lookback: int = 15) -> dict | None:
-        """Valid OB is the exact opposite-colored candle before the CHOCH break."""
-        if break_idx is not None and break_idx >= 2 and break_idx < len(df):
-            break_candle = df.iloc[break_idx]
-            prev = df.iloc[break_idx - 1]
-            body = abs(break_candle["close"] - break_candle["open"])
-            window = df.iloc[max(0, break_idx - 10):break_idx]
-            avg_body = (window["close"] - window["open"]).abs().mean() if len(window) else None
-            is_impulsive = avg_body and body > 1.2 * avg_body
-
-            prev_down = prev["close"] < prev["open"]
-            prev_up = prev["close"] > prev["open"]
-
-            if direction == "LONG" and prev_down:
-                return {"top": float(prev["high"]), "bottom": float(prev["low"]),
-                        "anchored": True, "impulsive": bool(is_impulsive)}
-            if direction == "SHORT" and prev_up:
-                return {"top": float(prev["high"]), "bottom": float(prev["low"]),
-                        "anchored": True, "impulsive": bool(is_impulsive)}
+        """Legacy-style OB: opposite-colored candle before an impulsive move."""
+        if len(df) < 3:
             return None
-
+        end = min(max(2, break_idx if break_idx is not None else len(df) - 2), len(df) - 1)
+        start = max(2, end - int(lookback))
+        for i in range(end, start - 1, -1):
+            impulse = df.iloc[i]
+            body = abs(float(impulse["close"]) - float(impulse["open"]))
+            prior = (df.iloc[max(0, i - 10):i]["close"] - df.iloc[max(0, i - 10):i]["open"]).abs()
+            avg_body = float(prior.mean()) if len(prior) else 0.0
+            prev = df.iloc[i - 1]
+            impulsive = avg_body <= 0 or body > 1.2 * avg_body
+            if direction == "LONG" and prev["close"] < prev["open"] and impulsive:
+                return {"top": float(prev["high"]), "bottom": float(prev["low"]),
+                        "anchored": False, "impulsive": True, "source_idx": i - 1}
+            if direction == "SHORT" and prev["close"] > prev["open"] and impulsive:
+                return {"top": float(prev["high"]), "bottom": float(prev["low"]),
+                        "anchored": False, "impulsive": True, "source_idx": i - 1}
         return None
 
+
     def stage4_execution(self, df_exec: pd.DataFrame, direction: str,
-                          fvg: dict, sweep_extreme: float,
+                          fvg: dict | None, sweep_extreme: float,
                           opposite_pool_level: float, break_idx: int = None,
                           max_rr_cap: float = 4.0) -> dict:
+        """Use FVG OR OB as the execution entry structure."""
         ob = self._order_block(df_exec, direction, break_idx=break_idx)
-        if not ob:
-            return {"valid": False, "reason": "no_anchored_order_block"}
-
-        entry = (ob["top"] + ob["bottom"]) / 2.0
-
-        # Use ATR from the CHOCH break candle when available. The break_idx
-        # is anchored to the closed-candle confirmation sequence, so this keeps
-        # the execution buffer temporally aligned with the setup rather than
-        # using a later candle's volatility.
+        if ob:
+            entry = (ob["top"] + ob["bottom"]) / 2.0
+            entry_zone = "OB"
+        elif fvg:
+            entry = (float(fvg["top"]) + float(fvg["bottom"])) / 2.0
+            entry_zone = "FVG"
+        else:
+            return {"valid": False, "reason": "no_fvg_or_order_block"}
         atr = None
         if "atr" in df_exec.columns:
             atr_idx = break_idx if break_idx is not None else len(df_exec) - 2
@@ -749,33 +686,21 @@ class RRCEEngine:
                 if not pd.isna(atr_value) and float(atr_value) > 0:
                     atr = float(atr_value)
         buffer = atr * 0.3 if atr is not None else abs(entry) * 0.003
-
-        if direction == "LONG":
-            sl = sweep_extreme - buffer
-        else:
-            sl = sweep_extreme + buffer
-
+        sl = sweep_extreme - buffer if direction == "LONG" else sweep_extreme + buffer
         risk = abs(entry - sl)
-
+        if risk <= 0:
+            return {"valid": False, "reason": "invalid_risk"}
+        raw_tp = float(opposite_pool_level)
         if direction == "LONG":
-            raw_tp = opposite_pool_level
             capped_tp = entry + max_rr_cap * risk
             tp = min(raw_tp, capped_tp) if raw_tp > entry else capped_tp
         else:
-            raw_tp = opposite_pool_level
             capped_tp = entry - max_rr_cap * risk
             tp = max(raw_tp, capped_tp) if raw_tp < entry else capped_tp
+        return {"valid": True, "entry": round(entry, 8), "sl": round(sl, 8),
+                "tp": round(tp, 8), "rr": round(abs(tp - entry) / risk, 2),
+                "order_block": ob, "fvg": fvg, "entry_zone": entry_zone}
 
-        rr = abs(tp - entry) / risk if risk > 0 else 0.0
-
-        return {
-            "valid": True,
-            "entry": round(entry, 8),
-            "sl": round(sl, 8),
-            "tp": round(tp, 8),
-            "rr": round(rr, 2),
-            "order_block": ob,
-        }
 
     # ── Full sequence, strictly gated ────────────────────────────────────
     def evaluate(self, df_htf: pd.DataFrame, df_mtf: pd.DataFrame,
