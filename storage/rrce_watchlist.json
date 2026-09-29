@@ -1,14 +1,14 @@
 {
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-09-29T06:51:13.495609+00:00",
-    "last_seen": "2026-09-29T06:51:13.495609+00:00",
+    "first_seen": "2026-09-29T12:44:28.225326+00:00",
+    "last_seen": "2026-09-29T12:44:28.225326+00:00",
     "observations": 1,
-    "pool_level": 0.9996425,
+    "pool_level": 0.9996289473684211,
     "range_high": 1.0002,
     "range_low": 0.9972,
     "regime": "RANGE",
-    "sweep_extreme": 0.9999,
+    "sweep_extreme": 1.0,
     "symbol": "USDC/USDT:USDT"
   }
 }
