@@ -837,6 +837,7 @@ def main():
                 # If it fails, fall back to the historical ATR risk contract so
                 # RRCE cannot collapse signal volume to zero.
                 rrce_execution_stage4 = None
+                rrce_live_failure_reason = None
                 if rrce_result and rrce_result.get("valid"):
                     rrce_risk = revalidate_live_entry(
                         rrce_engine=active_rrce_engine,
@@ -851,8 +852,9 @@ def main():
                             skip["rrce_entry_away"] += 1
                         else:
                             skip["rrce_entry_invalid"] += 1
+                        rrce_live_failure_reason = rrce_risk.get("reason", "rrce_live_revalidation_failed")
                         _trace(symbol, "rrce_entry_nonqualifying", direction=direction,
-                               reason=rrce_risk.get("reason"))
+                               reason=rrce_live_failure_reason)
                         rrce_risk = None
                     else:
                         # Only candidates that actually use RRCE-derived
@@ -999,9 +1001,36 @@ def main():
                     _trace(symbol, "d_grade_block", direction=direction)
                     continue
 
-                if composite >= CONFIG.get("signal_score_ceiling", 84):
-                    skip["overextended"] = skip.get("overextended", 0) + 1
-                    continue
+                # Persist the final RRCE disposition with the candidate so the exact
+                # structural path can be joined to the eventual TP/SL outcome.
+                _rrce_stage3 = rrce_result.get("stage3") if isinstance(rrce_result, dict) else None
+                _rrce_failed_stage = rrce_result.get("failed_at") if isinstance(rrce_result, dict) else None
+                _rrce_failure_reason = None
+                if rrce_live_failure_reason:
+                    _rrce_failed_stage = "stage4_execution"
+                    _rrce_failure_reason = rrce_live_failure_reason
+                elif isinstance(rrce_result, dict) and not rrce_result.get("valid"):
+                    _rrce_failed_stage = _rrce_failed_stage or "nonqualifying"
+                    _failed_data = rrce_result.get(_rrce_failed_stage)
+                    if isinstance(_failed_data, dict):
+                        _rrce_failure_reason = _failed_data.get("reason")
+                    if not _rrce_failure_reason:
+                        for _stage_name in ("stage1", "stage2", "stage3", "stage4"):
+                            _stage_data = rrce_result.get(_stage_name)
+                            if isinstance(_stage_data, dict) and _stage_data.get("reason"):
+                                _rrce_failure_reason = _stage_data["reason"]
+                                break
+
+                _rrce_risk_contract = "RRCE" if rrce_execution_stage4 is not None else "ATR_FALLBACK"
+                _rrce_status = "QUALIFIED" if rrce_execution_stage4 is not None else (
+                    "NONQUALIFYING" if rrce_result is not None else "NOT_RUN"
+                )
+                _rrce_choch_confirmed = bool(
+                    isinstance(_rrce_stage3, dict) and _rrce_stage3.get("passed")
+                )
+                _rrce_engine_mode_final = (
+                    "range" if is_range_regime else "default"
+                ) if rrce_result is not None else ""
 
                 skip["candidate_found"] += 1
                 _record_fate(
@@ -1035,6 +1064,12 @@ def main():
                     "_rrce_stage4":   rrce_execution_stage4,
                     "_rrce_engine_mode": ("range" if is_range_regime else "default")
                     if rrce_execution_stage4 is not None else None,
+                    "rrce_status": _rrce_status,
+                    "rrce_failed_stage": _rrce_failed_stage or "",
+                    "rrce_failure_reason": _rrce_failure_reason or "",
+                    "rrce_choch_confirmed": _rrce_choch_confirmed,
+                    "rrce_risk_contract": _rrce_risk_contract,
+                    "rrce_engine_mode": _rrce_engine_mode_final,
                     "rsi":             round(rsi, 2),
                     "adx":             round(adx, 2),
                     "rel_volume":      round(rel_volume, 2),
@@ -1293,9 +1328,6 @@ def main():
 
         send_telegram_alert(message)
 
-        sig.pop("_rrce_stage4", None)
-        sig.pop("_rrce_engine_mode", None)
-
         save_signal(
             symbol=sig["symbol"],        direction=sig["direction"],
             entry=sig["entry"],          sl=sig["sl"],
@@ -1312,6 +1344,12 @@ def main():
             ai_rank_raw=sig.get("ai_rank_raw"),
             confidence=confidence,
             ai_attribution=sig.get("ai_attribution"),
+            rrce_status=sig.get("rrce_status", "NOT_RUN"),
+            rrce_failed_stage=sig.get("rrce_failed_stage", ""),
+            rrce_failure_reason=sig.get("rrce_failure_reason", ""),
+            rrce_choch_confirmed=sig.get("rrce_choch_confirmed", False),
+            rrce_risk_contract=sig.get("rrce_risk_contract", "ATR_FALLBACK"),
+            rrce_engine_mode=sig.get("rrce_engine_mode", ""),
         )
 
         set_cooldown(sig["symbol"])
