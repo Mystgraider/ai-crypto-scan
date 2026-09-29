@@ -13,8 +13,6 @@ CONFIG = {
     "signal_score_a": 82,
     "signal_score_b": 70,
     "signal_score_c": 65,
-    # 84+ remains a deliberate overextension safety ceiling; S is diagnostic.
-    "signal_score_ceiling": 84,
 
     # Direction policy: LONG and SHORT are independently eligible.
     "require_trend_gate": False,
