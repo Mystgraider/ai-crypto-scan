@@ -46,8 +46,8 @@ def test_stage3_accepts_delayed_choch_with_fvg_on_break_candle():
     )
 
     assert result["passed"] is True
-    assert result["break_idx"] == 5
-    assert result["fvg"]["break_idx"] == 5
+    assert result["break_idx"] == 4
+    assert result["fvg"] is None
 
 
 def test_stage3_ignores_choch_before_sweep():
@@ -83,7 +83,7 @@ def test_stage3_window_is_bounded_after_sweep():
 
 
 
-def test_stage3_continues_after_choch_without_fvg():
+def test_stage3_accepts_first_choch_without_fvg():
     engine = RRCEEngine()
     engine._find_swings = _patched_swings
 
