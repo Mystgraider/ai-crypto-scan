@@ -201,3 +201,36 @@ def test_candidate_fate_telemetry_records_all_candidates_not_only_trace_symbols(
     assert '_record_fate(' in scanner
     assert 'force=True' in scanner
     assert 'skip["candidate_found"] += 1' in scanner
+
+
+def test_high_composite_scores_are_not_rejected_by_artificial_ceiling():
+    scanner = _source(SCANNER)
+    config = _source(ROOT / "config.py")
+    assert '"signal_score_s": 95' in config
+    assert '"signal_score_ceiling"' not in config
+    assert 'CONFIG.get("signal_score_ceiling", 84)' not in scanner
+    assert 'composite >= CONFIG.get("signal_score_ceiling", 84)' not in scanner
+    assert 'if g == "D":' in scanner
+
+
+def test_rrce_classification_is_persisted_with_every_signal():
+    scanner = _source(SCANNER)
+    logger = _source(ROOT / "storage" / "signal_logger.py")
+    for field in (
+        "rrce_status",
+        "rrce_failed_stage",
+        "rrce_failure_reason",
+        "rrce_choch_confirmed",
+        "rrce_risk_contract",
+        "rrce_engine_mode",
+    ):
+        assert field in logger
+        assert field + '=sig.get("' + field in scanner
+
+
+def test_rrce_fallback_metadata_is_not_labeled_qualified():
+    scanner = _source(SCANNER)
+    assert '_rrce_risk_contract = "RRCE" if rrce_execution_stage4 is not None else "ATR_FALLBACK"' in scanner
+    assert '_rrce_status = "QUALIFIED" if rrce_execution_stage4 is not None' in scanner
+    assert '"rrce_risk_contract": _rrce_risk_contract' in scanner
+    assert '"rrce_status": _rrce_status' in scanner
