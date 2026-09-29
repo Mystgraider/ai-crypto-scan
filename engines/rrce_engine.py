@@ -810,15 +810,16 @@ class RRCEEngine:
             result["failed_at"] = "stage3_confirmation"
             return result
 
-        # Stage 3 returns a positional break_idx. Stage 4 must resolve that
-        # index to the exact same LTF candle. Production currently passes the
-        # same dataframe to both stages, but the engine contract is hardened
-        # here so a future caller cannot silently mix differently aligned
-        # confirmation/execution frames.
+        # Stage 3 runs on the 15m confirmation dataframe while Stage 4
+        # intentionally runs on the finer 5m execution dataframe. The old
+        # implementation compared the same positional index in both frames,
+        # which is invalid across timeframes and would reject every otherwise
+        # valid Stage-3 setup with a timestamp mismatch. Resolve the exact
+        # 15m CHOCH-open timestamp into the corresponding 5m candle instead.
         break_idx = s3.get("break_idx")
-        if break_idx is None or break_idx < 0:
+        if break_idx is None or break_idx < 0 or break_idx >= len(df_ltf_confirm):
             result["failed_at"] = "stage3_dataframe_alignment"
-            result["stage3"]["reason"] = "missing_break_idx"
+            result["stage3"]["reason"] = "missing_or_invalid_break_idx"
             return result
 
         if "timestamp" not in df_ltf_confirm.columns or "timestamp" not in df_ltf_exec.columns:
@@ -826,79 +827,44 @@ class RRCEEngine:
             result["stage3"]["reason"] = "missing_execution_timestamp"
             return result
 
-        if break_idx >= len(df_ltf_confirm) or break_idx >= len(df_ltf_exec):
-            result["failed_at"] = "stage3_dataframe_alignment"
-            result["stage3"]["reason"] = "break_idx_out_of_range"
-            return result
-
         try:
             confirm_ts = pd.to_datetime(
                 df_ltf_confirm["timestamp"].iloc[break_idx], utc=True, errors="raise"
             )
-            exec_ts = pd.to_datetime(
-                df_ltf_exec["timestamp"].iloc[break_idx], utc=True, errors="raise"
+            exec_ts_series = pd.to_datetime(
+                df_ltf_exec["timestamp"], utc=True, errors="raise"
             )
         except (TypeError, ValueError, OverflowError):
             result["failed_at"] = "stage3_dataframe_alignment"
             result["stage3"]["reason"] = "invalid_execution_timestamp"
             return result
 
-        if confirm_ts != exec_ts:
+        if exec_ts_series.duplicated().any():
             result["failed_at"] = "stage3_dataframe_alignment"
-            result["stage3"]["reason"] = "break_candle_timestamp_mismatch"
+            result["stage3"]["reason"] = "duplicate_execution_timestamps"
+            return result
+
+        matching_exec_positions = [
+            i for i, ts in enumerate(exec_ts_series) if ts == confirm_ts
+        ]
+        if len(matching_exec_positions) != 1:
+            result["failed_at"] = "stage3_dataframe_alignment"
+            result["stage3"]["reason"] = (
+                "execution_candle_not_found"
+                if not matching_exec_positions
+                else "multiple_execution_candles_at_break_time"
+            )
             result["stage3"]["confirm_break_time"] = str(confirm_ts)
-            result["stage3"]["exec_break_time"] = str(exec_ts)
             return result
 
-        # The positional handoff is safe only when the actual break candle
-        # contents also match. Timestamp equality alone is insufficient if a
-        # future caller supplies separately assembled confirmation/execution
-        # frames with stale or otherwise divergent OHLC/ATR data.
-        for column in ("open", "high", "low", "close"):
-            if column not in df_ltf_confirm.columns or column not in df_ltf_exec.columns:
-                result["failed_at"] = "stage3_dataframe_alignment"
-                result["stage3"]["reason"] = "missing_break_candle_field"
-                result["stage3"]["field"] = column
-                return result
-            try:
-                confirm_value = float(df_ltf_confirm[column].iloc[break_idx])
-                exec_value = float(df_ltf_exec[column].iloc[break_idx])
-            except (TypeError, ValueError, OverflowError):
-                result["failed_at"] = "stage3_dataframe_alignment"
-                result["stage3"]["reason"] = "invalid_break_candle_field"
-                result["stage3"]["field"] = column
-                return result
-            if not np.isfinite(confirm_value) or not np.isfinite(exec_value):
-                result["failed_at"] = "stage3_dataframe_alignment"
-                result["stage3"]["reason"] = "invalid_break_candle_field"
-                result["stage3"]["field"] = column
-                return result
-            if confirm_value != exec_value:
-                result["failed_at"] = "stage3_dataframe_alignment"
-                result["stage3"]["reason"] = "break_candle_data_mismatch"
-                result["stage3"]["field"] = column
-                return result
-
-        if ("atr" in df_ltf_confirm.columns) != ("atr" in df_ltf_exec.columns):
+        exec_break_idx = matching_exec_positions[0]
+        if exec_break_idx < 1 or exec_break_idx >= len(df_ltf_exec):
             result["failed_at"] = "stage3_dataframe_alignment"
-            result["stage3"]["reason"] = "break_candle_atr_presence_mismatch"
+            result["stage3"]["reason"] = "execution_break_idx_out_of_range"
             return result
-        if "atr" in df_ltf_confirm.columns:
-            try:
-                confirm_atr = float(df_ltf_confirm["atr"].iloc[break_idx])
-                exec_atr = float(df_ltf_exec["atr"].iloc[break_idx])
-            except (TypeError, ValueError, OverflowError):
-                result["failed_at"] = "stage3_dataframe_alignment"
-                result["stage3"]["reason"] = "invalid_break_candle_atr"
-                return result
-            if not (np.isfinite(confirm_atr) and np.isfinite(exec_atr)):
-                result["failed_at"] = "stage3_dataframe_alignment"
-                result["stage3"]["reason"] = "invalid_break_candle_atr"
-                return result
-            if confirm_atr != exec_atr:
-                result["failed_at"] = "stage3_dataframe_alignment"
-                result["stage3"]["reason"] = "break_candle_atr_mismatch"
-                return result
+
+        result["stage3"]["execution_break_idx"] = exec_break_idx
+        result["stage3"]["execution_break_time"] = str(confirm_ts)
 
         opposite_pool = s1["range_high"] if direction == "LONG" else s1["range_low"]
         s4 = self.stage4_execution(
