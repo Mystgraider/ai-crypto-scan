@@ -861,9 +861,9 @@ def main():
                     _fallback_atr = None
                     if "atr" in df_1h.columns and len(df_1h) >= 2:
                         try:
-                            _atr_value = df_1h["atr"].iloc[-2]
-                            if not __import__("pandas").isna(_atr_value) and float(_atr_value) > 0:
-                                _fallback_atr = float(_atr_value)
+                            _atr_value = float(df_1h["atr"].iloc[-2])
+                            if _atr_value > 0:
+                                _fallback_atr = _atr_value
                         except (TypeError, ValueError, OverflowError):
                             _fallback_atr = None
                     rrce_risk = risk_engine.calculate(direction, price, _fallback_atr)
