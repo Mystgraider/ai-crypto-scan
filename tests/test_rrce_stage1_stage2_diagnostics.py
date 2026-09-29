@@ -141,7 +141,7 @@ def test_stage2_selects_a_swept_qualifying_pool_over_a_closer_unswept_pool():
     assert result["pool_level"] == 102.0
     assert result["pool_distance_from_range_extreme_pct"] == 2.0
     assert result["sweep_candle_time"] == df["timestamp"].iloc[5]
-    assert result["sweep_time"] == df["timestamp"].iloc[5] + pd.Timedelta(minutes=15)
+    assert result["sweep_time"] == df["timestamp"].iloc[5] + pd.Timedelta(hours=1)
 
 def test_stage2_pool_discovery_is_cut_off_before_sweep_window():
     engine = RRCEEngine()
@@ -177,7 +177,7 @@ def test_stage2_pool_discovery_is_cut_off_before_sweep_window():
     assert result["passed"] is True
     assert result["pool_level"] == 100.0
     assert result["sweep_candle_time"] == df["timestamp"].iloc[-2]
-    assert result["sweep_time"] == df["timestamp"].iloc[-2] + pd.Timedelta(minutes=15)
+    assert result["sweep_time"] == df["timestamp"].iloc[-2] + pd.Timedelta(hours=1)
 
 
 def test_stage2_does_not_use_future_confirmed_swing_as_pool():
@@ -240,4 +240,4 @@ def test_stage2_sweep_time_is_candle_close_for_ltf_confirmation_boundary():
     sweep_open = df["timestamp"].iloc[-2]
     assert result["passed"] is True
     assert result["sweep_candle_time"] == sweep_open
-    assert result["sweep_time"] == sweep_open + pd.Timedelta(minutes=15)
+    assert result["sweep_time"] == sweep_open + pd.Timedelta(hours=1)
