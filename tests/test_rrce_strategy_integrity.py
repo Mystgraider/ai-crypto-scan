@@ -325,4 +325,4 @@ def test_rrce_evaluate_maps_15m_confirmation_break_to_5m_execution_candle():
     assert result["valid"] is True
     assert result["stage3"]["execution_break_idx"] == 16
     assert result["stage3"]["execution_break_time"] == str(confirm["timestamp"].iloc[5])
-    assert stage4_mock.call_args.kwargs["break_idx"] == 6
+    assert stage4_mock.call_args.kwargs["break_idx"] == 16
