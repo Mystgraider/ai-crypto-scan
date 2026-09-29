@@ -999,9 +999,11 @@ def main():
                     _trace(symbol, "d_grade_block", direction=direction)
                     continue
 
-                if composite >= CONFIG.get("signal_score_ceiling", 84):
-                    skip["overextended"] = skip.get("overextended", 0) + 1
-                    continue
+                # Do not reject strong candidates because their composite is
+                # above an arbitrary ceiling. Grade thresholds are ordered
+                # strength bands: S (95+), A (82+), B (70+), C (65+).
+                # Higher composite scores remain eligible for ranking and
+                # live validation, subject to the normal downstream guards.
 
                 skip["candidate_found"] += 1
                 _record_fate(
