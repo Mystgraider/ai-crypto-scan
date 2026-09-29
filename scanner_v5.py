@@ -1108,7 +1108,7 @@ def main():
             "stage2_selected_pool_distance_avg_pct": round(sum(stage2_selected_pool_distances)/len(stage2_selected_pool_distances), 4) if stage2_selected_pool_distances else None,
             "rrce_watchlist_active": active_count(CONFIG["rrce_watchlist_hours"]),
             "rrce_shadow": _runtime_metrics["rrce_shadow"],
-            "candidate_fate_counts": fate_counts,
+            "candidate_fate_counts_pre_ranking": dict(fate_counts),
             "runtime": {
                 "scan_elapsed_sec": _runtime_metrics["scan_elapsed_sec"],
                 "symbols_attempted": _runtime_metrics["symbols_attempted"],
@@ -1130,17 +1130,6 @@ def main():
     except Exception as _e:
         print(f"      ⚠️  debug log write failed: {_e}")
 
-
-    try:
-        trace_row = {
-            "ts": _dt.now(_tz.utc).isoformat(),
-            "trace": symbol_trace_log,
-            "candidate_fate_counts": fate_counts,
-        }
-        with open("storage/symbol_trace_log.jsonl", "a") as f:
-            f.write(_json.dumps(trace_row, default=str) + "\n")
-    except Exception as _e:
-        print(f"      ⚠️  trace log write failed: {_e}")
 
     print("\n[4/8] AI Ranking...")
     _ranking_start = _time.perf_counter()
@@ -1358,6 +1347,8 @@ def main():
     try:
         runtime_final_row = {
             "ts": _dt.now(_tz.utc).isoformat(),
+            "candidate_fate_counts": dict(fate_counts),
+            "candidate_fate_trace_event_count": len(symbol_trace_log),
             "runtime_final": {
                 "scan_elapsed_sec": _runtime_metrics["scan_elapsed_sec"],
                 "symbols_attempted": _runtime_metrics["symbols_attempted"],
@@ -1375,11 +1366,26 @@ def main():
                     default=None,
                 ),
             },
+            "skip_counts": dict(skip),
         }
         with open("storage/scan_debug_log.jsonl", "a") as f:
             f.write(_json.dumps(runtime_final_row, default=str) + "\n")
     except Exception as _e:
         print(f"      ⚠️  final runtime log write failed: {_e}")
+
+    # Persist the complete candidate fate chain only after ranking and live
+    # validation have finished. The pre-ranking debug snapshot above is kept
+    # intentionally separate so it cannot be mistaken for a complete fate log.
+    try:
+        trace_row = {
+            "ts": _dt.now(_tz.utc).isoformat(),
+            "trace": symbol_trace_log,
+            "candidate_fate_counts": dict(fate_counts),
+        }
+        with open("storage/symbol_trace_log.jsonl", "a") as f:
+            f.write(_json.dumps(trace_row, default=str) + "\n")
+    except Exception as _e:
+        print(f"      ⚠️  trace log write failed: {_e}")
 
     print("\n[6/8] Running signal tracker...")
     SignalTracker().run()
