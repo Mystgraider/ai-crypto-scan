@@ -171,3 +171,30 @@ def test_rrce_evaluate_accepts_and_forwards_confirmation_window():
     rrce = _source(RRCE_ENGINE)
     assert "confirmation_bars=confirmation_bars" in rrce
     assert 'CONFIG["rrce_stage3_confirmation_bars"]' in _source(SCANNER)
+
+
+def test_candidate_fate_telemetry_covers_ranking_and_live_rejections():
+    scanner = _source(SCANNER)
+
+    # Every candidate must remain traceable after CANDIDATE_FOUND through
+    # ranking, live validation, and final signal delivery/rejection.
+    assert 'def _record_fate(sym, direction, fate, **extra):' in scanner
+    assert '"CANDIDATE_FOUND"' in scanner
+    assert '"RANKED"' in scanner
+    assert '"LIVE_PRICE_DRIFT_REJECT"' in scanner
+    assert '"LIVE_RRCE_REVALIDATION_REJECT"' in scanner
+    assert '"LIVE_VALIDATION_ERROR"' in scanner
+    assert '"LIVE_VALIDATED"' in scanner
+    assert '"SIGNAL_SENT"' in scanner
+    assert '"candidate_fate_counts": fate_counts' in scanner
+
+
+def test_candidate_fate_telemetry_records_all_candidates_not_only_trace_symbols():
+    scanner = _source(SCANNER)
+
+    # The legacy symbol trace is intentionally filtered for expensive
+    # diagnostics, but candidate fate events must be forced into telemetry
+    # so downstream candidate loss cannot disappear silently.
+    assert '_record_fate(' in scanner
+    assert 'force=True' in scanner
+    assert 'skip["candidate_found"] += 1' in scanner

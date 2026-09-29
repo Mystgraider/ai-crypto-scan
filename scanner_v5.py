@@ -271,8 +271,19 @@ def main():
         "rrce_stage1_passed": 0, "rrce_stage2_passed": 0,
         "rrce_stage3_passed": 0, "rrce_stage4_valid": 0,
         "rrce_entry_away": 0, "rrce_entry_invalid": 0,
+        "candidate_found": 0,
+        "ranked": 0,
+        "live_price_drift": 0,
+        "live_rrce_revalidation": 0,
+        "live_validation_error": 0,
+        "signal_sent": 0,
         "time_budget_stop": 0, "errors": 0
     }
+    fate_counts = {}
+
+    def _record_fate(sym, direction, fate, **extra):
+        fate_counts[fate] = fate_counts.get(fate, 0) + 1
+        _trace(sym, fate, force=True, direction=direction, **extra)
 
     for symbol in symbols:
 
@@ -992,7 +1003,16 @@ def main():
                     skip["overextended"] = skip.get("overextended", 0) + 1
                     continue
 
-                _trace(symbol, "CANDIDATE_FOUND", direction=direction)
+                skip["candidate_found"] += 1
+                _record_fate(
+                    symbol,
+                    direction,
+                    "CANDIDATE_FOUND",
+                    composite=composite,
+                    grade=g,
+                    rr=risk.get("rr"),
+                    risk_contract=("RRCE" if rrce_execution_stage4 is not None else "ATR_FALLBACK"),
+                )
                 candidates.append({
                     "symbol":          symbol,
                     "direction":       direction,
@@ -1088,6 +1108,7 @@ def main():
             "stage2_selected_pool_distance_avg_pct": round(sum(stage2_selected_pool_distances)/len(stage2_selected_pool_distances), 4) if stage2_selected_pool_distances else None,
             "rrce_watchlist_active": active_count(CONFIG["rrce_watchlist_hours"]),
             "rrce_shadow": _runtime_metrics["rrce_shadow"],
+            "candidate_fate_counts": fate_counts,
             "runtime": {
                 "scan_elapsed_sec": _runtime_metrics["scan_elapsed_sec"],
                 "symbols_attempted": _runtime_metrics["symbols_attempted"],
@@ -1111,7 +1132,11 @@ def main():
 
 
     try:
-        trace_row = {"ts": _dt.now(_tz.utc).isoformat(), "trace": symbol_trace_log}
+        trace_row = {
+            "ts": _dt.now(_tz.utc).isoformat(),
+            "trace": symbol_trace_log,
+            "candidate_fate_counts": fate_counts,
+        }
         with open("storage/symbol_trace_log.jsonl", "a") as f:
             f.write(_json.dumps(trace_row, default=str) + "\n")
     except Exception as _e:
@@ -1125,6 +1150,17 @@ def main():
 
     ranked = AISignalRanker().rank(candidates)
     _runtime_metrics["stage_time_sec"]["ranking"] = _time.perf_counter() - _ranking_start
+    skip["ranked"] = len(ranked)
+    for _rank_index, _ranked_sig in enumerate(ranked, start=1):
+        _record_fate(
+            _ranked_sig["symbol"],
+            _ranked_sig["direction"],
+            "RANKED",
+            rank=_rank_index,
+            ai_rank_score=_ranked_sig.get("ai_rank_score"),
+            composite=_ranked_sig.get("composite"),
+            grade=_ranked_sig.get("grade"),
+        )
     print(f"      ✅ {len(ranked)} ranked candidate(s) queued for live validation")
 
     print(f"\n[5/8] Sending up to {CONFIG['max_signals_per_run']} validated alert(s)...")
@@ -1139,6 +1175,16 @@ def main():
             drift_pct = abs(fresh_price - sig["entry"]) / sig["entry"] * 100
             max_drift = CONFIG.get("max_entry_drift_pct", 0.6)
             if drift_pct > max_drift:
+                skip["live_price_drift"] += 1
+                _record_fate(
+                    sig["symbol"],
+                    sig["direction"],
+                    "LIVE_PRICE_DRIFT_REJECT",
+                    drift_pct=round(drift_pct, 4),
+                    max_drift_pct=max_drift,
+                    entry=sig["entry"],
+                    fresh_price=fresh_price,
+                )
                 print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "
                       f"price drifted {drift_pct:.2f}% since detection "
                       f"(entry {sig['entry']} → now {fresh_price})")
@@ -1162,6 +1208,13 @@ def main():
                     min_rr=CONFIG["min_rr"],
                 )
                 if not live_risk.get("valid"):
+                    skip["live_rrce_revalidation"] += 1
+                    _record_fate(
+                        sig["symbol"],
+                        sig["direction"],
+                        "LIVE_RRCE_REVALIDATION_REJECT",
+                        reason=live_risk.get("reason", "unknown"),
+                    )
                     print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "
                           f"live RRCE revalidation failed: {live_risk.get('reason', 'unknown')}")
                     continue
@@ -1175,8 +1228,25 @@ def main():
             _runtime_metrics["stage_time_sec"]["live_validation"] += _time.perf_counter() - _live_validation_start
         except Exception as e:
             _runtime_metrics["stage_time_sec"]["live_validation"] += _time.perf_counter() - _live_validation_start
+            skip["live_validation_error"] += 1
+            _record_fate(
+                sig["symbol"],
+                sig["direction"],
+                "LIVE_VALIDATION_ERROR",
+                error_type=type(e).__name__,
+                reason=str(e),
+            )
             print(f"  ⚠️  {sig['symbol']} live entry validation failed ({e}) — skipping signal")
             continue
+
+        _record_fate(
+            sig["symbol"],
+            sig["direction"],
+            "LIVE_VALIDATED",
+            entry=sig["entry"],
+            rr=sig["rr"],
+            risk_contract=("RRCE" if sig.get("_rrce_stage4") else "ATR_FALLBACK"),
+        )
 
         confidence = conf_eng.estimate(
             trend_score=sig["trend_score"],
@@ -1257,6 +1327,16 @@ def main():
 
         set_cooldown(sig["symbol"])
         valid_signal_count += 1
+        skip["signal_sent"] += 1
+        _record_fate(
+            sig["symbol"],
+            sig["direction"],
+            "SIGNAL_SENT",
+            composite=sig["composite"],
+            grade=sig["grade"],
+            ai_rank_score=sig.get("ai_rank_score", sig.get("ai_composite")),
+            rr=sig["rr"],
+        )
 
         print(
             f"  ✅ {sig['symbol']} {sig['direction']} | "
