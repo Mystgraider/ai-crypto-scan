@@ -501,8 +501,21 @@ class RRCEEngine:
         # starts when the structure becomes knowable, not when its swing point
         # merely appears on the chart.
         if sweep_ts is not None and primary_end < window_end:
+            # A centered swing of width N is only knowable after N
+            # future candles exist. The old handoff ended after only N
+            # candles, which could stop the search exactly before a
+            # post-sweep N=10 swing became confirmable. That made the
+            # "wait for confirmed structure" rule self-defeating.
+            #
+            # Reserve one max-width interval to CONFIRM the post-sweep swing,
+            # then another max-width interval to WAIT FOR THE BREAK from it.
+            # This remains bounded; it does not become an unbounded
+            # "eventually wait for CHOCH" rule.
             max_extension = max(structure_lookbacks)
-            handoff_end = min(window_end, primary_end + max_extension)
+            handoff_end = min(
+                window_end,
+                primary_end + (2 * max_extension),
+            )
             for break_idx in range(primary_end + 1, handoff_end + 1):
                 handoff_ready = False
                 for structure_n in structure_lookbacks:
