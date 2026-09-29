@@ -225,7 +225,7 @@ def test_rrce_classification_is_persisted_with_every_signal():
         "rrce_engine_mode",
     ):
         assert field in logger
-        assert field + '=sig.get("' + field in scanner
+        assert f'{field}=sig.get("{field}"' in scanner
 
 
 def test_rrce_fallback_metadata_is_not_labeled_qualified():
