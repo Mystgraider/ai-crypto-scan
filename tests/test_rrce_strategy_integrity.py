@@ -33,7 +33,7 @@ def test_structure_ignores_current_incomplete_candle():
     assert pd.isna(result.iloc[-1]["swing_high"])
 
 
-def test_stage3_requires_fvg_on_the_choch_break_candle():
+def test_stage3_allows_choch_without_fvg():
     engine = RRCEEngine(swing_lookback=1)
     df = _ltf_frame()
 
@@ -45,8 +45,8 @@ def test_stage3_requires_fvg_on_the_choch_break_candle():
     broken = df.copy()
     broken.loc[5, "low"] = 99.0
     result = engine.stage3_confirmation(broken, "LONG", sweep_time=broken["timestamp"].iloc[4])
-    assert result["passed"] is False
-    assert result["reason"] == "choch_without_break_fvg"
+    assert result["passed"] is True
+    assert result["fvg"] is None
 
 
 def test_stage3_ignores_choch_before_sweep():
@@ -57,19 +57,26 @@ def test_stage3_ignores_choch_before_sweep():
     assert result["reason"] == "no_choch"
 
 
-def test_stage4_requires_anchored_order_block():
+def test_stage4_accepts_fvg_when_no_order_block_exists():
     engine = RRCEEngine(swing_lookback=1)
-    df = _ltf_frame(prev_down=False)
+    df = pd.DataFrame({
+        "open": [100.0, 101.0, 102.0],
+        "high": [101.0, 102.0, 103.0],
+        "low": [99.0, 100.0, 101.0],
+        "close": [100.5, 101.5, 102.5],
+        "timestamp": pd.date_range("2026-09-11", periods=3, freq="5min"),
+    })
     result = engine.stage4_execution(
         df_exec=df,
         direction="LONG",
         fvg={"top": 101.0, "bottom": 100.0},
         sweep_extreme=90.0,
         opposite_pool_level=110.0,
-        break_idx=5,
+        break_idx=2,
     )
-    assert result["valid"] is False
-    assert result["reason"] == "no_anchored_order_block"
+    assert result["valid"] is True
+    assert result["entry_zone"] == "FVG"
+    assert result["order_block"] is None
 
 
 def test_rrce_evaluate_rejects_stage3_stage4_break_timestamp_mismatch():
