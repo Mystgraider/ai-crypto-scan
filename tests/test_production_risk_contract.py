@@ -201,3 +201,17 @@ def test_candidate_fate_telemetry_records_all_candidates_not_only_trace_symbols(
     assert '_record_fate(' in scanner
     assert 'force=True' in scanner
     assert 'skip["candidate_found"] += 1' in scanner
+
+
+
+def test_high_composite_scores_are_not_rejected_by_artificial_ceiling():
+    scanner = _source(SCANNER)
+    config = _source(CONFIG)
+
+    # The score ladder explicitly defines S at 95+, so scores above the old
+    # 84 ceiling must remain eligible for ranking/live validation.
+    assert '"signal_score_s": 95' in config
+    assert '"signal_score_ceiling"' not in config
+    assert 'CONFIG.get("signal_score_ceiling", 84)' not in scanner
+    assert 'composite >= CONFIG.get("signal_score_ceiling", 84)' not in scanner
+    assert 'if g == "D":' in scanner
