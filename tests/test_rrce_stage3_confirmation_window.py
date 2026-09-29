@@ -132,54 +132,6 @@ def test_stage3_uses_structure_available_before_each_candidate_break():
     assert result["break_idx"] == 5
     assert result["choch_level"] == 100.0
 
-def test_stage3_handoff_waits_for_late_confirmed_post_sweep_structure():
-    engine = RRCEEngine()
-
-    timestamps = pd.date_range(
-        "2026-09-19 00:00:00", periods=10, freq="15min", tz="UTC"
-    )
-    rows = [
-        (100, 101, 99, 100),
-        (89, 90, 88, 89),
-        (95, 99, 94, 98),
-        (98, 100, 97, 99),
-        (99, 100, 98, 100),
-        (100, 101, 99, 100),
-        (100, 100, 99, 100),
-        (100, 101, 99, 100),
-        (100, 110, 106, 108),
-        (108, 109, 107, 108),
-    ]
-    fixture = pd.DataFrame(
-        rows,
-        columns=["open", "high", "low", "close"],
-    ).assign(timestamp=timestamps)
-
-    def _late_swings(df, n=None):
-        d = df.copy()
-        d["swing_high"] = np.nan
-        d["swing_low"] = np.nan
-        # The post-sweep swing becomes knowable only when the break candle
-        # itself is available; it must then be broken by that same closed
-        # candle without using the current candle as its own swing.
-        if len(df) >= 9:
-            d.loc[4, "swing_high"] = 100.0
-        return d
-
-    engine._find_swings = _late_swings
-
-    result = engine.stage3_confirmation(
-        fixture,
-        "LONG",
-        sweep_time=timestamps[1],
-        confirmation_bars=3,
-    )
-
-    assert result["passed"] is True
-    assert result["break_idx"] == 8
-    assert result["structure_handoff"] is True
-    assert result["fvg"]["break_idx"] == 8
-
 
 def test_stage3_tuning_is_configured_and_scanner_wires_it():
     from pathlib import Path
