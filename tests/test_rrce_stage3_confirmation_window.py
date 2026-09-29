@@ -88,8 +88,7 @@ def test_stage3_accepts_first_choch_without_fvg():
     engine._find_swings = _patched_swings
 
     fixture = _ltf_fixture().copy()
-    fixture.loc[4, "close"] = 102.0
-    fixture.loc[5, "low"] = 99.0
+    fixture.loc[5, "low"] = 89.0
 
     result = engine.stage3_confirmation(
         fixture,
@@ -99,7 +98,7 @@ def test_stage3_accepts_first_choch_without_fvg():
     )
 
     assert result["passed"] is True
-    assert result["break_idx"] == 4
+    assert result["break_idx"] == 5
     assert result["fvg"] is None
 
 
@@ -141,15 +140,15 @@ def test_stage3_handoff_waits_for_late_confirmed_post_sweep_structure():
     )
     rows = [
         (100, 101, 99, 100),
-        (89, 90, 88, 89),      # sweep candle
+        (89, 90, 88, 89),
         (95, 99, 94, 98),
         (98, 100, 97, 99),
-        (99, 100, 98, 100),    # post-sweep swing high
+        (99, 100, 98, 100),
         (100, 101, 99, 100),
         (100, 100, 99, 100),
         (100, 101, 99, 100),
-        (100, 110, 106, 108),  # late CHOCH + exact break-candle FVG
-        (108, 109, 107, 108),  # incomplete
+        (100, 110, 106, 108),
+        (108, 109, 107, 108),
     ]
     fixture = pd.DataFrame(
         rows,
@@ -160,7 +159,10 @@ def test_stage3_handoff_waits_for_late_confirmed_post_sweep_structure():
         d = df.copy()
         d["swing_high"] = np.nan
         d["swing_low"] = np.nan
-        if len(df) > 7:
+        # The post-sweep swing becomes knowable only when the break candle
+        # itself is available; it must then be broken by that same closed
+        # candle without using the current candle as its own swing.
+        if len(df) >= 9:
             d.loc[4, "swing_high"] = 100.0
         return d
 
@@ -169,7 +171,7 @@ def test_stage3_handoff_waits_for_late_confirmed_post_sweep_structure():
     result = engine.stage3_confirmation(
         fixture,
         "LONG",
-        sweep_time=pd.Timestamp("2026-09-19 00:05:00", tz="UTC"),
+        sweep_time=timestamps[1],
         confirmation_bars=3,
     )
 
