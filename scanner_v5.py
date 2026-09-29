@@ -825,6 +825,7 @@ def main():
                 # structurally derived entry/SL/TP after live-price revalidation.
                 # If it fails, fall back to the historical ATR risk contract so
                 # RRCE cannot collapse signal volume to zero.
+                rrce_execution_stage4 = None
                 if rrce_result and rrce_result.get("valid"):
                     rrce_risk = revalidate_live_entry(
                         rrce_engine=active_rrce_engine,
@@ -842,6 +843,12 @@ def main():
                         _trace(symbol, "rrce_entry_nonqualifying", direction=direction,
                                reason=rrce_risk.get("reason"))
                         rrce_risk = None
+                    else:
+                        # Only candidates that actually use RRCE-derived
+                        # structural risk may carry the Stage-4 execution
+                        # marker into ranking/live validation. A fallback ATR
+                        # candidate must never be revalidated as RRCE later.
+                        rrce_execution_stage4 = rrce_result["stage4"]
                 else:
                     if rrce_result:
                         fail_stage = rrce_result.get("failed_at", "nonqualifying")
@@ -1005,8 +1012,9 @@ def main():
                     "tp1":             risk["tp1"],
                     "tp2":             risk["tp2"],
                     "tp3":             risk["tp3"],
-                    "_rrce_stage4":   rrce_result["stage4"],
-                    "_rrce_engine_mode": "range" if is_range_regime else "default",
+                    "_rrce_stage4":   rrce_execution_stage4,
+                    "_rrce_engine_mode": ("range" if is_range_regime else "default")
+                    if rrce_execution_stage4 is not None else None,
                     "rsi":             round(rsi, 2),
                     "adx":             round(adx, 2),
                     "rel_volume":      round(rel_volume, 2),
