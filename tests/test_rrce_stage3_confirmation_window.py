@@ -46,8 +46,8 @@ def test_stage3_accepts_delayed_choch_with_fvg_on_break_candle():
     )
 
     assert result["passed"] is True
-    assert result["break_idx"] == 4
-    assert result["fvg"] is None
+    assert result["break_idx"] == 5
+    assert result["fvg"]["break_idx"] == 5
 
 
 def test_stage3_ignores_choch_before_sweep():
@@ -89,6 +89,7 @@ def test_stage3_accepts_first_choch_without_fvg():
 
     fixture = _ltf_fixture().copy()
     fixture.loc[4, "close"] = 102.0
+    fixture.loc[5, "low"] = 99.0
 
     result = engine.stage3_confirmation(
         fixture,
@@ -98,8 +99,8 @@ def test_stage3_accepts_first_choch_without_fvg():
     )
 
     assert result["passed"] is True
-    assert result["break_idx"] == 5
-    assert result["fvg"]["break_idx"] == 5
+    assert result["break_idx"] == 4
+    assert result["fvg"] is None
 
 
 def test_stage3_uses_structure_available_before_each_candidate_break():
