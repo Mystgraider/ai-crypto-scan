@@ -858,7 +858,15 @@ def main():
                             ))
 
                 if rrce_risk is None:
-                    rrce_risk = risk_engine.calculate(direction, price, atr)
+                    _fallback_atr = None
+                    if "atr" in df_1h.columns and len(df_1h) >= 2:
+                        try:
+                            _atr_value = df_1h["atr"].iloc[-2]
+                            if not __import__("pandas").isna(_atr_value) and float(_atr_value) > 0:
+                                _fallback_atr = float(_atr_value)
+                        except (TypeError, ValueError, OverflowError):
+                            _fallback_atr = None
+                    rrce_risk = risk_engine.calculate(direction, price, _fallback_atr)
                 if direction == "SHORT" and CONFIG["short_requires_resistance"]:
                     if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):
                         skip["sr_no_ceil"] += 1
