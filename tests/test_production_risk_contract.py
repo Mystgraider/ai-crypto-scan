@@ -186,7 +186,10 @@ def test_candidate_fate_telemetry_covers_ranking_and_live_rejections():
     assert '"LIVE_VALIDATION_ERROR"' in scanner
     assert '"LIVE_VALIDATED"' in scanner
     assert '"SIGNAL_SENT"' in scanner
-    assert '"candidate_fate_counts": fate_counts' in scanner
+    assert '"candidate_fate_counts": dict(fate_counts)' in scanner
+    assert '"candidate_fate_counts_pre_ranking": dict(fate_counts)' in scanner
+    assert '"candidate_fate_trace_event_count": len(symbol_trace_log)' in scanner
+    assert '"skip_counts": dict(skip)' in scanner
 
 
 def test_candidate_fate_telemetry_records_all_candidates_not_only_trace_symbols():
