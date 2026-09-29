@@ -84,7 +84,7 @@ def test_stage1_rejects_prices_outside_structural_range():
     assert short_above["passed"] is False
 
 
-def test_stage2_no_near_pool_still_exposes_population_diagnostics():
+def test_stage2_does_not_require_range_extreme_proximity():
     engine = RRCEEngine()
 
     df = pd.DataFrame({
@@ -100,21 +100,24 @@ def test_stage2_no_near_pool_still_exposes_population_diagnostics():
     swings.loc[3, "swing_low"] = 109.0
     engine._find_swings = lambda _: swings
 
+    df.loc[5, "low"] = 108.0
+    df.loc[5, "close"] = 110.0
     result = engine.stage2_retail_liquidity(
         df, "LONG", range_low=100.0, range_high=120.0, proximity_pct=5.0, patience_bars=3
     )
 
-    assert result["passed"] is False
-    assert result["reason"] == "no_equal_lows_near_range_low"
-    assert result["all_pool_count"] == 1
-    assert result["near_pool_count"] == 0
+    assert result["passed"] is True
+    assert result["pool_level"] == 109.0
+    assert result["pool_distance_from_range_extreme_pct"] == 9.0
+    assert result["all_pool_count"] == 2
+    assert result["near_pool_count"] == 2
     assert result["proximity_pct"] == 5.0
     assert result["patience_bars"] == 3
     assert result["sweep_window_start"] is not None
     assert result["sweep_window_end"] is not None
 
 
-def test_stage2_selects_a_swept_qualifying_pool_over_a_closer_unswept_pool():
+def test_stage2_selects_the_most_recent_swept_swing_liquidity_level():
     engine = RRCEEngine()
 
     df = pd.DataFrame({
@@ -125,12 +128,8 @@ def test_stage2_selects_a_swept_qualifying_pool_over_a_closer_unswept_pool():
     })
     engine._find_swings = lambda _: pd.DataFrame({
         "swing_high": [np.nan] * 8,
-        "swing_low": [np.nan] * 8,
+        "swing_low": [100.0, np.nan, np.nan, 102.0, np.nan, np.nan, np.nan, np.nan],
     })
-    engine._equal_levels = lambda _: [
-        {"level": 100.0, "touches": 2},
-        {"level": 102.0, "touches": 2},
-    ]
 
     result = engine.stage2_retail_liquidity(
         df, "LONG", range_low=100.0, range_high=110.0,
@@ -209,7 +208,7 @@ def test_stage2_does_not_use_future_confirmed_swing_as_pool():
     )
 
     assert result["passed"] is False
-    assert result["reason"] == "no_equal_lows_near_range_low"
+    assert result["reason"] == "pool_found_not_swept"
 
 
 def test_stage2_sweep_time_is_candle_close_for_ltf_confirmation_boundary():
