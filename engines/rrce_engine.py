@@ -8,7 +8,6 @@ Restored V6.7.2 semantics:
 - Stage 3 starts only after the completed 1H sweep.
 """
 import pandas as pd
-import pandas as pd
 import numpy as np
 
 
@@ -300,6 +299,23 @@ class RRCEEngine:
         return {"passed":True,"reason":None,**base,"sweep_candle_time":str(candle_time) if candle_time is not None else None,
                 "sweep_time":str(sweep_time) if sweep_time is not None else None,"sweep_extreme":sweep_extreme}
 
+    def _detect_fvg_near(self, df: pd.DataFrame, direction: str,
+                         lookback: int = 10, break_idx: int = None) -> dict | None:
+        """Detect a recent FVG; it is not required to be the exact CHOCH candle."""
+        if break_idx is not None:
+            end=min(int(break_idx),len(df)-1)
+            start=max(0,end-lookback-1)
+            d=df.iloc[start:end+1].reset_index(drop=True)
+        else:
+            d=df.tail(lookback+2).reset_index(drop=True)
+        for i in range(2,len(d)):
+            c0,c2=d.iloc[i-2],d.iloc[i]
+            if direction=="LONG" and c2["low"]>c0["high"]:
+                return {"top":float(c2["low"]),"bottom":float(c0["high"]),"break_idx":i}
+            if direction=="SHORT" and c2["high"]<c0["low"]:
+                return {"top":float(c0["low"]),"bottom":float(c2["high"]),"break_idx":i}
+        return None
+
     def stage3_confirmation(self, df_ltf: pd.DataFrame, direction: str,
                             lookback: int = 60, sweep_time=None,
                             confirmation_bars: int = 3) -> dict | None:
@@ -327,7 +343,7 @@ class RRCEEngine:
                     "structure_lookback":self.swing_lookback,"fvg_exact_choch_required":False}
         return {"passed":False,"reason":"no_choch","saw_choch":False}
 
-    # ── Stage 4: EXECUTION    # ── Stage 4: EXECUTION (LTF, finest) ─────────────────────────────────
+    # ── Stage 4: EXECUTION (LTF, finest) ─────────────────────────────────
     def _order_block(self, df: pd.DataFrame, direction: str, break_idx: int = None,
                       lookback: int = 15) -> dict | None:
         """Legacy OB: opposite-colored candle before an impulsive move."""
