@@ -37,6 +37,7 @@ from engines.volume_profile      import VolumeProfileEngine
 from engines.rrce_engine         import RRCEEngine
 from engines.rrce_v672_legacy    import LegacyV672RRCEEngine
 from engines.position_sizer      import PositionSizer
+from engines.risk_engine         import RiskEngine
 from engines.live_entry_integrity import revalidate as revalidate_live_entry
 from engines.funding_engine      import FundingEngine
 from engines.beta_filter         import BetaFilter
@@ -188,6 +189,7 @@ def main():
     legacy_v672_engine = LegacyV672RRCEEngine()
 
     sizer          = PositionSizer()
+    risk_engine    = RiskEngine()
     funding_engine = FundingEngine()
     beta_filter    = BetaFilter()
     oi_engine      = OIEngine()
@@ -580,8 +582,13 @@ def main():
                 squeeze_bonus = squeeze_bonus_shared
                 vp_bonus = vp_engine.score_bonus(direction, price, vp_profile_shared)
 
+                # RRCE is additive confluence, matching the preserved V6.7.2 contract.
+                # The modern multi-timeframe RRCE path remains diagnostic/structural;
+                # it must not become a hard signal gate.
                 rrce_bonus = 0.0
                 rrce_result = None
+                rrce_risk = None
+                legacy_rrce = None
                 try:
                     _df_rrce_15m = df_rrce_15m
                     _df_rrce_5m = df_rrce_5m
@@ -602,6 +609,9 @@ def main():
                             CONFIG["rrce_range_patience_bars"] if is_range_regime
                             else CONFIG["rrce_default_patience_bars"]
                         )
+                        legacy_rrce = legacy_v672_engine.evaluate(df_1h, direction, price)
+                        rrce_bonus = float(legacy_rrce.get("bonus", 0.0))
+
                         rrce_result = active_rrce_engine.evaluate(
                             df_htf=df_4h,
                             df_mtf=df_1h,
@@ -611,7 +621,8 @@ def main():
                             patience_bars=patience_bars,
                             confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
                         )
-                        rrce_bonus = rrce_result["bonus"]
+                        # Keep the V6.7.2 additive bonus above; modern RRCE
+                        # validity is not allowed to zero-out partial confluence.
 
                         # Diagnostic-only Stage-1 variant replay. Production remains
                         # on the current V6.9 Stage-1 gate. This measures whether the
@@ -810,93 +821,44 @@ def main():
                     if rrce_result.get("valid"):
                         skip["rrce_stage4_valid"] += 1
 
-                if not rrce_result or not rrce_result.get("valid"):
-                    skip["rrce_invalid"] = skip.get("rrce_invalid", 0) + 1
-                    fail_stage = rrce_result.get("failed_at", "no_data") if rrce_result else "fetch_error"
-                    trace_extra = {"direction": direction, "failed_at": fail_stage}
+                # Modern RRCE validity is optional. If it passes, use its
+                # structurally derived entry/SL/TP after live-price revalidation.
+                # If it fails, fall back to the historical ATR risk contract so
+                # RRCE cannot collapse signal volume to zero.
+                if rrce_result and rrce_result.get("valid"):
+                    rrce_risk = revalidate_live_entry(
+                        rrce_engine=active_rrce_engine,
+                        direction=direction,
+                        live_price=price,
+                        stage4=rrce_result["stage4"],
+                        max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
+                        min_rr=CONFIG["min_rr"],
+                    )
+                    if not rrce_risk.get("valid"):
+                        if rrce_risk.get("reason") == "price_away_from_rrce_entry":
+                            skip["rrce_entry_away"] += 1
+                        else:
+                            skip["rrce_entry_invalid"] += 1
+                        _trace(symbol, "rrce_entry_nonqualifying", direction=direction,
+                               reason=rrce_risk.get("reason"))
+                        rrce_risk = None
+                else:
                     if rrce_result:
+                        fail_stage = rrce_result.get("failed_at", "nonqualifying")
+                        trace_extra = {"direction": direction, "failed_at": fail_stage}
                         for _stage_name in ("stage1", "stage2", "stage3", "stage4"):
                             _stage_data = rrce_result.get(_stage_name)
-                            if isinstance(_stage_data, dict):
-                                _reason = _stage_data.get("reason")
-                                if _reason:
-                                    trace_extra[f"{_stage_name}_reason"] = _reason
-                        if fail_stage == "stage1_range":
-                            _s1 = rrce_result.get("stage1") or {}
-                            if "position_pct" in _s1:
-                                trace_extra["position_pct"] = _s1["position_pct"]
-                        if fail_stage == "stage2_retail_liquidity":
-                            _s2 = rrce_result.get("stage2") or {}
-                            for _key in ("near_pool_count", "all_pool_count",
-                                         "pool_distance_from_range_extreme_pct",
-                                         "sweep_time", "sweep_candle_time"):
-                                if _s2.get(_key) is not None:
-                                    trace_extra[_key] = _s2[_key]
+                            if isinstance(_stage_data, dict) and _stage_data.get("reason"):
+                                trace_extra[f"{_stage_name}_reason"] = _stage_data["reason"]
+                        _trace(symbol, "rrce_nonqualifying",
+                               force=(fail_stage == "stage3_confirmation"), **trace_extra)
                         if fail_stage == "stage3_confirmation":
-                            _s3 = rrce_result.get("stage3") or {}
-                            for _key in ("break_time", "choch_level", "reason", "saw_choch",
-                                         "candidate_diagnostics", "delayed_confirmation_diagnostics"):
-                                if _s3.get(_key) is not None:
-                                    trace_extra[_key] = _s3[_key]
-                            _s2 = rrce_result.get("stage2") or {}
-                            for _key in ("range_low", "range_high", "pool_level",
-                                         "pool_distance_from_range_extreme_pct",
-                                         "sweep_candle_time", "sweep_time",
-                                         "sweep_extreme", "near_pool_count",
-                                         "all_pool_count", "proximity_pct",
-                                         "patience_bars"):
-                                if _s2.get(_key) is not None:
-                                    trace_extra[_key] = _s2[_key]
-                    _trace(
-                        symbol,
-                        "rrce_invalid",
-                        force=(fail_stage == "stage3_confirmation"),
-                        **trace_extra,
-                    )
-                    if fail_stage == "stage3_confirmation":
-                        print(
-                            "RRCE_STAGE3_DIAGNOSTIC "
-                            + _json.dumps(
-                                {"symbol": symbol, **trace_extra},
-                                default=str,
-                                sort_keys=True,
-                            )
-                        )
-                    stage_key = f"rrce_fail_{fail_stage}"
-                    skip[stage_key] = skip.get(stage_key, 0) + 1
-                    if fail_stage == "stage1_range" and rrce_result:
-                        s1_data = rrce_result.get("stage1")
-                        if s1_data and "position_pct" in s1_data:
-                            stage1_position_samples.append(s1_data["position_pct"])
-                    if fail_stage == "stage2_retail_liquidity" and rrce_result:
-                        s2_data = rrce_result.get("stage2")
-                        if s2_data:
-                            reason = s2_data.get("reason", "pool_found_not_swept")
-                            skip[f"s2_reason_{reason}"] = skip.get(f"s2_reason_{reason}", 0) + 1
-                    if fail_stage == "stage3_confirmation" and rrce_result:
-                        s3_data = rrce_result.get("stage3")
-                        if s3_data:
-                            reason = s3_data.get("reason", "unknown")
-                            skip[f"s3_reason_{reason}"] = skip.get(f"s3_reason_{reason}", 0) + 1
-                    continue
+                            print("RRCE_STAGE3_DIAGNOSTIC " + _json.dumps(
+                                {"symbol": symbol, **trace_extra}, default=str, sort_keys=True
+                            ))
 
-                rrce_risk = revalidate_live_entry(
-                    rrce_engine=active_rrce_engine,
-                    direction=direction,
-                    live_price=price,
-                    stage4=rrce_result["stage4"],
-                    max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
-                    min_rr=CONFIG["min_rr"],
-                )
-                if not rrce_risk["valid"]:
-                    if rrce_risk["reason"] == "price_away_from_rrce_entry":
-                        skip["rrce_entry_away"] += 1
-                    else:
-                        skip["rrce_entry_invalid"] += 1
-                    _trace(symbol, "rrce_entry_block", direction=direction,
-                           reason=rrce_risk["reason"])
-                    continue
-
+                if rrce_risk is None:
+                    rrce_risk = risk_engine.calculate(direction, price, atr)
                 if direction == "SHORT" and CONFIG["short_requires_resistance"]:
                     if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):
                         skip["sr_no_ceil"] += 1
