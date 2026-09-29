@@ -116,6 +116,16 @@ def test_rrce_live_contract_remains_configured():
     assert CONFIG["min_rr"] >= 2.0
     assert CONFIG["rrce_entry_max_deviation_pct"] > 0
 
+def test_rrce_fallback_candidates_do_not_carry_stale_stage4_marker():
+    scanner = _source(SCANNER)
+
+    # A candidate may fall back to ATR risk when RRCE is nonqualifying or
+    # when RRCE live revalidation fails. Such a candidate must not be marked
+    # for a second RRCE live revalidation after ranking.
+    assert '"_rrce_stage4":   rrce_execution_stage4' in scanner
+    assert 'if rrce_execution_stage4 is not None else None' in scanner
+    assert 'rrce_execution_stage4 = None' in scanner
+
 
 def test_production_contract_does_not_silently_restore_old_defaults():
     scanner = _source(SCANNER)
