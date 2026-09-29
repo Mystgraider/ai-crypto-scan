@@ -339,7 +339,14 @@ class RRCEEngine:
                 pool = min(near_pools, key=lambda p: abs(p["level"] - range_low))
                 swept_mask = (window["low"] < pool["level"]) & (window["close"] > pool["level"])
                 swept = False
-            sweep_extreme = float(window.loc[swept_mask, "low"].min()) if swept else float(window["low"].min())
+            # Anchor the risk extreme to the actual/latest sweep candle,
+            # not every candle in the patience window that happens to sweep
+            # the same pool. Older sweeps must not silently widen the SL.
+            sweep_idx = swept_mask[swept_mask].index[-1] if swept else None
+            sweep_extreme = (
+                float(window.loc[sweep_idx, "low"])
+                if swept else float(window["low"].min())
+            )
         elif direction == "SHORT":
             highs = d["swing_high"].dropna().tolist()
             pools = self._equal_levels(highs)
@@ -374,7 +381,14 @@ class RRCEEngine:
                 pool = min(near_pools, key=lambda p: abs(p["level"] - range_high))
                 swept_mask = (window["high"] > pool["level"]) & (window["close"] < pool["level"])
                 swept = False
-            sweep_extreme = float(window.loc[swept_mask, "high"].max()) if swept else float(window["high"].max())
+            # Anchor the risk extreme to the actual/latest sweep candle,
+            # not every candle in the patience window that happens to sweep
+            # the same pool. Older sweeps must not silently widen the SL.
+            sweep_idx = swept_mask[swept_mask].index[-1] if swept else None
+            sweep_extreme = (
+                float(window.loc[sweep_idx, "high"])
+                if swept else float(window["high"].max())
+            )
         else:
             return {"passed": False, "reason": "invalid_direction", "pools": []}
 
