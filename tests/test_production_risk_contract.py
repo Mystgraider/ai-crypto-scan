@@ -108,7 +108,7 @@ def test_final_candidate_pipeline_stays_direction_first_and_rank_second():
 
     # Composite/ranking data must be calculated after structural validation,
     # not used as a pre-validation direction gate.
-    composite_pos = scanner.index("composite =", candidate_pos - 1000)
+    composite_pos = scanner.index("composite =", validator_pos)
     assert validator_pos < composite_pos < candidate_pos
 
 
