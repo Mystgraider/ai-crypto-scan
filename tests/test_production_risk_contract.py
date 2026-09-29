@@ -56,16 +56,19 @@ def test_btc_normal_regimes_remain_context_only():
     assert 'allow_long=False, allow_short=False' in source
 
 
-def test_rrce_is_the_only_production_sl_tp_authority():
+def test_rrce_is_optional_and_only_authority_when_structurally_valid():
     scanner = _source(SCANNER)
     live_entry = _source(LIVE_ENTRY)
     rrce = _source(RRCE_ENGINE)
     ladder = _source(TP_LADDER)
+    fallback_risk = _source(ROOT / "engines" / "risk_engine.py")
 
-    assert not (ROOT / "engines" / "risk_engine.py").exists()
-    assert "RiskEngine" not in scanner
-    assert "live_entry_levels(" not in scanner
+    assert "RiskEngine" in scanner
+    assert "risk_engine.calculate(" in scanner
+    assert "legacy_v672_engine.evaluate(" in scanner
     assert "revalidate_live_entry(" in scanner
+    assert 'if sig.get("_rrce_stage4"):' in scanner
+    assert "live_entry_levels(" not in scanner
     assert "build_tp_ladder(" in live_entry
     assert 'stage4=stage4' in live_entry
     assert 'result = rrce_engine.live_entry_levels(' in live_entry
