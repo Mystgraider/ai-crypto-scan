@@ -276,14 +276,17 @@ def main():
 
         _symbol_start_time = _time.perf_counter()
         _direction_start = None
-        _runtime_metrics["symbols_attempted"] += 1
 
+        # Preflight the time budget before counting a symbol as attempted.
+        # A symbol is "attempted" only after it is actually admitted to scan.
         if _time.perf_counter() - _scan_start_time > _scan_time_budget_sec:
             print(f"      ⏱️  Time budget ({_scan_time_budget_sec}s) reached — "
                   f"stopping early with {len(candidates)} candidate(s) found so far, "
                   f"{symbols.index(symbol)}/{len(symbols)} symbols processed.")
             skip["time_budget_stop"] = len(symbols) - symbols.index(symbol)
             break
+
+        _runtime_metrics["symbols_attempted"] += 1
 
         if symbol == CONFIG["btc_symbol"]:
             continue
