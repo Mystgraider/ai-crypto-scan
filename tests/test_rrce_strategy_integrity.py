@@ -111,7 +111,7 @@ def test_rrce_evaluate_rejects_stage3_stage4_break_timestamp_mismatch():
 
     assert result["valid"] is False
     assert result["failed_at"] == "stage3_dataframe_alignment"
-    assert result["stage3"]["reason"] == "break_candle_timestamp_mismatch"
+    assert result["stage3"]["reason"] == "execution_candle_not_found"
 
 
 def test_rrce_evaluate_accepts_matching_stage3_stage4_break_timestamp():
@@ -276,3 +276,54 @@ def test_stage3_post_sweep_structural_handoff_uses_confirmed_post_sweep_swing():
     assert result["structure_lookback"] in (3, 5, 7)
     assert result["break_idx"] == 13
     assert result["fvg"]["break_idx"] == 13
+
+
+def test_rrce_evaluate_maps_15m_confirmation_break_to_5m_execution_candle():
+    import numpy as np
+    from unittest.mock import patch
+
+    engine = RRCEEngine()
+
+    confirm = pd.DataFrame({
+        "timestamp": pd.date_range("2026-09-19 00:00:00", periods=8, freq="15min", tz="UTC"),
+        "open": np.arange(100, 108, dtype=float),
+        "high": np.arange(101, 109, dtype=float),
+        "low": np.arange(99, 107, dtype=float),
+        "close": np.arange(100, 108, dtype=float),
+    })
+
+    # The execution frame is 5m and has one extra leading candle. Therefore
+    # the 15m break at confirm index 5 is execution index 6, not index 5.
+    exec_df = pd.DataFrame({
+        "timestamp": pd.date_range("2026-09-18 23:55:00", periods=25, freq="5min", tz="UTC"),
+        "open": np.arange(200, 225, dtype=float),
+        "high": np.arange(201, 226, dtype=float),
+        "low": np.arange(199, 224, dtype=float),
+        "close": np.arange(200, 225, dtype=float),
+        "atr": np.ones(25, dtype=float),
+    })
+
+    s1 = {"passed": True, "range_low": 90.0, "range_high": 110.0}
+    s2 = {"passed": True, "sweep_time": confirm["timestamp"].iloc[4], "sweep_extreme": 89.0}
+    s3 = {
+        "passed": True,
+        "fvg": {"top": 103.0, "bottom": 102.0, "break_idx": 5},
+        "break_idx": 5,
+        "break_time": confirm["timestamp"].iloc[5],
+    }
+    s4 = {"valid": True, "entry": 101.0, "sl": 89.0, "tp": 110.0, "rr": 0.75}
+
+    with patch.object(engine, "stage1_range", return_value=s1),          patch.object(engine, "stage2_retail_liquidity", return_value=s2),          patch.object(engine, "stage3_confirmation", return_value=s3),          patch.object(engine, "stage4_execution", return_value=s4) as stage4_mock:
+        result = engine.evaluate(
+            df_htf=confirm,
+            df_mtf=confirm,
+            df_ltf_confirm=confirm,
+            df_ltf_exec=exec_df,
+            direction="LONG",
+            price=100.0,
+        )
+
+    assert result["valid"] is True
+    assert result["stage3"]["execution_break_idx"] == 6
+    assert result["stage3"]["execution_break_time"] == str(confirm["timestamp"].iloc[5])
+    assert stage4_mock.call_args.kwargs["break_idx"] == 6
