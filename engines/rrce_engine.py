@@ -477,6 +477,10 @@ class RRCEEngine:
                     if swing_levels.empty:
                         continue
                     swing_idx = swing_levels.index[-1]
+                    # A swing used to confirm CHOCH must be structurally
+                    # knowable before the break candle itself.
+                    if swing_idx >= break_idx:
+                        continue
                     try:
                         swing_ts = pd.to_datetime(
                             closed["timestamp"].loc[swing_idx],
@@ -530,6 +534,10 @@ class RRCEEngine:
                     continue
 
                 swing_idx = swing_levels.index[-1]
+                # Never use the break candle itself as its own confirmed
+                # structural reference.
+                if swing_idx >= break_idx:
+                    continue
                 if sweep_ts is not None:
                     if "timestamp" not in closed.columns:
                         continue
