@@ -869,7 +869,7 @@ class RRCEEngine:
         opposite_pool = s1["range_high"] if direction == "LONG" else s1["range_low"]
         s4 = self.stage4_execution(
             df_ltf_exec, direction, s3["fvg"], s2["sweep_extreme"],
-            opposite_pool, break_idx=break_idx
+            opposite_pool, break_idx=exec_break_idx
         )
         result["stage4"] = s4
         if not s4.get("valid"):
