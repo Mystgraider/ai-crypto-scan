@@ -1136,32 +1136,34 @@ def main():
                       f"(entry {sig['entry']} → now {fresh_price})")
                 continue
 
-            live_rrce_engine = (
-                range_rrce_engine
-                if sig.get("_rrce_engine_mode") == "range"
-                else rrce_engine
-            )
-            live_risk = revalidate_live_entry(
-                rrce_engine=live_rrce_engine,
-                direction=sig["direction"],
-                live_price=fresh_price,
-                stage4=sig.get("_rrce_stage4"),
-                max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
-                min_rr=CONFIG["min_rr"],
-            )
-            if not live_risk.get("valid"):
-                print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "
-                      f"live RRCE revalidation failed: {live_risk.get('reason', 'unknown')}")
-                continue
+            # Revalidate RRCE execution levels only when the candidate actually
+            # qualified through the modern RRCE sequence. Non-RRCE candidates keep
+            # the ATR risk contract selected during candidate creation.
+            if sig.get("_rrce_stage4"):
+                live_rrce_engine = (
+                    range_rrce_engine
+                    if sig.get("_rrce_engine_mode") == "range"
+                    else rrce_engine
+                )
+                live_risk = revalidate_live_entry(
+                    rrce_engine=live_rrce_engine,
+                    direction=sig["direction"],
+                    live_price=fresh_price,
+                    stage4=sig["_rrce_stage4"],
+                    max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
+                    min_rr=CONFIG["min_rr"],
+                )
+                if not live_risk.get("valid"):
+                    print(f"  ⏭️  {sig['symbol']} {sig['direction']} skipped — "
+                          f"live RRCE revalidation failed: {live_risk.get('reason', 'unknown')}")
+                    continue
 
-            # Replace the complete executable risk set before sizing, Telegram,
-            # or persistence uses the signal.
-            sig["entry"] = live_risk["entry"]
-            sig["sl"] = live_risk["sl"]
-            sig["tp1"] = live_risk["tp1"]
-            sig["tp2"] = live_risk["tp2"]
-            sig["tp3"] = live_risk["tp3"]
-            sig["rr"] = live_risk["rr"]
+                sig["entry"] = live_risk["entry"]
+                sig["sl"] = live_risk["sl"]
+                sig["tp1"] = live_risk["tp1"]
+                sig["tp2"] = live_risk["tp2"]
+                sig["tp3"] = live_risk["tp3"]
+                sig["rr"] = live_risk["rr"]
             _runtime_metrics["stage_time_sec"]["live_validation"] += _time.perf_counter() - _live_validation_start
         except Exception as e:
             _runtime_metrics["stage_time_sec"]["live_validation"] += _time.perf_counter() - _live_validation_start
