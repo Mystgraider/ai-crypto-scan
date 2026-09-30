@@ -52,6 +52,10 @@ SYMBOLS = [
     "SUI/USDT:USDT",
 ]
 
+# Production context symbols required by scanner dependencies (BTC filter / RS),
+# but not part of the replay candidate universe.
+DATA_SYMBOLS = list(dict.fromkeys(SYMBOLS + ["BTC/USDT:USDT"]))
+
 INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
 DAYS = int(os.getenv("BACKTEST_DAYS", "7"))
@@ -417,7 +421,7 @@ def load_store(start: pd.Timestamp, end: pd.Timestamp) -> HistoricalStore:
     funding = {}
     oi = {}
 
-    for symbol in SYMBOLS:
+    for symbol in DATA_SYMBOLS:
         base = symbol_to_binance(symbol)
         for key, interval in INTERVALS.items():
             print(f"Downloading {base} {interval}...")
