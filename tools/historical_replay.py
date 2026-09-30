@@ -233,6 +233,19 @@ class ReplayTopSymbols:
     def __init__(self, symbols):
         self.symbols = symbols
 
+def assert_replay_boundary(store: HistoricalStore) -> None:
+    for (symbol, timeframe), df in store.candles.items():
+        delta = INTERVAL_DELTAS[timeframe]
+        if not df.empty and (df["timestamp"] + delta > store.end).any():
+            raise AssertionError(f"future_candle_leak:{symbol}:{timeframe}:{store.end.isoformat()}")
+    for symbol, df in store.funding.items():
+        if not df.empty and (df["timestamp"] > store.end).any():
+            raise AssertionError(f"future_funding_leak:{symbol}:{store.end.isoformat()}")
+    for symbol, df in store.oi.items():
+        if not df.empty and (df["timestamp"] > store.end).any():
+            raise AssertionError(f"future_oi_leak:{symbol}:{store.end.isoformat()}")
+
+
     def get_top_symbols(self):
         return list(self.symbols)
 
@@ -250,10 +263,10 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
     status = "OPEN"
     current_sl = sl
     milestones = []
-    for _, candle in future_5m[
+    future_window = future_5m[
         (future_5m["timestamp"] >= start) & (future_5m["timestamp"] <= end)
-    ].iterrows():
-        high = float(candle["high"])
+    ]
+    for _, candle in future_window.iterrows():
         low = float(candle["low"])
 
         if direction == "LONG":
@@ -305,7 +318,7 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
             elif status == "OPEN_TP2" and low <= tp3:
                 return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
 
-    return {"status": "EXPIRED" if len(future_5m[(future_5m["timestamp"] > start) & (future_5m["timestamp"] <= end)]) else "OPEN"}
+    return {"status": "EXPIRED" if not future_window.empty else "OPEN"}
 
 
 def load_store(start: pd.Timestamp, end: pd.Timestamp) -> HistoricalStore:
@@ -416,6 +429,7 @@ def run():
         for i, row in enumerate(timeline.itertuples(index=False), start=1):
             replay_time = pd.Timestamp(row.timestamp) + INTERVAL_DELTAS["1h"]
             store.end = replay_time
+            assert_replay_boundary(store)
 
             scanner.MarketDataLoader = lambda store=store: ReplayMarketLoader(store)
             scanner.TopSymbolsLoader = lambda: ReplayTopSymbols(SYMBOLS)
