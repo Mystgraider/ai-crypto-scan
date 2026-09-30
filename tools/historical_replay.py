@@ -38,7 +38,7 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RESULTS = ROOT / "backtest_results.json"
+if str(ROOT) not in os.sys.path:\n    os.sys.path.insert(0, str(ROOT))\nRESULTS = ROOT / "backtest_results.json"
 BINANCE = "https://fapi.binance.com/fapi/v1"
 BINANCE_DATA = "https://fapi.binance.com/futures/data"
 
