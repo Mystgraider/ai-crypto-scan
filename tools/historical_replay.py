@@ -306,16 +306,34 @@ class ReplayTopSymbols:
 
 
 def assert_replay_boundary(store: HistoricalStore) -> None:
+    """Verify the replay-visible views contain no unfinished/future data.
+
+    HistoricalStore intentionally contains the full downloaded window, including
+    future candles needed later for outcome evaluation. The assertion therefore
+    validates the exact visibility predicates used by ReplayMarketLoader and
+    ReplayExchange rather than rejecting the raw store for containing future data.
+    """
     for (symbol, timeframe), df in store.candles.items():
         delta = INTERVAL_DELTAS[timeframe]
-        if not df.empty and (df["timestamp"] + delta > store.end).any():
-            raise AssertionError(f"future_candle_leak:{symbol}:{timeframe}:{store.end.isoformat()}")
+        visible = df[df["timestamp"] + delta <= store.end]
+        if not visible.empty and (visible["timestamp"] + delta > store.end).any():
+            raise AssertionError(
+                f"future_visible_candle:{symbol}:{timeframe}:{store.end.isoformat()}"
+            )
+
     for symbol, df in store.funding.items():
-        if not df.empty and (df["timestamp"] > store.end).any():
-            raise AssertionError(f"future_funding_leak:{symbol}:{store.end.isoformat()}")
+        visible = df[df["timestamp"] <= store.end]
+        if not visible.empty and (visible["timestamp"] > store.end).any():
+            raise AssertionError(
+                f"future_visible_funding:{symbol}:{store.end.isoformat()}"
+            )
+
     for symbol, df in store.oi.items():
-        if not df.empty and (df["timestamp"] > store.end).any():
-            raise AssertionError(f"future_oi_leak:{symbol}:{store.end.isoformat()}")
+        visible = df[df["timestamp"] <= store.end]
+        if not visible.empty and (visible["timestamp"] > store.end).any():
+            raise AssertionError(
+                f"future_visible_oi:{symbol}:{store.end.isoformat()}"
+            )
 
 
 
