@@ -53,6 +53,7 @@ SYMBOLS = [
 ]
 
 INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
+INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
 DAYS = int(os.getenv("BACKTEST_DAYS", "7"))
 WARMUP_HOURS = 120
 BINANCE = "https://fapi.binance.com/fapi/v1"
@@ -162,7 +163,10 @@ class ReplayExchange:
 
     def fetch_ticker(self, symbol: str) -> dict:
         df = self.store.candles[(symbol, "1h")]
-        row = df[df["timestamp"] <= self.store.end].iloc[-1]
+        completed = df[df["timestamp"] + INTERVAL_DELTAS["1h"] <= self.store.end]
+        if completed.empty:
+            raise RuntimeError(f"no_completed_1h_ticker:{symbol}:{self.store.end.isoformat()}")
+        row = completed.iloc[-1]
         return {"last": float(row["close"])}
 
     def fetch_funding_rate(self, symbol: str) -> dict:
@@ -204,7 +208,7 @@ class ReplayMarketLoader:
 
     def _frame(self, symbol: str, timeframe: str, limit: int | None):
         df = self.store.candles[(symbol, timeframe)]
-        df = df[df["timestamp"] <= self.store.end]
+        df = df[df["timestamp"] + INTERVAL_DELTAS[timeframe] <= self.store.end]
         if limit is not None:
             df = df.tail(int(limit))
         return df.copy(deep=True).reset_index(drop=True)
@@ -247,7 +251,7 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
     current_sl = sl
     milestones = []
     for _, candle in future_5m[
-        (future_5m["timestamp"] > start) & (future_5m["timestamp"] <= end)
+        (future_5m["timestamp"] >= start) & (future_5m["timestamp"] <= end)
     ].iterrows():
         high = float(candle["high"])
         low = float(candle["low"])
@@ -364,7 +368,7 @@ def run():
     # reserved for indicator warmup, so no early NaNs are treated as strategy
     # failures.
     timeline = store.candles[(SYMBOLS[0], "1h")]
-    timeline = timeline[(timeline["timestamp"] >= start) & (timeline["timestamp"] <= end)]
+    timeline = timeline[(timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start) & (timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)]
     if timeline.empty:
         raise RuntimeError("empty_replay_timeline")
 
@@ -410,7 +414,7 @@ def run():
         scanner.AnalyticsEngine = ReplayAnalytics
 
         for i, row in enumerate(timeline.itertuples(index=False), start=1):
-            replay_time = pd.Timestamp(row.timestamp)
+            replay_time = pd.Timestamp(row.timestamp) + INTERVAL_DELTAS["1h"]
             store.end = replay_time
 
             scanner.MarketDataLoader = lambda store=store: ReplayMarketLoader(store)
