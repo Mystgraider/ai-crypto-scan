@@ -74,79 +74,145 @@ def http_json(url: str, params: dict) -> list | dict:
         return json.loads(response.read().decode("utf-8"))
 
 
-def fetch_klines(symbol: str, interval: str, start_ms: int, end_ms: int) -> pd.DataFrame:
-    rows = []
-    cursor = start_ms
-    while cursor < end_ms:
-        batch = http_json(
-            BINANCE + "/klines",
-            {
-                "symbol": symbol,
-                "interval": interval,
-                "startTime": cursor,
-                "endTime": end_ms,
-                "limit": 1500,
-            },
-        )
-        if not batch:
-            break
-        rows.extend(batch)
-        last_open = int(batch[-1][0])
-        next_cursor = last_open + 1
-        if next_cursor <= cursor:
-            break
-        cursor = next_cursor
-        if len(batch) < 1500:
-            break
+BINANCE_VISION = "https://data.binance.vision/data/futures/um"
 
-    if not rows:
+
+def _archive_url(kind: str, symbol: str, interval: str, day: pd.Timestamp) -> str:
+    date = day.strftime("%Y-%m-%d")
+    return (
+        f"{BINANCE_VISION}/daily/{kind}/{symbol}/{interval}/"
+        f"{symbol}-{interval}-{date}.zip"
+    )
+
+
+def _download_archive_csv(url: str) -> pd.DataFrame | None:
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "ai-crypto-scan-backtest/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=30) as response:
+            payload = response.read()
+    except Exception:
+        return None
+
+    import io
+    import zipfile
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            csv_names = [n for n in zf.namelist() if n.lower().endswith(".csv")]
+            if not csv_names:
+                return None
+            with zf.open(csv_names[0]) as fh:
+                return pd.read_csv(fh)
+    except Exception:
+        return None
+
+
+def _day_range(start_ms: int, end_ms: int) -> list[pd.Timestamp]:
+    start = pd.to_datetime(start_ms, unit="ms", utc=True).floor("D")
+    end = pd.to_datetime(end_ms, unit="ms", utc=True).floor("D")
+    return list(pd.date_range(start, end, freq="D", tz="UTC"))
+
+
+def fetch_klines(symbol: str, interval: str, start_ms: int, end_ms: int) -> pd.DataFrame:
+    frames = []
+    for day in _day_range(start_ms, end_ms):
+        url = _archive_url("klines", symbol, interval, day)
+        df = _download_archive_csv(url)
+        if df is None or df.empty:
+            continue
+
+        # Binance futures archive files may include a header. Normalize by
+        # position so the replay does not depend on archive header variants.
+        if "open_time" in df.columns:
+            cols = {
+                "open_time": "timestamp",
+                "open": "open",
+                "high": "high",
+                "low": "low",
+                "close": "close",
+                "volume": "volume",
+            }
+            missing = [k for k in cols if k not in df.columns]
+            if missing:
+                continue
+            out = df[list(cols)].rename(columns=cols)
+        else:
+            if len(df.columns) < 6:
+                continue
+            out = df.iloc[:, :6].copy()
+            out.columns = ["timestamp", "open", "high", "low", "close", "volume"]
+
+        out["timestamp"] = pd.to_numeric(out["timestamp"], errors="coerce")
+        # Archive timestamps are currently milliseconds; keep a defensive
+        # microsecond conversion for any future archive format change.
+        unit = "us" if out["timestamp"].dropna().median() > 10**14 else "ms"
+        out["timestamp"] = pd.to_datetime(out["timestamp"], unit=unit, utc=True, errors="coerce")
+        for col in ["open", "high", "low", "close", "volume"]:
+            out[col] = pd.to_numeric(out[col], errors="coerce")
+        frames.append(out.dropna(subset=["timestamp", "open", "high", "low", "close"]))
+
+    if not frames:
         raise RuntimeError(f"no_klines:{symbol}:{interval}")
 
-    df = pd.DataFrame(
-        [
-            [r[0], r[1], r[2], r[3], r[4], r[5]]
-            for r in rows
-        ],
-        columns=["timestamp", "open", "high", "low", "close", "volume"],
-    )
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
-    for col in ["open", "high", "low", "close", "volume"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-    df = df.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
-    return df
+    df = pd.concat(frames, ignore_index=True)
+    df = df[(df["timestamp"] >= pd.to_datetime(start_ms, unit="ms", utc=True)) &
+            (df["timestamp"] <= pd.to_datetime(end_ms, unit="ms", utc=True))]
+    return df.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
 
 
 def fetch_funding(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
-    rows = http_json(
-        BINANCE + "/fundingRate",
-        {"symbol": symbol, "startTime": start_ms, "endTime": end_ms, "limit": 1000},
-    )
-    df = pd.DataFrame(rows or [])
-    if df.empty:
+    frames = []
+    for day in _day_range(start_ms, end_ms):
+        url = (
+            f"{BINANCE_VISION}/daily/fundingRate/{symbol}/"
+            f"{symbol}-fundingRate-{day.strftime('%Y-%m-%d')}.zip"
+        )
+        df = _download_archive_csv(url)
+        if df is None or df.empty:
+            continue
+        time_col = next((c for c in ("calc_time", "fundingTime", "timestamp") if c in df.columns), None)
+        rate_col = next((c for c in ("last_funding_rate", "fundingRate") if c in df.columns), None)
+        if not time_col or not rate_col:
+            continue
+        out = df[[time_col, rate_col]].copy()
+        out.columns = ["timestamp", "fundingRate"]
+        out["timestamp"] = pd.to_numeric(out["timestamp"], errors="coerce")
+        out["timestamp"] = pd.to_datetime(out["timestamp"], unit="ms", utc=True, errors="coerce")
+        out["fundingRate"] = pd.to_numeric(out["fundingRate"], errors="coerce")
+        frames.append(out.dropna())
+    if not frames:
         return pd.DataFrame(columns=["timestamp", "fundingRate"])
-    df["timestamp"] = pd.to_datetime(df["fundingTime"], unit="ms", utc=True)
-    df["fundingRate"] = pd.to_numeric(df["fundingRate"], errors="coerce")
-    return df[["timestamp", "fundingRate"]].dropna().sort_values("timestamp")
+    df = pd.concat(frames, ignore_index=True)
+    return df.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
 
 
 def fetch_oi(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
-    rows = http_json(
-        BINANCE_DATA + "/openInterestHist",
-        {
-            "symbol": symbol,
-            "period": "1h",
-            "startTime": start_ms,
-            "endTime": end_ms,
-            "limit": 500,
-        },
-    )
-    df = pd.DataFrame(rows or [])
-    if df.empty:
+    frames = []
+    for day in _day_range(start_ms, end_ms):
+        url = (
+            f"{BINANCE_VISION}/daily/metrics/{symbol}/"
+            f"{symbol}-metrics-{day.strftime('%Y-%m-%d')}.zip"
+        )
+        df = _download_archive_csv(url)
+        if df is None or df.empty:
+            continue
+        time_col = next((c for c in ("create_time", "timestamp") if c in df.columns), None)
+        value_col = "sum_open_interest_value" if "sum_open_interest_value" in df.columns else "sumOpenInterestValue"
+        if not time_col or value_col not in df.columns:
+            continue
+        out = df[[time_col, value_col]].copy()
+        out.columns = ["timestamp", "sumOpenInterestValue"]
+        out["timestamp"] = pd.to_numeric(out["timestamp"], errors="coerce")
+        out["timestamp"] = pd.to_datetime(out["timestamp"], unit="ms", utc=True, errors="coerce")
+        out["sumOpenInterestValue"] = pd.to_numeric(out["sumOpenInterestValue"], errors="coerce")
+        frames.append(out.dropna())
+    if not frames:
         return pd.DataFrame(columns=["timestamp", "sumOpenInterestValue"])
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
-    value_col = "sumOpenInterestValue"
-    df[value_col] = pd.to_numeric(df[value_col], errors="coerce")
-    return df[["timestamp", value_col]].dropna().sort_values("timestamp")
+    df = pd.concat(frames, ignore_index=True)
+    return df.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
 
 
 @dataclass
@@ -233,6 +299,10 @@ class ReplayTopSymbols:
     def __init__(self, symbols):
         self.symbols = symbols
 
+    def get_top_symbols(self):
+        return list(self.symbols)
+
+
 def assert_replay_boundary(store: HistoricalStore) -> None:
     for (symbol, timeframe), df in store.candles.items():
         delta = INTERVAL_DELTAS[timeframe]
@@ -245,9 +315,6 @@ def assert_replay_boundary(store: HistoricalStore) -> None:
         if not df.empty and (df["timestamp"] > store.end).any():
             raise AssertionError(f"future_oi_leak:{symbol}:{store.end.isoformat()}")
 
-
-    def get_top_symbols(self):
-        return list(self.symbols)
 
 
 def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int = 72) -> dict:
@@ -268,6 +335,7 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
     ]
     for _, candle in future_window.iterrows():
         low = float(candle["low"])
+        high = float(candle["high"])
 
         if direction == "LONG":
             if low <= current_sl:
