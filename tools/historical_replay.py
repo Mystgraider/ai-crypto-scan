@@ -61,7 +61,9 @@ BINANCE_DATA = "https://fapi.binance.com/futures/data"
 
 
 def symbol_to_binance(symbol: str) -> str:
-    return symbol.split("/")[0]
+    """Convert ccxt perpetual symbols to Binance Vision archive symbols."""
+    base = symbol.split("/")[0]
+    return f"{base}USDT"
 
 
 def http_json(url: str, params: dict) -> list | dict:
