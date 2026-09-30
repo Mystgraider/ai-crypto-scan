@@ -55,6 +55,8 @@ SYMBOLS = [
 INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 DAYS = int(os.getenv("BACKTEST_DAYS", "7"))
 WARMUP_HOURS = 120
+BINANCE = "https://fapi.binance.com/fapi/v1"
+BINANCE_DATA = "https://fapi.binance.com/futures/data"
 
 
 def symbol_to_binance(symbol: str) -> str:
