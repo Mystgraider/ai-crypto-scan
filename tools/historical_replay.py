@@ -212,7 +212,10 @@ def fetch_oi(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
         out = df[[time_col, value_col]].copy()
         out.columns = ["timestamp", "sumOpenInterestValue"]
         out["timestamp"] = pd.to_numeric(out["timestamp"], errors="coerce")
-        out["timestamp"] = pd.to_datetime(out["timestamp"], unit="ms", utc=True, errors="coerce")
+        # Binance Vision metrics may expose epoch timestamps at ms/us precision.
+        valid_ts = out["timestamp"].dropna()
+        unit = "us" if (not valid_ts.empty and valid_ts.abs().median() > 1e14) else "ms"
+        out["timestamp"] = pd.to_datetime(out["timestamp"], unit=unit, utc=True, errors="coerce")
         out["sumOpenInterestValue"] = pd.to_numeric(out["sumOpenInterestValue"], errors="coerce")
         frames.append(out.dropna())
     if not frames:
