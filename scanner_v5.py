@@ -489,6 +489,11 @@ def main():
                     except Exception as _shadow_e:
                         print(f"      ⚠️ RRCE shadow diagnostic failed for {symbol}/{_direction}: {_shadow_e}")
 
+                # RRCE Stage-1 is diagnostic/confluence only. It must never
+                # hard-reject an otherwise valid original-strategy candidate.
+                # A non-passing Stage-1 path is recorded for telemetry, while the
+                # normal funding/beta/risk/candidate pipeline continues and the
+                # RRCE engine later falls back to the historical ATR contract.
                 if not any(
                     result and result.get("passed")
                     for result in rrce_stage1_prefilter.values()
@@ -499,12 +504,11 @@ def main():
                         _fail_key = "rrce_fail_stage1_range"
                         skip[_fail_key] = skip.get(_fail_key, 0) + 1
                         _trace(
-                            symbol, "rrce_stage1_prefilter_block",
+                            symbol, "rrce_stage1_prefilter_nonqualifying",
                             direction=_direction,
                             reason="stage1_range",
                             position_pct=_s1.get("position_pct") if _s1 else None,
                         )
-                    continue
 
             funding_result_base = {"funding_pct": 0.0, "funding_pct_raw": 0.0, "short_score_adj": 0}
             if CONFIG["funding_enabled"]:
