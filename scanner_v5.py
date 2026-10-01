@@ -20,6 +20,7 @@ V6.1 (data-driven, unchanged):
 """
 
 import json as _json
+import pandas as pd
 from datetime import datetime as _dt, timezone as _tz
 
 from loaders.top_symbols_loader  import TopSymbolsLoader
