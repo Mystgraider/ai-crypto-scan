@@ -176,9 +176,14 @@ def test_rrce_evaluate_accepts_and_forwards_confirmation_window():
 def test_stage23_diagnostic_replay_guards_missing_stage1():
     scanner = _source(SCANNER)
     guard = 'if not isinstance(_s1v, dict):'
+    stage2_call = '_diag_engine.stage2_retail_liquidity('
     range_access = '_s1v["range_low"], _s1v["range_high"]'
-    assert guard in scanner
-    assert scanner.index(guard) < scanner.index(range_access)
+
+    call_index = scanner.index(stage2_call)
+    guard_index = scanner.index(guard, max(0, call_index - 1200), call_index)
+    block = scanner[guard_index:call_index]
+    assert guard in block
+    assert range_access not in scanner[guard_index - 200:guard_index]
 
 
 def test_candidate_fate_telemetry_covers_ranking_and_live_rejections():
