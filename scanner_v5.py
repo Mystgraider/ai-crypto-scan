@@ -1326,6 +1326,7 @@ def main():
                 "RRCE" if sig.get("_rrce_stage4") is not None
                 else "ATR_FALLBACK"
             ),
+            fallback_max_risk_pct=CONFIG["atr_fallback_max_risk_pct"],
         )
 
         mtf_icon = {
