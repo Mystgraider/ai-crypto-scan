@@ -173,6 +173,14 @@ def test_rrce_evaluate_accepts_and_forwards_confirmation_window():
     assert 'CONFIG["rrce_stage3_confirmation_bars"]' in _source(SCANNER)
 
 
+def test_stage23_diagnostic_replay_guards_missing_stage1():
+    scanner = _source(SCANNER)
+    guard = 'if not isinstance(_s1v, dict):'
+    range_access = '_s1v["range_low"], _s1v["range_high"]'
+    assert guard in scanner
+    assert scanner.index(guard) < scanner.index(range_access)
+
+
 def test_candidate_fate_telemetry_covers_ranking_and_live_rejections():
     scanner = _source(SCANNER)
 
