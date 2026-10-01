@@ -683,9 +683,41 @@ def main():
                                         return
                                     _shadow[f"stage1_variant_{_name}_stage3_pass"] += 1
                                     _opposite_pool = _s1v["range_high"] if direction == "LONG" else _s1v["range_low"]
+
+                                    # Diagnostic Stage-4 replay must align the 15m CHOCH
+                                    # timestamp to the corresponding 5m candle. Passing the
+                                    # 15m positional index directly into the 5m dataframe
+                                    # produces a false execution location and can corrupt
+                                    # Stage-4 diagnostics without affecting production gating.
+                                    _s4_break_idx = None
+                                    _s3_break_idx = _s3v.get("break_idx")
+                                    if (
+                                        _s3_break_idx is not None
+                                        and 0 <= int(_s3_break_idx) < len(_df_rrce_15m)
+                                        and "timestamp" in _df_rrce_15m.columns
+                                        and "timestamp" in _df_rrce_5m.columns
+                                    ):
+                                        _confirm_ts = pd.to_datetime(
+                                            _df_rrce_15m["timestamp"].iloc[int(_s3_break_idx)],
+                                            utc=True, errors="coerce"
+                                        )
+                                        _exec_ts = pd.to_datetime(
+                                            _df_rrce_5m["timestamp"], utc=True, errors="coerce"
+                                        )
+                                        _matches = [i for i, _ts in enumerate(_exec_ts) if _ts == _confirm_ts]
+                                        if len(_matches) == 1:
+                                            _s4_break_idx = _matches[0]
+
+                                    if _s4_break_idx is None:
+                                        _reason = "execution_candle_not_aligned"
+                                        _shadow[f"stage1_variant_{_name}_reasons"][_reason] = (
+                                            _shadow[f"stage1_variant_{_name}_reasons"].get(_reason, 0) + 1
+                                        )
+                                        return
+
                                     _s4v = active_rrce_engine.stage4_execution(
                                         _df_rrce_5m, direction, _s3v["fvg"], _s2v["sweep_extreme"],
-                                        _opposite_pool, break_idx=_s3v.get("break_idx")
+                                        _opposite_pool, break_idx=_s4_break_idx
                                     )
                                     if _s4v.get("valid"):
                                         _shadow[f"stage1_variant_{_name}_stage4_valid"] += 1
