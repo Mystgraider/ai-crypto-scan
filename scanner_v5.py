@@ -719,6 +719,10 @@ def main():
                                 _diag_engine = active_rrce_engine
                                 if float(_cfg["eq"]) != _base_eq:
                                     _diag_engine = RRCEEngine(eq_tolerance_pct=float(_cfg["eq"]))
+                                if not isinstance(_s1v, dict):
+                                    # Stage-2/3 diagnostics are non-blocking; missing Stage-1 structure
+                                    # must not be dereferenced or surfaced as a caught runtime error.
+                                    continue
                                 _s2d = _diag_engine.stage2_retail_liquidity(
                                     df_1h, direction, _s1v["range_low"], _s1v["range_high"],
                                     proximity_pct=float(_cfg["proximity"]),
