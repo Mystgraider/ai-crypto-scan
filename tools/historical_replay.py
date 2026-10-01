@@ -358,7 +358,7 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
     current_sl = sl
     milestones = []
     future_window = future_5m[
-        (future_5m["timestamp"] >= start) & (future_5m["timestamp"] <= end)
+        (future_5m["timestamp"] > start) & (future_5m["timestamp"] <= end)
     ]
     for _, candle in future_window.iterrows():
         low = float(candle["low"])
@@ -552,7 +552,7 @@ def run():
                 "replay_time": sig["_replay_time"],
                 "symbol": symbol,
                 "direction": sig["direction"],
-                "score": sig.get("composite"),
+                "score": sig.get("score", sig.get("composite")),
                 "grade": sig.get("grade"),
                 "rr": sig.get("rr"),
                 "rrce_status": sig.get("rrce_status", "NOT_RUN"),
