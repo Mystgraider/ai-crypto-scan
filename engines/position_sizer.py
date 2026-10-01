@@ -50,6 +50,8 @@ class PositionSizer:
         entry:      float,
         sl:         float,
         account:    float = 1000.0,   # USDT account size
+        risk_contract: str = "STANDARD",
+        fallback_max_risk_pct: float = 0.5,
     ) -> dict:
 
         if grade not in self.RISK_TABLE:
@@ -66,6 +68,10 @@ class PositionSizer:
             raise ValueError("invalid_account")
 
         base_risk_pct = self.RISK_TABLE[grade]
+        if risk_contract not in {"STANDARD", "RRCE", "ATR_FALLBACK"}:
+            raise ValueError("invalid_risk_contract")
+        if not isinstance(fallback_max_risk_pct, (int, float)) or not math.isfinite(fallback_max_risk_pct) or fallback_max_risk_pct <= 0:
+            raise ValueError("invalid_fallback_max_risk_pct")
 
         # Confidence adjustment: < 50% confidence = halve the risk
         if confidence < 50:
@@ -78,6 +84,12 @@ class PositionSizer:
             base_risk_pct *= scale
 
         base_risk_pct = round(min(base_risk_pct, 2.0), 2)
+        # ATR fallback has materially weaker recent realized outcomes than
+        # RRCE-qualified candidates. Keep it eligible, but quarantine its
+        # account risk until the fallback path is revalidated with a larger
+        # out-of-sample sample. This changes exposure, not signal admission.
+        if risk_contract == "ATR_FALLBACK":
+            base_risk_pct = round(min(base_risk_pct, fallback_max_risk_pct), 2)
 
         # Risk in USDT
         risk_usdt = round(account * (base_risk_pct / 100), 2)
