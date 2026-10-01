@@ -186,6 +186,23 @@ def test_stage23_diagnostic_replay_guards_missing_stage1():
     assert range_access not in scanner[guard_index - 200:guard_index]
 
 
+def test_stage1_variant_stage4_replay_aligns_15m_break_to_5m_timestamp():
+    scanner = _source(SCANNER)
+
+    # Stage-4 diagnostics consume the 5m execution dataframe, so a 15m
+    # positional break index must never be passed directly into that frame.
+    assert "_s3_break_idx = _s3v.get(\"break_idx\")" in scanner
+    assert "_confirm_ts = pd.to_datetime(" in scanner
+    assert "_exec_ts = pd.to_datetime(" in scanner
+    assert "_matches = [i for i, _ts in enumerate(_exec_ts) if _ts == _confirm_ts]" in scanner
+    assert "break_idx=_s4_break_idx" in scanner
+    assert "break_idx=_s3v.get(\"break_idx\")" not in scanner
+
+    alignment_pos = scanner.index("_matches = [i for i, _ts in enumerate(_exec_ts) if _ts == _confirm_ts]")
+    stage4_pos = scanner.index("break_idx=_s4_break_idx", alignment_pos)
+    assert alignment_pos < stage4_pos
+
+
 def test_candidate_fate_telemetry_covers_ranking_and_live_rejections():
     scanner = _source(SCANNER)
 
