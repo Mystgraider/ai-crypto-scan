@@ -357,8 +357,12 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
     status = "OPEN"
     current_sl = sl
     milestones = []
+    # Only fully completed 5m candles inside the expiry window are
+    # observable at evaluation time. A candle opening exactly at expiry is
+    # still unfinished and must not affect the historical outcome.
     future_window = future_5m[
-        (future_5m["timestamp"] > start) & (future_5m["timestamp"] <= end)
+        (future_5m["timestamp"] > start)
+        & (future_5m["timestamp"] + INTERVAL_DELTAS["5m"] <= end)
     ]
     for _, candle in future_window.iterrows():
         low = float(candle["low"])
