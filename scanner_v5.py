@@ -1322,6 +1322,10 @@ def main():
         sizing = sizer.calculate(
             grade=sig["grade"], confidence=confidence,
             entry=sig["entry"], sl=sig["sl"],
+            risk_contract=(
+                "RRCE" if sig.get("_rrce_stage4") is not None
+                else "ATR_FALLBACK"
+            ),
         )
 
         mtf_icon = {
