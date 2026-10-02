@@ -44,6 +44,8 @@ CONFIG = {
     "signal_cooldown_hours": 4,
     "max_signals_per_run": 3,
     "max_daily_losses": 3,
+    # Temporary research mode: bypass daily-loss signal pause until breaker logic is revalidated.
+    "circuit_breaker_enabled": False,
     "rs_max_ratio": 8.0,
     "vol_max_ratio": 1.5,
     "max_entry_drift_pct": 0.6,

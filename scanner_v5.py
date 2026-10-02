@@ -233,11 +233,14 @@ def main():
 
     # ── Step 1b: Circuit Breaker ───────────────────────────────────────────
     print("\n[1b] Circuit Breaker...")
-    breaker = circuit_check()
-    if breaker["is_tripped"]:
-        print(f"      🔴 TRIPPED — {breaker['losses_today']} losses today. Signals paused.")
-        return
-    print(f"      ✅ OK — {breaker['losses_today']}/{breaker['max_losses']} losses today")
+    if CONFIG.get("circuit_breaker_enabled", True):
+        breaker = circuit_check()
+        if breaker["is_tripped"]:
+            print(f"      🔴 TRIPPED — {breaker['losses_today']} losses today. Signals paused.")
+            return
+        print(f"      ✅ OK — {breaker['losses_today']}/{breaker['max_losses']} losses today")
+    else:
+        print("      ⚪ DISABLED — circuit breaker bypassed by configuration")
 
     # ── Step 2: Load Symbols ───────────────────────────────────────────────
     print("\n[2/8] Loading top symbols...")
