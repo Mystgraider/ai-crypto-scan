@@ -39,6 +39,20 @@ class RiskEngine:
             tp2 = round(entry - atr * tp2_mult, 8)
             tp3 = round(entry - atr * tp3_mult, 8)
 
+        # Risk-level integrity is a hard safety contract. A malformed fallback
+        # ladder must never reach ranking, live validation, or signal delivery.
+        # TP1 must be on the profit side of entry and the ladder must progress
+        # monotonically away from entry.
+        levels = (sl, tp1, tp2, tp3)
+        if not all(isinstance(v, (int, float)) and v == v and abs(v) != float("inf") for v in levels):
+            return None
+        if direction == "LONG":
+            levels_valid = sl < entry < tp1 < tp2 < tp3
+        else:
+            levels_valid = tp3 < tp2 < tp1 < entry < sl
+        if not levels_valid:
+            return None
+
         sl_dist = abs(entry - sl)
         tp1_dist = abs(entry - tp1)
         if sl_dist <= 0 or sl_dist / entry < min_sl:
