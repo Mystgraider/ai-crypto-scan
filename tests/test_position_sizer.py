@@ -33,3 +33,46 @@ def test_rejects_invalid_price_inputs(entry, sl):
 def test_rejects_invalid_account(account):
     with pytest.raises(ValueError, match="invalid_account"):
         PositionSizer().calculate("A", 75, 100.0, 98.0, account)
+
+
+def test_atr_fallback_risk_is_capped():
+    result = PositionSizer().calculate(
+        "S", 95, 100.0, 98.0, 1000.0, risk_contract="ATR_FALLBACK"
+    )
+    assert result["risk_pct"] == 0.5
+    assert result["risk_usdt"] == 5.0
+    assert result["position_usdt"] == 250.0
+
+
+def test_atr_fallback_uses_explicit_limit():
+    result = PositionSizer().calculate(
+        "S", 95, 100.0, 98.0, 1000.0,
+        risk_contract="ATR_FALLBACK", fallback_max_risk_pct=0.25,
+    )
+    assert result["risk_pct"] == 0.25
+    assert result["risk_usdt"] == 2.5
+    assert result["position_usdt"] == 125.0
+
+
+def test_rrce_risk_is_not_capped_by_fallback_limit():
+    result = PositionSizer().calculate(
+        "A", 75, 100.0, 98.0, 1000.0, risk_contract="RRCE"
+    )
+    assert result["risk_pct"] == 1.5
+
+
+@pytest.mark.parametrize("limit", [0, -0.1, float("nan"), float("inf"), float("-inf")])
+def test_rejects_invalid_fallback_risk_limit(limit):
+    with pytest.raises(ValueError, match="invalid_fallback_max_risk_pct"):
+        PositionSizer().calculate(
+            "A", 75, 100.0, 98.0, 1000.0,
+            risk_contract="ATR_FALLBACK", fallback_max_risk_pct=limit,
+        )
+
+
+@pytest.mark.parametrize("contract", ["", "UNKNOWN", None])
+def test_rejects_invalid_risk_contract(contract):
+    with pytest.raises(ValueError, match="invalid_risk_contract"):
+        PositionSizer().calculate(
+            "A", 75, 100.0, 98.0, 1000.0, risk_contract=contract
+        )

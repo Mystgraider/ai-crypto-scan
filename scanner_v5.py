@@ -1322,6 +1322,11 @@ def main():
         sizing = sizer.calculate(
             grade=sig["grade"], confidence=confidence,
             entry=sig["entry"], sl=sig["sl"],
+            risk_contract=(
+                "RRCE" if sig.get("_rrce_stage4")
+                else "ATR_FALLBACK"
+            ),
+            fallback_max_risk_pct=CONFIG["atr_fallback_max_risk_pct"],
         )
 
         mtf_icon = {

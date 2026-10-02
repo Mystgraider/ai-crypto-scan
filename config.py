@@ -38,6 +38,8 @@ CONFIG = {
 
     # RRCE is the sole production authority for structural SL/TP levels.
     "min_rr": 2.0,
+    # Maximum account-risk percentage for non-RRCE ATR fallback signals.
+    "atr_fallback_max_risk_pct": 0.5,
 
     "signal_cooldown_hours": 4,
     "max_signals_per_run": 3,
