@@ -1024,6 +1024,30 @@ def main():
                 )
                 effective_quality_score = quality_score
 
+                # DIAGNOSTIC: capture the exact Quality Engine hard-block reason
+                # for RRCE Stage-4 candidates without changing scoring/gating.
+                if rrce_execution_stage4 is not None:
+                    _quality_block_reason = None
+                    if rel_volume < quality_engine.MIN_VOLUME:
+                        _quality_block_reason = "volume_below_min"
+                    elif rel_volume > quality_engine.MAX_VOLUME:
+                        _quality_block_reason = "volume_above_max"
+                    elif direction == "LONG" and rsi > quality_engine.LONG_RSI_MAX:
+                        _quality_block_reason = "long_rsi_above_max"
+                    elif direction == "SHORT" and rsi < quality_engine.SHORT_RSI_MIN:
+                        _quality_block_reason = "short_rsi_below_min"
+                    _record_fate(
+                        symbol, direction, "RRCE_STAGE4_QUALITY_BREAKDOWN",
+                        rel_volume=float(rel_volume),
+                        rsi=float(rsi),
+                        quality_score=float(effective_quality_score),
+                        hard_block_reason=_quality_block_reason,
+                        min_volume=float(quality_engine.MIN_VOLUME),
+                        max_volume=float(quality_engine.MAX_VOLUME),
+                        long_rsi_max=float(quality_engine.LONG_RSI_MAX),
+                        short_rsi_min=float(quality_engine.SHORT_RSI_MIN),
+                    )
+
                 oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}
                 if CONFIG["oi_enabled"]:
                     if not oi_data_base or not oi_data_base.get("available"):
