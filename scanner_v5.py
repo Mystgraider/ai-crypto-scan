@@ -1070,6 +1070,9 @@ def main():
                     (base + sr_bonus + oi_adj + fund_adj + squeeze_bonus + vp_bonus + rrce_bonus) * mtf_multiplier, 2)
                 ))
                 g = grade_score(composite)
+                # DIAGNOSTIC: RRCE Stage-4 score breakdown before D-grade gate.
+                if rrce_execution_stage4 is not None:
+                    _record_fate(symbol, direction, "RRCE_STAGE4_SCORE_BREAKDOWN", trend_score=effective_trend_score, quality_score=effective_quality_score, base=base, sr_bonus=sr_bonus, oi_adj=oi_adj, fund_adj=fund_adj, squeeze_bonus=squeeze_bonus, vp_bonus=vp_bonus, rrce_bonus=rrce_bonus, mtf_multiplier=mtf_multiplier, composite=composite, grade=g)
 
                 if g == "D":
                     skip["d_grade"] += 1
