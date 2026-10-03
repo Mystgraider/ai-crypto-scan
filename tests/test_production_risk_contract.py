@@ -135,6 +135,17 @@ def test_production_contract_does_not_silently_restore_old_defaults():
     assert 'CONFIG.get("range_regime_min_score"' not in scanner
 
 
+def test_rrce_stage4_revalidation_uses_exchange_ticker_price():
+    scanner = _source(SCANNER)
+    # Stage-4 deviation must use the exchange ticker, not the 1h forming
+    # candle close. Final live validation already uses the same ticker source.
+    rrce_block = scanner.index('if rrce_result and rrce_result.get("valid"):')
+    revalidate_pos = scanner.index('revalidate_live_entry(', rrce_block)
+    ticker_pos = scanner.index('exchange.fetch_ticker(symbol)["last"]', rrce_block)
+    assert ticker_pos < revalidate_pos
+    assert 'live_price=rrce_live_price' in scanner[rrce_block:scanner.index('else:', revalidate_pos) + 5]
+
+
 def test_rrce_live_entry_fails_closed_on_unvalidated_stage4():
     from engines.rrce_engine import RRCEEngine
 
