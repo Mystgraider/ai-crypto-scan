@@ -875,10 +875,7 @@ def main():
                         skip["rrce_stage3_passed"] += 1
                     if rrce_result.get("valid"):
                         skip["rrce_stage4_valid"] += 1
-                        _record_fate(
-                            symbol, direction, "RRCE_STAGE4_VALID",
-                            planned_entry=(rrce_result.get("stage4") or {}).get("entry"),
-                        )
+                        _record_fate(symbol, direction, "RRCE_STAGE4_VALID", planned_entry=(rrce_result.get("stage4") or {}).get("entry"))
 
                 # Modern RRCE validity is optional. If it passes, use its
                 # structurally derived entry/SL/TP after live-price revalidation.
@@ -901,12 +898,7 @@ def main():
                         else:
                             skip["rrce_entry_invalid"] += 1
                         rrce_live_failure_reason = rrce_risk.get("reason", "rrce_live_revalidation_failed")
-                        _record_fate(
-                            symbol, direction, "RRCE_STAGE4_LIVE_REJECT",
-                            reason=rrce_live_failure_reason,
-                            planned_entry=rrce_risk.get("planned_entry"),
-                            deviation_pct=rrce_risk.get("deviation_pct"),
-                        )
+                        _record_fate(symbol, direction, "RRCE_STAGE4_LIVE_REJECT", reason=rrce_live_failure_reason, planned_entry=rrce_risk.get("planned_entry"), deviation_pct=rrce_risk.get("deviation_pct"))
                         rrce_risk = None
                     else:
                         # Only candidates that actually use RRCE-derived
@@ -914,53 +906,7 @@ def main():
                         # marker into ranking/live validation. A fallback ATR
                         # candidate must never be revalidated as RRCE later.
                         rrce_execution_stage4 = rrce_result["stage4"]
-                        _record_fate(
-                            symbol, direction, "RRCE_STAGE4_LIVE_PASS",
-                            planned_entry=(rrce_execution_stage4 or {}).get("entry"),
-                            executable_entry=rrce_risk.get("entry"),
-                            rr=rrce_risk.get("rr"),
-                        )
-                        _record_fate(
-                            symbol, direction, "RRCE_STAGE4_LIVE_PASS",
-                            planned_entry=(rrce_execution_stage4 or {}).get("entry"),
-                            executable_entry=rrce_risk.get("entry"),
-                            rr=rrce_risk.get("rr"),
-                        )
-
-                # Modern RRCE validity is optional. If it passes, use its
-                # structurally derived entry/SL/TP after live-price revalidation.
-                # If it fails, fall back to the historical ATR risk contract so
-                # RRCE cannot collapse signal volume to zero.
-                rrce_execution_stage4 = None
-                rrce_live_failure_reason = None
-                if rrce_result and rrce_result.get("valid"):
-                    rrce_risk = revalidate_live_entry(
-                        rrce_engine=active_rrce_engine,
-                        direction=direction,
-                        live_price=price,
-                        stage4=rrce_result["stage4"],
-                        max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
-                        min_rr=CONFIG["min_rr"],
-                    )
-                    if not rrce_risk.get("valid"):
-                        if rrce_risk.get("reason") == "price_away_from_rrce_entry":
-                            skip["rrce_entry_away"] += 1
-                        else:
-                            skip["rrce_entry_invalid"] += 1
-                        rrce_live_failure_reason = rrce_risk.get("reason", "rrce_live_revalidation_failed")
-                        _record_fate(
-                            symbol, direction, "RRCE_STAGE4_LIVE_REJECT",
-                            reason=rrce_live_failure_reason,
-                            planned_entry=rrce_risk.get("planned_entry"),
-                            deviation_pct=rrce_risk.get("deviation_pct"),
-                        )
-                        rrce_risk = None
-                    else:
-                        # Only candidates that actually use RRCE-derived
-                        # structural risk may carry the Stage-4 execution
-                        # marker into ranking/live validation. A fallback ATR
-                        # candidate must never be revalidated as RRCE later.
-                        rrce_execution_stage4 = rrce_result["stage4"]
+                        _record_fate(symbol, direction, "RRCE_STAGE4_LIVE_PASS", planned_entry=(rrce_execution_stage4 or {}).get("entry"), executable_entry=rrce_risk.get("entry"), rr=rrce_risk.get("rr"))
                 else:
                     if rrce_result:
                         fail_stage = rrce_result.get("failed_at", "nonqualifying")
@@ -1086,13 +1032,13 @@ def main():
                     if risk is None:
                         skip["risk"] += 1
                         _trace(symbol, "risk_none", direction=direction)
-                    if rrce_execution_stage4 is not None:
-                        _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="risk_none")
+                        if rrce_execution_stage4 is not None:
+                            _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="risk_none")
                     else:
                         skip["quality"] += 1
                         _trace(symbol, "quality_block", direction=direction)
-                    if rrce_execution_stage4 is not None:
-                        _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="validator")
+                        if rrce_execution_stage4 is not None:
+                            _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="validator")
                     continue
 
                 oi_adj    = oi_result["score_adj"]
