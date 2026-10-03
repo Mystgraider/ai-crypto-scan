@@ -884,14 +884,36 @@ def main():
                 rrce_execution_stage4 = None
                 rrce_live_failure_reason = None
                 if rrce_result and rrce_result.get("valid"):
-                    rrce_risk = revalidate_live_entry(
-                        rrce_engine=active_rrce_engine,
-                        direction=direction,
-                        live_price=price,
-                        stage4=rrce_result["stage4"],
-                        max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
-                        min_rr=CONFIG["min_rr"],
-                    )
+                    # RRCE Stage-4 execution is a live-entry contract. The
+                    # 1h forming-candle close used for signal context is not
+                    # authoritative enough for the entry-deviation gate; it
+                    # can lag the exchange's current trade price. Fetch the
+                    # exchange ticker only for Stage-4 candidates so the
+                    # deviation check compares the planned 5m entry against
+                    # the same live price source used by final validation.
+                    try:
+                        rrce_live_price = float(exchange.fetch_ticker(symbol)["last"])
+                        if rrce_live_price <= 0:
+                            raise ValueError("invalid_live_ticker_price")
+                    except Exception as live_price_error:
+                        rrce_live_price = None
+                        _record_fate(
+                            symbol, direction, "RRCE_STAGE4_LIVE_REJECT",
+                            reason="live_price_unavailable",
+                            error=str(live_price_error),
+                        )
+                    if rrce_live_price is None:
+                        rrce_risk = None
+                        rrce_live_failure_reason = "live_price_unavailable"
+                    else:
+                        rrce_risk = revalidate_live_entry(
+                            rrce_engine=active_rrce_engine,
+                            direction=direction,
+                            live_price=rrce_live_price,
+                            stage4=rrce_result["stage4"],
+                            max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
+                            min_rr=CONFIG["min_rr"],
+                        )
                     if not rrce_risk.get("valid"):
                         if rrce_risk.get("reason") == "price_away_from_rrce_entry":
                             skip["rrce_entry_away"] += 1
