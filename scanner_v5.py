@@ -875,6 +875,7 @@ def main():
                         skip["rrce_stage3_passed"] += 1
                     if rrce_result.get("valid"):
                         skip["rrce_stage4_valid"] += 1
+                        _record_fate(symbol, direction, "RRCE_STAGE4_VALID", planned_entry=(rrce_result.get("stage4") or {}).get("entry"))
 
                 # Modern RRCE validity is optional. If it passes, use its
                 # structurally derived entry/SL/TP after live-price revalidation.
@@ -897,8 +898,7 @@ def main():
                         else:
                             skip["rrce_entry_invalid"] += 1
                         rrce_live_failure_reason = rrce_risk.get("reason", "rrce_live_revalidation_failed")
-                        _trace(symbol, "rrce_entry_nonqualifying", direction=direction,
-                               reason=rrce_live_failure_reason)
+                        _record_fate(symbol, direction, "RRCE_STAGE4_LIVE_REJECT", reason=rrce_live_failure_reason, planned_entry=rrce_risk.get("planned_entry"), deviation_pct=rrce_risk.get("deviation_pct"))
                         rrce_risk = None
                     else:
                         # Only candidates that actually use RRCE-derived
@@ -906,6 +906,7 @@ def main():
                         # marker into ranking/live validation. A fallback ATR
                         # candidate must never be revalidated as RRCE later.
                         rrce_execution_stage4 = rrce_result["stage4"]
+                        _record_fate(symbol, direction, "RRCE_STAGE4_LIVE_PASS", planned_entry=(rrce_execution_stage4 or {}).get("entry"), executable_entry=rrce_risk.get("entry"), rr=rrce_risk.get("rr"))
                 else:
                     if rrce_result:
                         fail_stage = rrce_result.get("failed_at", "nonqualifying")
@@ -935,6 +936,8 @@ def main():
                     if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):
                         skip["sr_no_ceil"] += 1
                         _trace(symbol, "sr_no_ceiling", direction=direction)
+                        if rrce_execution_stage4 is not None:
+                            _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="sr_no_ceiling")
                         continue
 
                 coin_closes = df_1h["close"].tolist()
@@ -989,6 +992,8 @@ def main():
                 if CONFIG["mtf_reject_counter_trend"] and mtf_status in ("REJECTED", "SKIPPED"):
                     skip["mtf"] += 1
                     _trace(symbol, "mtf_block", direction=direction)
+                    if rrce_execution_stage4 is not None:
+                        _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="mtf")
                     continue
 
                 quality_score = quality_engine.score(
@@ -1027,9 +1032,13 @@ def main():
                     if risk is None:
                         skip["risk"] += 1
                         _trace(symbol, "risk_none", direction=direction)
+                        if rrce_execution_stage4 is not None:
+                            _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="risk_none")
                     else:
                         skip["quality"] += 1
                         _trace(symbol, "quality_block", direction=direction)
+                        if rrce_execution_stage4 is not None:
+                            _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="validator")
                     continue
 
                 oi_adj    = oi_result["score_adj"]
@@ -1043,6 +1052,8 @@ def main():
                 if g == "D":
                     skip["d_grade"] += 1
                     _trace(symbol, "d_grade_block", direction=direction)
+                    if rrce_execution_stage4 is not None:
+                        _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="d_grade")
                     continue
 
                 # Persist the final RRCE disposition with the candidate so the exact

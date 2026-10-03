@@ -264,3 +264,10 @@ def test_rrce_fallback_metadata_is_not_labeled_qualified():
     assert '_rrce_status = "QUALIFIED" if rrce_execution_stage4 is not None' in scanner
     assert '"rrce_risk_contract": _rrce_risk_contract' in scanner
     assert '"rrce_status": _rrce_status' in scanner
+
+def test_rrce_stage4_fate_telemetry_is_complete():
+    scanner = _source(SCANNER)
+    assert '"RRCE_STAGE4_VALID"' in scanner
+    assert '"RRCE_STAGE4_LIVE_REJECT"' in scanner
+    assert '"RRCE_STAGE4_LIVE_PASS"' in scanner
+    assert '"RRCE_STAGE4_POST_LIVE_BLOCK"' in scanner
