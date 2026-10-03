@@ -297,7 +297,8 @@ def main():
         # Preflight the time budget before counting a symbol as attempted.
         # A symbol is "attempted" only after it is actually admitted to scan.
         if _time.perf_counter() - _scan_start_time > _scan_time_budget_sec:
-            print(f"      ⏱️  Time budget ({_scan_time_budget_sec}s) reached — "                  f"stopping early with {len(candidates)} candidate(s) found so far, "
+            print(f"      ⏱️  Time budget ({_scan_time_budget_sec}s) reached — "
+                  f"stopping early with {len(candidates)} candidate(s) found so far, "
                   f"{symbols.index(symbol)}/{len(symbols)} symbols processed.")
             skip["time_budget_stop"] = len(symbols) - symbols.index(symbol)
             break
@@ -596,6 +597,7 @@ def main():
 
                 sr_levels = sr_levels_shared
                 sr_bonus  = sr_engine.score_bonus(direction, sr_levels)
+
                 squeeze_bonus = squeeze_bonus_shared
                 vp_bonus = vp_engine.score_bonus(direction, price, vp_profile_shared)
 
@@ -895,7 +897,8 @@ def main():
                             raise ValueError("invalid_live_ticker_price")
                     except Exception as live_price_error:
                         rrce_live_price = None
-                        _record_fate(                            symbol, direction, "RRCE_STAGE4_LIVE_REJECT",
+                        _record_fate(
+                            symbol, direction, "RRCE_STAGE4_LIVE_REJECT",
                             reason="live_price_unavailable",
                             error=str(live_price_error),
                         )
@@ -1020,6 +1023,7 @@ def main():
                     stoch_k=stoch_k, bb_pct_b=bb_pct_b, macd_hist=macd_hist,
                 )
                 effective_quality_score = quality_score
+
                 # DIAGNOSTIC: capture the exact Quality Engine hard-block reason
                 # for RRCE Stage-4 candidates without changing scoring/gating.
                 if rrce_execution_stage4 is not None:
@@ -1217,7 +1221,8 @@ def main():
 
     _runtime_metrics["scan_elapsed_sec"] = round(_time.perf_counter() - _scan_start_time, 3)
     _runtime_metrics["stage_time_sec"]["ranking"] = 0.0
-    try:        debug_row = {
+    try:
+        debug_row = {
             "ts": _dt.now(_tz.utc).isoformat(),
             "symbols_scanned": len(symbols),
             "candidates": len(candidates),
@@ -1516,7 +1521,8 @@ def main():
         print(f"      ⚠️  final runtime log write failed: {_e}")
 
     # Persist the complete candidate fate chain only after ranking and live
-    # validation have finished. The pre-ranking debug snapshot above is kept    # intentionally separate so it cannot be mistaken for a complete fate log.
+    # validation have finished. The pre-ranking debug snapshot above is kept
+    # intentionally separate so it cannot be mistaken for a complete fate log.
     try:
         trace_row = {
             "ts": _dt.now(_tz.utc).isoformat(),
