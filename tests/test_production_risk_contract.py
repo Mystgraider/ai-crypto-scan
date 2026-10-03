@@ -282,3 +282,13 @@ def test_rrce_stage4_fate_telemetry_is_complete():
     assert '"RRCE_STAGE4_LIVE_REJECT"' in scanner
     assert '"RRCE_STAGE4_LIVE_PASS"' in scanner
     assert '"RRCE_STAGE4_POST_LIVE_BLOCK"' in scanner
+
+
+def test_rrce_stage4_score_breakdown_telemetry_exists():
+    scanner = (ROOT / "scanner_v5.py").read_text(encoding="utf-8")
+    assert "RRCE_STAGE4_SCORE_BREAKDOWN" in scanner
+    assert "rrce_execution_stage4 is not None" in scanner
+    for field in ("trend_score", "quality_score", "base", "sr_bonus", "oi_adj",
+                  "fund_adj", "squeeze_bonus", "vp_bonus", "rrce_bonus",
+                  "mtf_multiplier", "composite", "grade"):
+        assert field in scanner
