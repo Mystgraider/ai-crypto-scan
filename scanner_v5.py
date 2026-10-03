@@ -297,8 +297,7 @@ def main():
         # Preflight the time budget before counting a symbol as attempted.
         # A symbol is "attempted" only after it is actually admitted to scan.
         if _time.perf_counter() - _scan_start_time > _scan_time_budget_sec:
-            print(f"      ⏱️  Time budget ({_scan_time_budget_sec}s) reached — "
-                  f"stopping early with {len(candidates)} candidate(s) found so far, "
+            print(f"      ⏱️  Time budget ({_scan_time_budget_sec}s) reached — "                  f"stopping early with {len(candidates)} candidate(s) found so far, "
                   f"{symbols.index(symbol)}/{len(symbols)} symbols processed.")
             skip["time_budget_stop"] = len(symbols) - symbols.index(symbol)
             break
@@ -597,7 +596,6 @@ def main():
 
                 sr_levels = sr_levels_shared
                 sr_bonus  = sr_engine.score_bonus(direction, sr_levels)
-
                 squeeze_bonus = squeeze_bonus_shared
                 vp_bonus = vp_engine.score_bonus(direction, price, vp_profile_shared)
 
@@ -897,8 +895,7 @@ def main():
                             raise ValueError("invalid_live_ticker_price")
                     except Exception as live_price_error:
                         rrce_live_price = None
-                        _record_fate(
-                            symbol, direction, "RRCE_STAGE4_LIVE_REJECT",
+                        _record_fate(                            symbol, direction, "RRCE_STAGE4_LIVE_REJECT",
                             reason="live_price_unavailable",
                             error=str(live_price_error),
                         )
@@ -1023,6 +1020,29 @@ def main():
                     stoch_k=stoch_k, bb_pct_b=bb_pct_b, macd_hist=macd_hist,
                 )
                 effective_quality_score = quality_score
+                # DIAGNOSTIC: capture the exact Quality Engine hard-block reason
+                # for RRCE Stage-4 candidates without changing scoring/gating.
+                if rrce_execution_stage4 is not None:
+                    _quality_block_reason = None
+                    if rel_volume < quality_engine.MIN_VOLUME:
+                        _quality_block_reason = "volume_below_min"
+                    elif rel_volume > quality_engine.MAX_VOLUME:
+                        _quality_block_reason = "volume_above_max"
+                    elif direction == "LONG" and rsi > quality_engine.LONG_RSI_MAX:
+                        _quality_block_reason = "long_rsi_above_max"
+                    elif direction == "SHORT" and rsi < quality_engine.SHORT_RSI_MIN:
+                        _quality_block_reason = "short_rsi_below_min"
+                    _record_fate(
+                        symbol, direction, "RRCE_STAGE4_QUALITY_BREAKDOWN",
+                        rel_volume=float(rel_volume),
+                        rsi=float(rsi),
+                        quality_score=float(effective_quality_score),
+                        hard_block_reason=_quality_block_reason,
+                        min_volume=float(quality_engine.MIN_VOLUME),
+                        max_volume=float(quality_engine.MAX_VOLUME),
+                        long_rsi_max=float(quality_engine.LONG_RSI_MAX),
+                        short_rsi_min=float(quality_engine.SHORT_RSI_MIN),
+                    )
 
                 oi_result = {"oi_signal": "NEUTRAL", "score_adj": 0, "oi_change_pct": 0}
                 if CONFIG["oi_enabled"]:
@@ -1197,8 +1217,7 @@ def main():
 
     _runtime_metrics["scan_elapsed_sec"] = round(_time.perf_counter() - _scan_start_time, 3)
     _runtime_metrics["stage_time_sec"]["ranking"] = 0.0
-    try:
-        debug_row = {
+    try:        debug_row = {
             "ts": _dt.now(_tz.utc).isoformat(),
             "symbols_scanned": len(symbols),
             "candidates": len(candidates),
@@ -1497,8 +1516,7 @@ def main():
         print(f"      ⚠️  final runtime log write failed: {_e}")
 
     # Persist the complete candidate fate chain only after ranking and live
-    # validation have finished. The pre-ranking debug snapshot above is kept
-    # intentionally separate so it cannot be mistaken for a complete fate log.
+    # validation have finished. The pre-ranking debug snapshot above is kept    # intentionally separate so it cannot be mistaken for a complete fate log.
     try:
         trace_row = {
             "ts": _dt.now(_tz.utc).isoformat(),
