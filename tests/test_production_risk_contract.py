@@ -292,3 +292,14 @@ def test_rrce_stage4_score_breakdown_telemetry_exists():
                   "fund_adj", "squeeze_bonus", "vp_bonus", "rrce_bonus",
                   "mtf_multiplier", "composite", "grade"):
         assert field in scanner
+
+
+def test_rrce_stage4_quality_breakdown_telemetry_exists():
+    scanner = (ROOT / "scanner_v5.py").read_text(encoding="utf-8")
+    assert "RRCE_STAGE4_QUALITY_BREAKDOWN" in scanner
+    assert "volume_below_min" in scanner
+    assert "volume_above_max" in scanner
+    assert "long_rsi_above_max" in scanner
+    assert "short_rsi_below_min" in scanner
+    assert "rel_volume=float(rel_volume)" in scanner
+    assert "rsi=float(rsi)" in scanner
