@@ -295,8 +295,20 @@ class ReplayMarketLoader:
         self.exchange = ReplayExchange(store)
 
     def _frame(self, symbol: str, timeframe: str, limit: int | None):
+        """Return the exact production-visible candle state at replay cutoff.
+
+        Production receives a dataframe whose final row is the currently
+        forming candle and whose penultimate row is the last completed candle.
+        The historical replay cutoff is defined at a completed 1H close, so
+        the candle opening exactly at store.end is the corresponding forming
+        candle for every timeframe. Future-opened candles remain hidden.
+
+        Do not require timestamp + interval <= end here: that predicate
+        removes the forming candle and shifts production iloc[-1] / iloc[-2]
+        semantics by one bar.
+        """
         df = self.store.candles[(symbol, timeframe)]
-        df = df[df["timestamp"] + INTERVAL_DELTAS[timeframe] <= self.store.end]
+        df = df[df["timestamp"] <= self.store.end]
         if limit is not None:
             df = df.tail(int(limit))
         return df.copy(deep=True).reset_index(drop=True)
@@ -326,20 +338,27 @@ class ReplayTopSymbols:
 
 
 def assert_replay_boundary(store: HistoricalStore) -> None:
-    """Verify the replay-visible views contain no unfinished/future data.
-
-    HistoricalStore intentionally contains the full downloaded window, including
-    future candles needed later for outcome evaluation. The assertion therefore
-    validates the exact visibility predicates used by ReplayMarketLoader and
-    ReplayExchange rather than rejecting the raw store for containing future data.
-    """
+    """Verify replay visibility and production candle-state semantics."""
     for (symbol, timeframe), df in store.candles.items():
-        delta = INTERVAL_DELTAS[timeframe]
-        visible = df[df["timestamp"] + delta <= store.end]
-        if not visible.empty and (visible["timestamp"] + delta > store.end).any():
+        visible = df[df["timestamp"] <= store.end]
+        if not visible.empty and (visible["timestamp"] > store.end).any():
             raise AssertionError(
                 f"future_visible_candle:{symbol}:{timeframe}:{store.end.isoformat()}"
             )
+
+        # The latest visible row may be the forming candle whose open time
+        # equals end. The preceding row must be exactly one interval earlier.
+        # This is the state expected by production iloc[-1]/iloc[-2] logic.
+        if len(visible) >= 2:
+            visible = visible.sort_values("timestamp").reset_index(drop=True)
+            latest = visible.iloc[-1]["timestamp"]
+            previous = visible.iloc[-2]["timestamp"]
+            delta = INTERVAL_DELTAS[timeframe]
+            if latest == store.end and previous + delta != latest:
+                raise AssertionError(
+                    f"noncontiguous_replay_candles:{symbol}:{timeframe}:"
+                    f"{previous.isoformat()}->{latest.isoformat()}"
+                )
 
     for symbol, df in store.funding.items():
         visible = df[df["timestamp"] <= store.end]
