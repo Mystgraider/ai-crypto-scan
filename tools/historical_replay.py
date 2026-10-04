@@ -58,7 +58,7 @@ DATA_SYMBOLS = list(dict.fromkeys(SYMBOLS + ["BTC/USDT:USDT"]))
 
 INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
-DAYS = int(os.getenv("BACKTEST_DAYS", "7"))
+# Audit harness marker: keep this file in the PR trigger set for extended replay audits.\nDAYS = int(os.getenv("BACKTEST_DAYS", "7"))
 WARMUP_HOURS = 120
 BINANCE = "https://fapi.binance.com/fapi/v1"
 BINANCE_DATA = "https://fapi.binance.com/futures/data"
@@ -453,6 +453,53 @@ def load_store(start: pd.Timestamp, end: pd.Timestamp) -> HistoricalStore:
     return HistoricalStore(candles=candles, funding=funding, oi=oi, end=end)
 
 
+def legacy_rrce_counterfactual(signal: dict, store: HistoricalStore) -> dict:
+    replay_time = pd.Timestamp(signal["_replay_time"])
+    symbol = signal["symbol"]
+    direction = signal["direction"]
+    df_1h = store.candles[(symbol, "1h")]
+    df_1h = df_1h[df_1h["timestamp"] + INTERVAL_DELTAS["1h"] <= replay_time].copy().reset_index(drop=True)
+    if len(df_1h) < 20:
+        return {"status": "UNAVAILABLE", "reason": "insufficient_1h_history"}
+    price = float(df_1h.iloc[-1]["close"])
+    from engines.rrce_v672_legacy import LegacyV672RRCEEngine
+    from engines.multiframe_engine import MultiFrameEngine
+    legacy = LegacyV672RRCEEngine().evaluate(df_1h, direction, price)
+    bonus = float(legacy.get("bonus", 0.0))
+    def visible(key: str):
+        df = store.candles[(symbol, key)]
+        return df[df["timestamp"] + INTERVAL_DELTAS[key] <= replay_time].copy().reset_index(drop=True)
+    df_4h = visible("4h")
+    df_15m = visible("15m")
+    multiplier = 1.0
+    try:
+        mtf = MultiFrameEngine()
+        if len(df_4h) >= 2 and len(df_15m) >= 2:
+            tf4 = mtf.analyze_4h(df_4h)
+            tf15 = mtf.analyze_15m(df_15m)
+            multiplier = float(mtf.confirm(direction, tf4, tf15)["multiplier"])
+        elif len(df_4h) >= 2:
+            tf4 = mtf.analyze_4h(df_4h)
+            fallback = mtf.degraded_4h_fallback(float(df_1h.iloc[-2]["adx"]))
+            multiplier = float(fallback["multiplier"])
+    except Exception:
+        multiplier = 1.0
+    score = float(signal.get("score", 0.0))
+    status = signal.get("rrce_status", "NOT_RUN")
+    restricted = status == "QUALIFIED"
+    removable_effect = round(bonus * multiplier, 2)
+    if score >= 100.0 and bonus > 0 and not restricted:
+        cf_score = None
+        cf_status = "INDETERMINATE_CAPPED_100"
+    else:
+        cf_score = round(max(0.0, score - (0.0 if restricted else removable_effect)), 2)
+        cf_status = "DETERMINED"
+    return {"status": cf_status, "legacy_bonus": bonus, "mtf_multiplier": multiplier,
+            "legacy_effect": removable_effect, "production_rrce_status": status,
+            "restricted_policy": "KEEP" if restricted else "REMOVE",
+            "current_score": score, "counterfactual_score": cf_score}
+
+
 def summarize(rows: list[dict]) -> dict:
     resolved = [r for r in rows if r["outcome"] in {"TP1_HIT", "TP2_HIT", "TP3_HIT", "SL_HIT"}]
     tp = [r for r in resolved if r["outcome"].startswith("TP")]
@@ -587,6 +634,31 @@ def run():
             }
         )
 
+    counterfactual = []
+    for row, sig in zip(results, captured):
+        try:
+            row["legacy_rrce_counterfactual"] = legacy_rrce_counterfactual(sig, store)
+        except Exception as exc:
+            row["legacy_rrce_counterfactual"] = {"status": "ERROR", "reason": str(exc)}
+        counterfactual.append(row["legacy_rrce_counterfactual"])
+    cf_determined = [x for x in counterfactual if x.get("status") == "DETERMINED"]
+    cf_changed_grade = cf_would_be_d = cf_removed_tp = cf_removed_sl = 0
+    for row, cf in zip(results, counterfactual):
+        if cf.get("status") != "DETERMINED" or cf.get("restricted_policy") == "KEEP": continue
+        score = cf.get("counterfactual_score")
+        if score is None: continue
+        old_grade = row.get("grade")
+        if score >= 95: new_grade = "S"
+        elif score >= 82: new_grade = "A"
+        elif score >= 70: new_grade = "B"
+        elif score >= 65: new_grade = "C"
+        else: new_grade = "D"
+        if new_grade != old_grade: cf_changed_grade += 1
+        if new_grade == "D":
+            cf_would_be_d += 1
+            if row["outcome"].startswith("TP"): cf_removed_tp += 1
+            if row["outcome"] == "SL_HIT": cf_removed_sl += 1
+
     payload = {
         "metadata": {
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -599,8 +671,18 @@ def run():
             "same_candle_conflict_policy": "SL first, matching SignalTracker",
             "production_code_modified": False,
             "harness_mode": "scanner_v5.main historical injection",
+            "legacy_rrce_counterfactual": "audit_only; production behavior unchanged",
         },
         "summary": summarize(results),
+        "legacy_rrce_counterfactual_summary": {
+            "determined_rows": len(cf_determined),
+            "changed_grade_rows": cf_changed_grade,
+            "would_be_d_grade_rows": cf_would_be_d,
+            "would_remove_tp_rows": cf_removed_tp,
+            "would_remove_sl_rows": cf_removed_sl,
+            "indeterminate_capped_100_rows": sum(1 for x in counterfactual if x.get("status") == "INDETERMINATE_CAPPED_100"),
+            "errors": sum(1 for x in counterfactual if x.get("status") == "ERROR"),
+        },
         "results": results,
     }
     RESULTS.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
