@@ -1,28 +1,25 @@
+import math
+
+
 class QualityEngine:
     """
-    Quality Engine V6.1 — Data-driven from 16 closed signals
+    Quality Engine V6.1.
 
-    KEY FINDINGS:
-    - RSI 55-60 = 75% WR (best zone)
-    - RSI 60-65 = 40% WR (getting hot)
-    - Vol 1.0-1.5x = 67-100% WR (sweet spot)
-    - Vol > 2.0x = 0-33% WR (already moved = chasing)
-    - Vol > 5.0x = 0% WR (extreme volume = reversal)
+    The production score uses relative volume and RSI only. The additional
+    indicator arguments are accepted for scanner compatibility but are not
+    part of the V6.1 scoring formula.
 
     Hard blocks:
-    - LONG  RSI > 70: overbought
-    - SHORT RSI < 30: extreme oversold
-    - Vol > 3.0x: extreme spike = reversal risk
-
-    V6.1.1 FIX ONLY: now accepts stoch_k, bb_pct_b, macd_hist kwargs
-    (scanner_v5.py V6.1 passes these) so it no longer crashes with
-    "unexpected keyword argument". These extra params are accepted
-    but NOT used — scoring formula below is 100% unchanged from V6.1.
+    - invalid/non-finite inputs or direction
+    - LONG RSI > 70
+    - SHORT RSI < 30
+    - relative volume < 1.0x
+    - relative volume > 3.0x
     """
 
     MIN_VOLUME = 1.0
     MAX_VOLUME = 3.0    # hard cap — extreme volume = reversal
-    LONG_RSI_MAX  = 70
+    LONG_RSI_MAX = 70
     SHORT_RSI_MIN = 30
 
     def score(
@@ -34,6 +31,19 @@ class QualityEngine:
         bb_pct_b: float = None,  # accepted for compatibility, unused
         macd_hist: float = None, # accepted for compatibility, unused
     ) -> float:
+        # Fail closed on malformed inputs. Without this guard, NaN comparisons
+        # fall through the threshold checks and can produce a non-zero score.
+        try:
+            rel_volume = float(rel_volume)
+            rsi = float(rsi)
+        except (TypeError, ValueError):
+            return 0.0
+
+        if direction not in ("LONG", "SHORT"):
+            return 0.0
+
+        if not math.isfinite(rel_volume) or not math.isfinite(rsi):
+            return 0.0
 
         # Hard blocks
         if rel_volume < self.MIN_VOLUME:
@@ -49,26 +59,25 @@ class QualityEngine:
             return 0.0
 
         # Volume score — sweet spot is 1.2-1.8x
-        if rel_volume >= 2.5:    vol_score = 40   # too high — penalized
-        elif rel_volume >= 2.0:  vol_score = 55   # elevated — slightly penalized
-        elif rel_volume >= 1.5:  vol_score = 85   # good
-        elif rel_volume >= 1.2:  vol_score = 100  # ideal
-        elif rel_volume >= 1.0:  vol_score = 75   # acceptable
+        if rel_volume >= 2.5:    vol_score = 40
+        elif rel_volume >= 2.0:  vol_score = 55
+        elif rel_volume >= 1.5:  vol_score = 85
+        elif rel_volume >= 1.2:  vol_score = 100
+        elif rel_volume >= 1.0:  vol_score = 75
         else:                    vol_score = 0
 
-        # RSI score — data shows 55-60 is the sweet spot
+        # RSI score
         if direction == "LONG":
-            if 55 <= rsi <= 60:       rsi_score = 100  # ideal: 75% WR
-            elif 50 <= rsi < 55:      rsi_score = 85   # good
-            elif 60 < rsi <= 63:      rsi_score = 70   # getting hot
-            elif 45 <= rsi < 50:      rsi_score = 70   # slightly low
-            elif 63 < rsi <= 67:      rsi_score = 45   # too hot
+            if 55 <= rsi <= 60:       rsi_score = 100
+            elif 50 <= rsi < 55:      rsi_score = 85
+            elif 60 < rsi <= 63:      rsi_score = 70
+            elif 45 <= rsi < 50:      rsi_score = 70
+            elif 63 < rsi <= 67:      rsi_score = 45
             elif 40 <= rsi < 45:      rsi_score = 50
             elif rsi > 67:            rsi_score = 20
             else:                     rsi_score = 30
-
         else:  # SHORT
-            if 40 <= rsi <= 45:       rsi_score = 100  # ideal for short
+            if 40 <= rsi <= 45:       rsi_score = 100
             elif 45 < rsi <= 50:      rsi_score = 85
             elif 35 <= rsi < 40:      rsi_score = 70
             elif 50 < rsi <= 55:      rsi_score = 70

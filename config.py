@@ -13,7 +13,7 @@ CONFIG = {
     "signal_score_a": 82,
     "signal_score_b": 70,
     "signal_score_c": 65,
-    # 84+ remains a deliberate overextension safety ceiling; S is diagnostic.
+    # No artificial composite ceiling: S (95+) remains reachable.
 
     # Direction policy: LONG and SHORT are independently eligible.
     "require_trend_gate": False,
@@ -52,8 +52,8 @@ CONFIG = {
     "rrce_entry_max_deviation_pct": 0.4,
     "rrce_default_patience_bars": 6,
     "rrce_range_patience_bars": 8,
-    # Stage-3 tuning: allow a bounded delayed CHOCH/FVG confirmation.
-    # The FVG must still belong to the exact CHOCH candle.
+    # Stage-3 tuning: allow bounded delayed CHOCH confirmation.
+    # FVG is an optional entry-zone candidate under the restored semantics.
     "rrce_stage3_confirmation_bars": 6,
     "rrce_default_eq_tolerance_pct": 0.15,
     "rrce_range_eq_tolerance_pct": 0.20,
