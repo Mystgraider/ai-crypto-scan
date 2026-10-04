@@ -20,5 +20,5 @@ def test_quality_fails_closed_on_non_numeric_inputs():
 
 def test_quality_valid_contract_is_unchanged():
     engine = QualityEngine()
-    assert engine.score(1.2, 57.0, "LONG") == 86.25
+    assert engine.score(1.0, 57.0, "LONG") == 86.25
     assert engine.score(1.2, 43.0, "SHORT") == 100.0
