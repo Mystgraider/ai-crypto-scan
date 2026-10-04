@@ -1291,7 +1291,7 @@ def main():
         )
     print(f"      ✅ {len(ranked)} ranked candidate(s) queued for live validation")
 
-    print(f"\n[5/8] Sending up to {CONFIG['max_signals_per_run']} validated alert(s)...")
+    print("\n[5/8] Sending all validated alert(s)...")
 
     valid_signal_count = 0
 
