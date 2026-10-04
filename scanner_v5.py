@@ -1291,7 +1291,7 @@ def main():
         )
     print(f"      ✅ {len(ranked)} ranked candidate(s) queued for live validation")
 
-    print(f"\n[5/8] Sending up to {CONFIG['max_signals_per_run']} validated alert(s)...")
+    print("\n[5/8] Sending all validated alert(s)...")
 
     valid_signal_count = 0
 
@@ -1481,12 +1481,9 @@ def main():
             f"MTF:{sig['mtf_status']} BTC:{sig['btc_regime']}"
         )
 
-        if valid_signal_count >= CONFIG["max_signals_per_run"]:
-            print(
-                f"      🛑 Max validated signals reached "
-                f"({valid_signal_count}/{CONFIG['max_signals_per_run']})."
-            )
-            break
+        # No per-run signal cap. Every ranked candidate that survives
+        # live validation is allowed to emit a signal.
+
 
     # Write a final runtime snapshot after ranking and live validation so those
     # stages are included in the persisted telemetry for this run.

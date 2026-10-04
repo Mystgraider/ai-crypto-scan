@@ -42,7 +42,7 @@ CONFIG = {
     "atr_fallback_max_risk_pct": 0.5,
 
     "signal_cooldown_hours": 4,
-    "max_signals_per_run": 3,
+    # No per-run signal cap; all ranked candidates that pass live validation may emit.
     "max_daily_losses": 3,
     # Temporary research mode: bypass daily-loss signal pause until breaker logic is revalidated.
     "circuit_breaker_enabled": False,

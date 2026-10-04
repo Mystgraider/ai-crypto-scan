@@ -16,7 +16,8 @@ jobs:
   scan:
     if: github.event_name != 'schedule' || github.event.schedule == '*/5 * * * *'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Historical scanner runs can exceed 10 minutes; allow the full scan to finish.
+    timeout-minutes: 45
 
     concurrency:
       group: elite-scanner
