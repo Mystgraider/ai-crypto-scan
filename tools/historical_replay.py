@@ -36,6 +36,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from indicators.indicators import Indicators
+
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in os.sys.path:
@@ -59,7 +61,7 @@ DATA_SYMBOLS = list(dict.fromkeys(SYMBOLS + ["BTC/USDT:USDT"]))
 INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
 DAYS = int(os.getenv("BACKTEST_DAYS", "7"))
-WARMUP_HOURS = 120
+WARMUP_HOURS = Indicators.MIN_CANDLES * 4 + 48
 BINANCE = "https://fapi.binance.com/fapi/v1"
 BINANCE_DATA = "https://fapi.binance.com/futures/data"
 
@@ -508,9 +510,9 @@ def run():
     print(f"Historical replay: {start} -> {end}")
     store = load_store(start, end)
 
-    # Use timestamps for completed 1H candles only. The first 120 hours are
-    # reserved for indicator warmup, so no early NaNs are treated as strategy
-    # failures.
+    # Use timestamps for completed 1H candles only. Replay warmup is sized from
+    # the production indicator minimum for the slowest RRCE timeframe (4H),
+    # with an additional 48-hour alignment/data margin.
     timeline = store.candles[(SYMBOLS[0], "1h")]
     timeline = timeline[(timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start) & (timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)]
     if timeline.empty:
