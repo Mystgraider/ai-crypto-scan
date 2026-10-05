@@ -61,6 +61,15 @@ class ReplayCandleBoundaryTests(unittest.TestCase):
         )
         self.assertFalse((frame["timestamp"] > end).any())
 
+    def test_replay_warmup_covers_indicator_minimum_for_4h(self):
+        from indicators.indicators import Indicators
+        from tools.historical_replay import WARMUP_HOURS
+
+        required_hours = Indicators.MIN_CANDLES * 4
+        self.assertGreaterEqual(WARMUP_HOURS, required_hours)
+        # Extra margin protects against UTC 4H candle alignment at replay start.
+        self.assertGreaterEqual(WARMUP_HOURS - required_hours, 48)
+
 
 if __name__ == "__main__":
     unittest.main()
