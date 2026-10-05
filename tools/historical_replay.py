@@ -36,12 +36,14 @@ from pathlib import Path
 
 import pandas as pd
 
-from indicators.indicators import Indicators
-
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in os.sys.path:
     os.sys.path.insert(0, str(ROOT))
+
+from indicators.indicators import Indicators
+
+
 RESULTS = ROOT / "backtest_results.json"
 SYMBOLS = [
     "ETH/USDT:USDT",
