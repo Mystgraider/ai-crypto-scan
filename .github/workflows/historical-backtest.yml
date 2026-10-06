@@ -8,12 +8,18 @@ on:
       - "config.py"
       - "engines/**"
       - "indicators/**"
+      - "tests/test_historical_replay_boundary.py"
   workflow_dispatch:
+    inputs:
+      backtest_days:
+        description: "Chronological replay window in days"
+        required: false
+        default: "7"
 
 jobs:
   replay:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -27,9 +33,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run 7-day historical replay
+      - name: Run replay-boundary unit tests
+        run: |
+          python -m unittest tests/test_historical_replay_boundary.py
+
+      - name: Run historical replay
         env:
-          BACKTEST_DAYS: "7"
+          BACKTEST_DAYS: "${{ inputs.backtest_days || '7' }}"
         run: |
           python tools/historical_replay.py
 
