@@ -597,6 +597,7 @@ def run():
                 "rr": sig.get("rr"),
                 "rrce_status": sig.get("rrce_status", "NOT_RUN"),
                 "rrce_failed_stage": sig.get("rrce_failed_stage", ""),
+                "rrce_failure_reason": sig.get("rrce_failure_reason", ""),
                 "rrce_choch_confirmed": bool(sig.get("rrce_choch_confirmed")),
                 "rrce_risk_contract": sig.get("rrce_risk_contract", "ATR_FALLBACK"),
                 "entry": sig.get("entry"),
