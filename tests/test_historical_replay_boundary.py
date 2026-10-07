@@ -210,3 +210,6 @@ class WarmupTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# Telemetry audit branch: replay feature export remains harness-only.
