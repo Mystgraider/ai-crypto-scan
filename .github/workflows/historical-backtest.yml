@@ -14,7 +14,7 @@ on:
       backtest_days:
         description: "Chronological replay window in days"
         required: false
-        default: "7"
+        default: "30"
 
 jobs:
   replay:
