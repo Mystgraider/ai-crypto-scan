@@ -1,4 +1,5 @@
 """Adversarial historical-replay causality and production-window tests."""
+# Keep this test file in the PR trigger set so workflow configuration changes are exercised.
 import unittest
 from unittest import mock
 
@@ -153,12 +154,8 @@ class CausalBoundaryTests(unittest.TestCase):
         self.assertLessEqual(
             len(loader._frame(SYM, "4h", None)), CONFIG["ohlcv_4h_limit"]
         )
-        self.assertEqual(
-            len(loader._frame(SYM, "1h", 5)), 5
-        )
-        self.assertEqual(
-            len(loader._frame(SYM, "4h", 5)), 5
-        )
+        self.assertEqual(len(loader._frame(SYM, "1h", 5)), 5)
+        self.assertEqual(len(loader._frame(SYM, "4h", 5)), 5)
 
     def test_boundary_assertion_rejects_old_leaky_predicate(self):
         end = pd.Timestamp("2026-10-01T13:00:00Z")
@@ -187,8 +184,7 @@ class InformationAvailabilityTests(unittest.TestCase):
                 delta = INTERVAL_DELTAS[tf]
                 unfinished = d["timestamp"] + delta > end
                 future = d["timestamp"] > end
-                n = int(unfinished.sum())
-                if n:
+                if int(unfinished.sum()):
                     d.loc[unfinished, ["high", "low", "close", "volume"]] = 9999.0
                 if int(future.sum()):
                     d.loc[future, "open"] = 7777.0
