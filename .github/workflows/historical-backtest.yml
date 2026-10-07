@@ -22,27 +22,22 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
       - name: Run replay-boundary unit tests
         run: |
           python -m unittest tests/test_historical_replay_boundary.py
-
       - name: Run historical replay
         env:
-          BACKTEST_DAYS: "${{ inputs.backtest_days || '7' }}"
+          BACKTEST_DAYS: "${{ github.event_name == 'workflow_dispatch' && inputs.backtest_days || '30' }}"
         run: |
           python tools/historical_replay.py
-
       - name: Upload backtest result
         uses: actions/upload-artifact@v4
         with:
