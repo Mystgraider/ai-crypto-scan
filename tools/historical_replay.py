@@ -92,10 +92,12 @@ class ReplayTelemetryRanker(AISignalRanker):
         ranked = super().rank(candidates)
         for candidate in ranked:
             key = (candidate.get("symbol"), candidate.get("direction"))
-            self.telemetry_sink.setdefault(key, []).append({
+            snapshot = {
                 field: candidate.get(field)
                 for field in self.TELEMETRY_FIELDS
-            })
+            }
+            snapshot["__composite"] = candidate.get("composite")
+            self.telemetry_sink.setdefault(key, []).append(snapshot)
         return ranked
 
 
@@ -108,7 +110,7 @@ def merge_replay_telemetry(sig: dict, telemetry_sink: dict) -> None:
 
     snapshot = snapshots.pop(0)
     saved_score = sig.get("score", sig.get("composite"))
-    candidate_score = sig.get("composite")
+    candidate_score = snapshot.get("__composite")
     if (
         saved_score is not None
         and candidate_score is not None
@@ -120,7 +122,8 @@ def merge_replay_telemetry(sig: dict, telemetry_sink: dict) -> None:
         )
 
     for field, value in snapshot.items():
-        sig.setdefault(field, value)
+        if field != "__composite":
+            sig.setdefault(field, value)
 BINANCE_DATA = "https://fapi.binance.com/futures/data"
 
 
