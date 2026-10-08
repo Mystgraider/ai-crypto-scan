@@ -38,8 +38,10 @@ class ReplayTelemetryCaptureTests(unittest.TestCase):
         self.assertEqual(len(ranked), 1)
         self.assertEqual(ranked[0]["composite"], original["composite"])
         self.assertIn("ai_rank_score", ranked[0])
+        snapshot = dict(sink[("SUI/USDT:USDT", "LONG")][0])
+        self.assertEqual(snapshot.pop("__composite"), 78.4)
         self.assertEqual(
-            sink[("SUI/USDT:USDT", "LONG")][0],
+            snapshot,
             {
                 "trend_score": 71.25,
                 "quality_score": 83.5,
