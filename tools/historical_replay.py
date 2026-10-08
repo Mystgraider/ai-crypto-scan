@@ -610,6 +610,35 @@ def run():
     }
 
     captured = []
+    replay_telemetry = {}
+
+    # Observation-only ranker wrapper. It delegates to the production ranker
+    # unchanged and snapshots fields that exist in-memory on candidates but are
+    # not accepted by storage.save_signal().
+    original_ranker = scanner.AISignalRanker
+
+    class ReplayTelemetryRanker(original_ranker):
+        TELEMETRY_FIELDS = (
+            "trend_score",
+            "quality_score",
+            "rs_score",
+            "funding_pct_raw",
+            "stoch_k",
+            "macd_hist",
+            "bb_pct_b",
+            "mtf_4h",
+            "mtf_15m",
+        )
+
+        def rank(self, candidates):
+            ranked = super().rank(candidates)
+            for candidate in ranked:
+                key = (candidate.get("symbol"), candidate.get("direction"))
+                replay_telemetry.setdefault(key, []).append({
+                    field: candidate.get(field)
+                    for field in self.TELEMETRY_FIELDS
+                })
+            return ranked
 
     class ReplayAnalytics:
         def compute(self):
@@ -637,6 +666,7 @@ def run():
         }
         scanner.SignalTracker = ReplayTracker
         scanner.AnalyticsEngine = ReplayAnalytics
+        scanner.AISignalRanker = ReplayTelemetryRanker
 
         for i, row in enumerate(timeline.itertuples(index=False), start=1):
             replay_time = pd.Timestamp(row.timestamp) + INTERVAL_DELTAS["1h"]
@@ -648,6 +678,23 @@ def run():
 
             def capture(**sig):
                 sig["_replay_time"] = replay_time.isoformat()
+                key = (sig.get("symbol"), sig.get("direction"))
+                snapshots = replay_telemetry.get(key, [])
+                if snapshots:
+                    snapshot = snapshots.pop(0)
+                    saved_score = sig.get("score", sig.get("composite"))
+                    candidate_score = sig.get("composite")
+                    if (
+                        saved_score is not None
+                        and candidate_score is not None
+                        and abs(float(saved_score) - float(candidate_score)) > 1e-9
+                    ):
+                        raise AssertionError(
+                            f"replay_telemetry_score_mismatch:{key}:"
+                            f"{saved_score}!={candidate_score}"
+                        )
+                    for field, value in snapshot.items():
+                        sig.setdefault(field, value)
                 captured.append(sig)
 
             scanner.save_signal = capture
@@ -656,6 +703,7 @@ def run():
             scanner.main()
 
     finally:
+        scanner.AISignalRanker = original_ranker
         for name, value in original.items():
             setattr(scanner, name, value)
 
