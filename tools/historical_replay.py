@@ -706,6 +706,10 @@ def run():
             scanner.MarketDataLoader = lambda store=store: ReplayMarketLoader(store)
             scanner.TopSymbolsLoader = lambda: ReplayTopSymbols(SYMBOLS)
 
+            # Snapshots are valid for this cycle only: a candidate ranked but rejected
+            # afterwards must not leak into a later cycle's signal for the same key.
+            replay_telemetry.clear()
+
             def capture(**sig):
                 sig["_replay_time"] = replay_time.isoformat()
                 merge_replay_telemetry(sig, replay_telemetry)
