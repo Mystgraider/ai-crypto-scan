@@ -232,12 +232,41 @@ def fetch_klines(symbol: str, interval: str, start_ms: int, end_ms: int) -> pd.D
     return df.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
 
 
+def _month_range(start_ms: int, end_ms: int) -> list[pd.Timestamp]:
+    """Return UTC month starts covering the requested inclusive time window."""
+    start = pd.Timestamp(start_ms, unit="ms", tz="UTC").normalize().replace(day=1)
+    end = pd.Timestamp(end_ms, unit="ms", tz="UTC").normalize().replace(day=1)
+    return list(pd.date_range(start=start, end=end, freq="MS"))
+
+
+def _funding_archive_timestamps(values: pd.Series) -> pd.Series:
+    """Parse Binance funding archive timestamps in either epoch or datetime form."""
+    numeric = pd.to_numeric(values, errors="coerce")
+    parsed = pd.Series(pd.NaT, index=values.index, dtype="datetime64[ns, UTC]")
+    numeric_mask = numeric.notna()
+    if numeric_mask.any():
+        magnitude = numeric.loc[numeric_mask].abs().median()
+        unit = "ns" if magnitude > 1e17 else ("us" if magnitude > 1e14 else "ms")
+        parsed.loc[numeric_mask] = pd.to_datetime(
+            numeric.loc[numeric_mask], unit=unit, utc=True, errors="coerce"
+        )
+    text_mask = ~numeric_mask
+    if text_mask.any():
+        parsed.loc[text_mask] = pd.to_datetime(
+            values.loc[text_mask], utc=True, errors="coerce"
+        )
+    return parsed
+
+
 def fetch_funding(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
+    """Load monthly funding archives and retain only observations in the requested window."""
     frames = []
-    for day in _day_range(start_ms, end_ms):
+    start = pd.to_datetime(start_ms, unit="ms", utc=True)
+    end = pd.to_datetime(end_ms, unit="ms", utc=True)
+    for month in _month_range(start_ms, end_ms):
         url = (
-            f"{BINANCE_VISION}/daily/fundingRate/{symbol}/"
-            f"{symbol}-fundingRate-{day.strftime('%Y-%m-%d')}.zip"
+            f"{BINANCE_VISION}/monthly/fundingRate/{symbol}/"
+            f"{symbol}-fundingRate-{month.strftime('%Y-%m')}.zip"
         )
         df = _download_archive_csv(url)
         if df is None or df.empty:
@@ -247,15 +276,19 @@ def fetch_funding(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
         if not time_col or not rate_col:
             continue
         out = df[[time_col, rate_col]].copy()
-        out.columns = ["timestamp", "fundingRate"]
-        out["timestamp"] = pd.to_numeric(out["timestamp"], errors="coerce")
-        out["timestamp"] = pd.to_datetime(out["timestamp"], unit="ms", utc=True, errors="coerce")
+        out.columns = ["timestamp_raw", "fundingRate"]
+        out["timestamp"] = _funding_archive_timestamps(out["timestamp_raw"])
         out["fundingRate"] = pd.to_numeric(out["fundingRate"], errors="coerce")
-        frames.append(out.dropna())
+        out = out.dropna(subset=["timestamp", "fundingRate"])
+        # Archives can include records outside a partial first/last month.
+        # Keep the replay's exact requested window; ReplayExchange separately
+        # enforces timestamp <= each evaluation time to prevent look-ahead.
+        out = out[(out["timestamp"] >= start) & (out["timestamp"] <= end)]
+        frames.append(out[["timestamp", "fundingRate"]])
     if not frames:
         return pd.DataFrame(columns=["timestamp", "fundingRate"])
-    df = pd.concat(frames, ignore_index=True)
-    return df.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
+    result = pd.concat(frames, ignore_index=True)
+    return result.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
 
 
 def fetch_oi(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
