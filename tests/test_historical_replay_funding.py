@@ -153,5 +153,28 @@ class HistoricalOutcomeAccountingTests(unittest.TestCase):
         self.assertEqual(summary["breakeven_after_tp2"], 1)
         self.assertEqual(summary["breakeven_exits"], 2)
 
+
+
+class ReplayCooldownTests(unittest.TestCase):
+    def test_cooldown_uses_replay_time_and_expires_at_configured_boundary(self):
+        cooldown = replay.ReplayCooldown(4)
+        cooldown.advance(pd.Timestamp("2026-09-01T12:00:00Z"))
+        self.assertFalse(cooldown.is_on_cooldown("ETHUSDT"))
+        cooldown.set_cooldown("ETHUSDT")
+
+        cooldown.advance(pd.Timestamp("2026-09-01T15:59:00Z"))
+        self.assertTrue(cooldown.is_on_cooldown("ETHUSDT"))
+        self.assertFalse(cooldown.is_on_cooldown("SOLUSDT"))
+
+        cooldown.advance(pd.Timestamp("2026-09-01T16:00:00Z"))
+        self.assertFalse(cooldown.is_on_cooldown("ETHUSDT"))
+
+    def test_cooldown_does_not_depend_on_wall_clock(self):
+        cooldown = replay.ReplayCooldown(4)
+        cooldown.advance(pd.Timestamp("2020-01-01T00:00:00Z"))
+        cooldown.set_cooldown("ETHUSDT")
+        cooldown.advance(pd.Timestamp("2020-01-01T03:00:00Z"))
+        self.assertTrue(cooldown.is_on_cooldown("ETHUSDT"))
+
 if __name__ == "__main__":
     unittest.main()
