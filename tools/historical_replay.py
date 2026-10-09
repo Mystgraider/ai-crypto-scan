@@ -548,6 +548,17 @@ def assert_replay_boundary(store: HistoricalStore) -> None:
 
 
 
+def _stop_outcome(milestones: list[str], event_time: str) -> dict:
+    """Distinguish a full stop from a stop at entry after TP milestones."""
+    if "TP2" in milestones:
+        status = "BREAKEVEN_AFTER_TP2"
+    elif "TP1" in milestones:
+        status = "BREAKEVEN_AFTER_TP1"
+    else:
+        status = "SL_HIT"
+    return {"status": status, "event_time": event_time, "milestones": list(milestones)}
+
+
 def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int = 72) -> dict:
     direction = signal["direction"]
     entry = float(signal["entry"])
@@ -574,7 +585,7 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
 
         if direction == "LONG":
             if low <= current_sl:
-                return {"status": "SL_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                return _stop_outcome(milestones, candle["timestamp"].isoformat())
             if status == "OPEN":
                 if high >= tp3:
                     return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
@@ -598,7 +609,7 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
                 return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
         else:
             if high >= current_sl:
-                return {"status": "SL_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                return _stop_outcome(milestones, candle["timestamp"].isoformat())
             if status == "OPEN":
                 if low <= tp3:
                     return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
@@ -645,26 +656,45 @@ def load_store(start: pd.Timestamp, end: pd.Timestamp) -> HistoricalStore:
 
 
 def summarize(rows: list[dict]) -> dict:
-    resolved = [r for r in rows if r["outcome"] in {"TP1_HIT", "TP2_HIT", "TP3_HIT", "SL_HIT"}]
+    resolved_statuses = {
+        "TP1_HIT", "TP2_HIT", "TP3_HIT", "SL_HIT",
+        "BREAKEVEN_AFTER_TP1", "BREAKEVEN_AFTER_TP2",
+    }
+    resolved = [r for r in rows if r["outcome"] in resolved_statuses]
     tp = [r for r in resolved if r["outcome"].startswith("TP")]
     sl = [r for r in resolved if r["outcome"] == "SL_HIT"]
+    be1 = [r for r in resolved if r["outcome"] == "BREAKEVEN_AFTER_TP1"]
+    be2 = [r for r in resolved if r["outcome"] == "BREAKEVEN_AFTER_TP2"]
     by_rrce = {}
     for r in rows:
         bucket = r["rrce_status"]
-        by_rrce.setdefault(bucket, {"signals": 0, "tp": 0, "sl": 0, "resolved": 0})
-        by_rrce[bucket]["signals"] += 1
-        if r["outcome"] in {"TP1_HIT", "TP2_HIT", "TP3_HIT"}:
-            by_rrce[bucket]["tp"] += 1
-            by_rrce[bucket]["resolved"] += 1
-        elif r["outcome"] == "SL_HIT":
-            by_rrce[bucket]["sl"] += 1
-            by_rrce[bucket]["resolved"] += 1
+        by_rrce.setdefault(bucket, {
+            "signals": 0, "tp": 0, "sl": 0,
+            "breakeven_after_tp1": 0, "breakeven_after_tp2": 0,
+            "resolved": 0,
+        })
+        stats = by_rrce[bucket]
+        stats["signals"] += 1
+        outcome = r["outcome"]
+        if outcome in resolved_statuses:
+            stats["resolved"] += 1
+        if outcome.startswith("TP"):
+            stats["tp"] += 1
+        elif outcome == "SL_HIT":
+            stats["sl"] += 1
+        elif outcome == "BREAKEVEN_AFTER_TP1":
+            stats["breakeven_after_tp1"] += 1
+        elif outcome == "BREAKEVEN_AFTER_TP2":
+            stats["breakeven_after_tp2"] += 1
 
     return {
         "signals": len(rows),
         "resolved": len(resolved),
         "tp": len(tp),
         "sl": len(sl),
+        "breakeven_after_tp1": len(be1),
+        "breakeven_after_tp2": len(be2),
+        "breakeven_exits": len(be1) + len(be2),
         "tp_vs_sl_pct": round(100 * len(tp) / (len(tp) + len(sl)), 2) if tp or sl else None,
         "by_rrce_status": by_rrce,
     }
