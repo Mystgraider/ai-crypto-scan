@@ -89,5 +89,69 @@ class HistoricalFundingArchiveTests(unittest.TestCase):
         self.assertTrue(result.empty)
 
 
+
+
+class HistoricalOutcomeAccountingTests(unittest.TestCase):
+    def _signal(self, direction="LONG"):
+        return {
+            "direction": direction,
+            "entry": 100.0,
+            "sl": 95.0 if direction == "LONG" else 105.0,
+            "tp1": 105.0 if direction == "LONG" else 95.0,
+            "tp2": 110.0 if direction == "LONG" else 90.0,
+            "tp3": 115.0 if direction == "LONG" else 85.0,
+            "_replay_time": "2026-09-01T00:00:00+00:00",
+        }
+
+    def _candles(self, first_high, first_low, second_high, second_low):
+        return pd.DataFrame([
+            {"timestamp": pd.Timestamp("2026-09-01T00:05:00Z"), "high": first_high, "low": first_low},
+            {"timestamp": pd.Timestamp("2026-09-01T00:10:00Z"), "high": second_high, "low": second_low},
+        ])
+
+    def test_long_stop_after_tp1_is_not_counted_as_full_sl(self):
+        result = replay.historical_outcome(
+            self._signal("LONG"), self._candles(106.0, 101.0, 103.0, 99.0)
+        )
+        self.assertEqual(result["status"], "BREAKEVEN_AFTER_TP1")
+        self.assertEqual(result["milestones"], ["TP1"])
+
+    def test_long_stop_after_tp2_is_not_counted_as_full_sl(self):
+        result = replay.historical_outcome(
+            self._signal("LONG"), self._candles(111.0, 101.0, 103.0, 99.0)
+        )
+        self.assertEqual(result["status"], "BREAKEVEN_AFTER_TP2")
+        self.assertEqual(result["milestones"], ["TP2"])
+
+    def test_short_stop_after_tp1_is_not_counted_as_full_sl(self):
+        result = replay.historical_outcome(
+            self._signal("SHORT"), self._candles(99.0, 94.0, 101.0, 97.0)
+        )
+        self.assertEqual(result["status"], "BREAKEVEN_AFTER_TP1")
+        self.assertEqual(result["milestones"], ["TP1"])
+
+    def test_stop_before_any_target_remains_sl_hit(self):
+        result = replay.historical_outcome(
+            self._signal("LONG"), self._candles(102.0, 94.0, 103.0, 99.0)
+        )
+        self.assertEqual(result["status"], "SL_HIT")
+        self.assertEqual(result["milestones"], [])
+
+    def test_summary_counts_breakeven_exits_separately(self):
+        rows = [
+            {"outcome": "TP3_HIT", "rrce_status": "QUALIFIED"},
+            {"outcome": "SL_HIT", "rrce_status": "NONQUALIFYING"},
+            {"outcome": "BREAKEVEN_AFTER_TP1", "rrce_status": "NONQUALIFYING"},
+            {"outcome": "BREAKEVEN_AFTER_TP2", "rrce_status": "NONQUALIFYING"},
+            {"outcome": "EXPIRED", "rrce_status": "NONQUALIFYING"},
+        ]
+        summary = replay.summarize(rows)
+        self.assertEqual(summary["resolved"], 4)
+        self.assertEqual(summary["tp"], 1)
+        self.assertEqual(summary["sl"], 1)
+        self.assertEqual(summary["breakeven_after_tp1"], 1)
+        self.assertEqual(summary["breakeven_after_tp2"], 1)
+        self.assertEqual(summary["breakeven_exits"], 2)
+
 if __name__ == "__main__":
     unittest.main()
