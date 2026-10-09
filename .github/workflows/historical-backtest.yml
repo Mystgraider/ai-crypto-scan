@@ -9,6 +9,7 @@ on:
       - "engines/**"
       - "indicators/**"
       - "tests/test_historical_replay_boundary.py"
+      - "tests/test_historical_replay_funding.py"
   workflow_dispatch:
     inputs:
       backtest_days:
@@ -32,7 +33,7 @@ jobs:
           pip install -r requirements.txt
       - name: Run replay-boundary unit tests
         run: |
-          python -m unittest tests/test_historical_replay_boundary.py
+          python -m unittest tests/test_historical_replay_boundary.py tests/test_historical_replay_funding.py
       - name: Run historical replay
         env:
           BACKTEST_DAYS: "${{ github.event_name == 'workflow_dispatch' && inputs.backtest_days || '30' }}"
