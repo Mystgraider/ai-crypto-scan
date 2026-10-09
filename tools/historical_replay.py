@@ -548,6 +548,26 @@ def assert_replay_boundary(store: HistoricalStore) -> None:
 
 
 
+class ReplayCooldown:
+    """Simulate the production symbol cooldown using replay time, not wall-clock time."""
+
+    def __init__(self, hours: float):
+        self.cooldown = pd.Timedelta(hours=float(hours))
+        self.now: pd.Timestamp | None = None
+        self.expires: dict[str, pd.Timestamp] = {}
+
+    def advance(self, now: pd.Timestamp) -> None:
+        self.now = pd.Timestamp(now)
+
+    def is_on_cooldown(self, symbol: str) -> bool:
+        expiry = self.expires.get(symbol)
+        return self.now is not None and expiry is not None and self.now < expiry
+
+    def set_cooldown(self, symbol: str) -> None:
+        if self.now is not None:
+            self.expires[symbol] = self.now + self.cooldown
+
+
 def _stop_outcome(milestones: list[str], event_time: str) -> dict:
     """Distinguish a full stop from a stop at entry after TP milestones."""
     if "TP2" in milestones:
@@ -749,8 +769,9 @@ def run():
             return None
 
     try:
-        scanner.is_on_cooldown = lambda symbol: False
-        scanner.set_cooldown = lambda symbol: None
+        replay_cooldown = ReplayCooldown(CONFIG["signal_cooldown_hours"])
+        scanner.is_on_cooldown = replay_cooldown.is_on_cooldown
+        scanner.set_cooldown = replay_cooldown.set_cooldown
         scanner.send_telegram_alert = lambda message: None
         scanner.circuit_check = lambda: {
             "is_tripped": False,
@@ -763,6 +784,7 @@ def run():
 
         for i, row in enumerate(timeline.itertuples(index=False), start=1):
             replay_time = pd.Timestamp(row.timestamp) + INTERVAL_DELTAS["1h"]
+            replay_cooldown.advance(replay_time)
             store.end = replay_time
             assert_replay_boundary(store)
 
@@ -849,6 +871,8 @@ def run():
             "lookahead_policy": "future candles begin strictly after replay timestamp",
             "same_candle_conflict_policy": "SL first, matching SignalTracker",
             "production_code_modified": False,
+            "cooldown_policy": "production symbol cooldown simulated on replay timestamps",
+            "cooldown_hours": CONFIG["signal_cooldown_hours"],
             "harness_mode": "scanner_v5.main historical injection",
         },
         "summary": summarize(results),
