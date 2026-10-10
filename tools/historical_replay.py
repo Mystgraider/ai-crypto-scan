@@ -313,18 +313,31 @@ def fetch_oi(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
         # Normalize only finite numeric timestamps and discard values outside
         # the requested historical window before datetime conversion.
         raw_ts = pd.to_numeric(out["timestamp"], errors="coerce")
-        raw_ts = raw_ts.where(raw_ts.abs() < 1e18)
-        valid_ts = raw_ts.dropna()
-        if valid_ts.empty:
-            continue
-        unit = "us" if valid_ts.abs().median() > 1e14 else "ms"
-        scale = 1_000_000 if unit == "us" else 1_000
-        lo = int(start_ms) * (scale // 1_000)
-        hi = int(end_ms) * (scale // 1_000)
-        raw_ts = raw_ts.where(raw_ts.between(lo, hi))
         if raw_ts.notna().sum() == 0:
-            continue
-        out["timestamp"] = pd.to_datetime(raw_ts, unit=unit, utc=True, errors="coerce")
+            # Non-numeric create_time (e.g. "2026-09-10 00:05:00" or "2026-09-10"):
+            # Binance Vision stamps are UTC. Unparseable values become NaT and are dropped.
+            parsed = pd.to_datetime(out["timestamp"], utc=True, errors="coerce")
+            lo_ts = pd.to_datetime(int(start_ms), unit="ms", utc=True)
+            hi_ts = pd.to_datetime(int(end_ms), unit="ms", utc=True)
+            out["timestamp"] = parsed.where(parsed.between(lo_ts, hi_ts))
+        else:
+            # Binance Vision metrics have historically exposed create_time as
+            # epoch milliseconds, but malformed/outlier rows can contain values
+            # large enough to overflow pandas/NumPy when unit inference is applied.
+            # Normalize only finite numeric timestamps and discard values outside
+            # the requested historical window before datetime conversion.
+            raw_ts = raw_ts.where(raw_ts.abs() < 1e18)
+            valid_ts = raw_ts.dropna()
+            if valid_ts.empty:
+                continue
+            unit = "us" if valid_ts.abs().median() > 1e14 else "ms"
+            scale = 1_000_000 if unit == "us" else 1_000
+            lo = int(start_ms) * (scale // 1_000)
+            hi = int(end_ms) * (scale // 1_000)
+            raw_ts = raw_ts.where(raw_ts.between(lo, hi))
+            if raw_ts.notna().sum() == 0:
+                continue
+            out["timestamp"] = pd.to_datetime(raw_ts, unit=unit, utc=True, errors="coerce")
         out["sumOpenInterestValue"] = pd.to_numeric(out["sumOpenInterestValue"], errors="coerce")
         frames.append(out.dropna())
     if not frames:
