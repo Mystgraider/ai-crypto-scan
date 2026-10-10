@@ -2,8 +2,8 @@
   "C98/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-10-09T20:23:12.914257+00:00",
-    "last_seen": "2026-10-09T20:23:12.914257+00:00",
-    "observations": 1,
+    "last_seen": "2026-10-10T00:07:18.985062+00:00",
+    "observations": 2,
     "pool_level": 0.0157,
     "range_high": 0.02037,
     "range_low": 0.01567,
@@ -71,6 +71,18 @@
     "sweep_extreme": 8.51,
     "symbol": "GMX/USDT:USDT"
   },
+  "GRT/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-10-10T00:07:41.424994+00:00",
+    "last_seen": "2026-10-10T00:07:41.424994+00:00",
+    "observations": 1,
+    "pool_level": 0.02683,
+    "range_high": 0.03093,
+    "range_low": 0.02719,
+    "regime": "RANGE",
+    "sweep_extreme": 0.02677,
+    "symbol": "GRT/USDT:USDT"
+  },
   "JOE/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-10-09T20:24:29.410721+00:00",
@@ -98,8 +110,8 @@
   "KNC/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-10-09T20:22:44.222348+00:00",
-    "last_seen": "2026-10-09T20:22:44.222348+00:00",
-    "observations": 1,
+    "last_seen": "2026-10-10T00:07:04.364192+00:00",
+    "observations": 2,
     "pool_level": 0.1338,
     "range_high": 0.1488,
     "range_low": 0.1336,
@@ -119,17 +131,41 @@
     "sweep_extreme": 0.228,
     "symbol": "LQTY/USDT:USDT"
   },
+  "NEAR/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-10-10T00:06:43.095323+00:00",
+    "last_seen": "2026-10-10T00:06:43.095323+00:00",
+    "observations": 1,
+    "pool_level": 4.86,
+    "range_high": 5.6,
+    "range_low": 4.5899,
+    "regime": "RANGE",
+    "sweep_extreme": 4.783,
+    "symbol": "NEAR/USDT:USDT"
+  },
   "ONE/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-10-09T20:23:44.469489+00:00",
-    "last_seen": "2026-10-09T20:23:44.469489+00:00",
-    "observations": 1,
+    "last_seen": "2026-10-10T00:07:49.271889+00:00",
+    "observations": 2,
     "pool_level": 0.0021036,
     "range_high": 0.0027446,
     "range_low": 0.002025,
     "regime": "RANGE",
     "sweep_extreme": 0.0020977,
     "symbol": "ONE/USDT:USDT"
+  },
+  "OP/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-10T00:07:22.965681+00:00",
+    "last_seen": "2026-10-10T00:07:22.965681+00:00",
+    "observations": 1,
+    "pool_level": 0.1249,
+    "range_high": 0.1409,
+    "range_low": 0.1233,
+    "regime": "RANGE",
+    "sweep_extreme": 0.1257,
+    "symbol": "OP/USDT:USDT"
   },
   "ROSE/USDT:USDT|LONG": {
     "direction": "LONG",
@@ -143,17 +179,41 @@
     "sweep_extreme": 0.008083,
     "symbol": "ROSE/USDT:USDT"
   },
+  "SNX/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-10-10T00:07:24.520021+00:00",
+    "last_seen": "2026-10-10T00:07:24.520021+00:00",
+    "observations": 1,
+    "pool_level": 0.2358,
+    "range_high": 0.2615,
+    "range_low": 0.2389,
+    "regime": "RANGE",
+    "sweep_extreme": 0.2326,
+    "symbol": "SNX/USDT:USDT"
+  },
   "STX/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-10-09T20:24:14.782377+00:00",
-    "last_seen": "2026-10-09T20:24:14.782377+00:00",
-    "observations": 1,
-    "pool_level": 0.3937,
+    "last_seen": "2026-10-10T00:08:06.764064+00:00",
+    "observations": 2,
+    "pool_level": 0.3844,
     "range_high": 0.4133,
     "range_low": 0.3506,
     "regime": "RANGE",
-    "sweep_extreme": 0.3957,
+    "sweep_extreme": 0.3847,
     "symbol": "STX/USDT:USDT"
+  },
+  "TRX/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-10-10T00:06:19.577505+00:00",
+    "last_seen": "2026-10-10T00:06:19.577505+00:00",
+    "observations": 1,
+    "pool_level": 0.3315,
+    "range_high": 0.33737,
+    "range_low": 0.33113,
+    "regime": "RANGE",
+    "sweep_extreme": 0.33144,
+    "symbol": "TRX/USDT:USDT"
   },
   "ZRX/USDT:USDT|LONG": {
     "direction": "LONG",
