@@ -121,7 +121,7 @@ class HistoricalOutcomeAccountingTests(unittest.TestCase):
             self._signal("LONG"), self._candles(111.0, 101.0, 103.0, 99.0)
         )
         self.assertEqual(result["status"], "BREAKEVEN_AFTER_TP2")
-        self.assertEqual(result["milestones"], ["TP2"])
+        self.assertEqual(result["milestones"], ["TP1", "TP2"])
 
     def test_short_stop_after_tp1_is_not_counted_as_full_sl(self):
         result = replay.historical_outcome(
