@@ -608,11 +608,12 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
                 return _stop_outcome(milestones, candle["timestamp"].isoformat())
             if status == "OPEN":
                 if high >= tp3:
+                    milestones.extend(["TP1", "TP2"])
                     return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
                 if high >= tp2:
                     status = "OPEN_TP2"
                     current_sl = entry
-                    milestones.append("TP2")
+                    milestones.extend(["TP1", "TP2"])
                     continue
                 if high >= tp1:
                     status = "OPEN_TP1"
@@ -621,6 +622,7 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
                     continue
             elif status == "OPEN_TP1":
                 if high >= tp3:
+                    milestones.append("TP2")
                     return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
                 if high >= tp2:
                     status = "OPEN_TP2"
@@ -632,11 +634,12 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
                 return _stop_outcome(milestones, candle["timestamp"].isoformat())
             if status == "OPEN":
                 if low <= tp3:
+                    milestones.extend(["TP1", "TP2"])
                     return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
                 if low <= tp2:
                     status = "OPEN_TP2"
                     current_sl = entry
-                    milestones.append("TP2")
+                    milestones.extend(["TP1", "TP2"])
                     continue
                 if low <= tp1:
                     status = "OPEN_TP1"
@@ -645,6 +648,7 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
                     continue
             elif status == "OPEN_TP1":
                 if low <= tp3:
+                    milestones.append("TP2")
                     return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
                 if low <= tp2:
                     status = "OPEN_TP2"
