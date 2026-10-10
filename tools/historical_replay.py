@@ -737,11 +737,28 @@ def summarize(rows: list[dict]) -> dict:
     }
 
 
+def resolve_replay_end(now=None) -> pd.Timestamp:
+    """Replay end timestamp.
+
+    Research-only fixed window: BACKTEST_END (ISO-8601, UTC, whole hour) pins the
+    window so identical inputs can be replayed bit-for-bit. Without it the
+    historical rolling behavior (last completed hour) is unchanged.
+    """
+    raw = os.getenv("BACKTEST_END", "").strip()
+    if raw:
+        end = pd.Timestamp(raw)
+        end = end.tz_localize("UTC") if end.tzinfo is None else end.tz_convert("UTC")
+        if end != end.floor("h"):
+            raise ValueError(f"BACKTEST_END must fall on a whole UTC hour, got {raw!r}")
+        return end
+    now = pd.Timestamp.now(tz="UTC") if now is None else pd.Timestamp(now)
+    return now.floor("h") - pd.Timedelta(hours=1)
+
+
 def run():
     import scanner_v5 as scanner
 
-    now = pd.Timestamp.now(tz="UTC")
-    end = now.floor("h") - pd.Timedelta(hours=1)
+    end = resolve_replay_end()
     start = end - pd.Timedelta(days=DAYS)
 
     print(f"Historical replay: {start} -> {end}")
@@ -883,6 +900,7 @@ def run():
             "start": start.isoformat(),
             "end": end.isoformat(),
             "days": DAYS,
+            "fixed_window": bool(os.getenv("BACKTEST_END", "").strip()),
             "symbols": SYMBOLS,
             "timeframes": list(INTERVALS),
             "lookahead_policy": "future candles begin strictly after replay timestamp",
