@@ -137,6 +137,25 @@ class HistoricalOutcomeAccountingTests(unittest.TestCase):
         self.assertEqual(result["status"], "SL_HIT")
         self.assertEqual(result["milestones"], [])
 
+    def test_tp3_same_candle_records_all_crossed_milestones_long_and_short(self):
+        long_result = replay.historical_outcome(
+            self._signal("LONG"), self._candles(116.0, 101.0, 103.0, 99.0)
+        )
+        short_result = replay.historical_outcome(
+            self._signal("SHORT"), self._candles(99.0, 84.0, 101.0, 97.0)
+        )
+        self.assertEqual(long_result["status"], "TP3_HIT")
+        self.assertEqual(long_result["milestones"], ["TP1", "TP2"])
+        self.assertEqual(short_result["status"], "TP3_HIT")
+        self.assertEqual(short_result["milestones"], ["TP1", "TP2"])
+
+    def test_tp3_after_tp1_records_intermediate_tp2(self):
+        result = replay.historical_outcome(
+            self._signal("LONG"), self._candles(106.0, 101.0, 116.0, 101.0)
+        )
+        self.assertEqual(result["status"], "TP3_HIT")
+        self.assertEqual(result["milestones"], ["TP1", "TP2"])
+
     def test_summary_counts_breakeven_exits_separately(self):
         rows = [
             {"outcome": "TP3_HIT", "rrce_status": "QUALIFIED"},
