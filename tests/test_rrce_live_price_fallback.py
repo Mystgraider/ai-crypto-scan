@@ -20,7 +20,7 @@ import tools.historical_replay as hr  # noqa: E402
 from engines.rrce_engine import RRCEEngine  # noqa: E402
 
 
-def _run_replay(store, fake_rrce_valid_with_ticker_failure):
+def _run_replay(store, fake_rrce_valid_with_ticker_failure, ticker_failure=True):
     state = {"pending": False, "failures": 0}
     orig_eval = RRCEEngine.evaluate
     orig_ticker = hr.ReplayExchange.fetch_ticker
@@ -34,7 +34,7 @@ def _run_replay(store, fake_rrce_valid_with_ticker_failure):
             stage4 = {"valid": True, "entry": price, "sl": price - step, "tp": price + 3 * step, "rr": 3.0}
         else:
             stage4 = {"valid": True, "entry": price, "sl": price + step, "tp": price - 3 * step, "rr": 3.0}
-        state["pending"] = True
+        state["pending"] = ticker_failure
         return {"valid": True, "failed_at": None, "bonus": 0.0, "stage1": {"passed": True},
                 "stage2": {"passed": True}, "stage3": {"passed": True}, "stage4": stage4}
 

@@ -50,6 +50,10 @@ CONFIG = {
     "vol_max_ratio": 1.5,
     "max_entry_drift_pct": 0.6,
     "rrce_entry_max_deviation_pct": 0.4,
+    # OPT-IN final-entry integrity for RRCE-contract signals. None = disabled
+    # (current production behaviour). Experimental until chronologically validated.
+    "rrce_final_max_rr": None,
+    "rrce_min_stop_pct": None,
     "rrce_default_patience_bars": 6,
     "rrce_range_patience_bars": 8,
     # Stage-3 tuning: allow bounded delayed CHOCH confirmation.

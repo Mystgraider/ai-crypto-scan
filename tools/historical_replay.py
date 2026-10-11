@@ -737,6 +737,16 @@ def summarize(rows: list[dict]) -> dict:
     }
 
 
+def research_overrides() -> dict:
+    """Research-only counterfactual switches (env). Never active unless set."""
+    out = {}
+    for env, key in (("RRCE_FINAL_MAX_RR", "rrce_final_max_rr"), ("RRCE_MIN_STOP_PCT", "rrce_min_stop_pct")):
+        raw = os.getenv(env, "").strip()
+        if raw:
+            out[key] = float(raw)
+    return out
+
+
 def resolve_replay_end(now=None) -> pd.Timestamp:
     """Replay end timestamp.
 
@@ -802,6 +812,9 @@ def run():
         def run(self):
             return None
 
+    overrides = research_overrides()
+    saved_config = {k: CONFIG.get(k) for k in overrides}
+    CONFIG.update(overrides)
     try:
         replay_cooldown = ReplayCooldown(CONFIG["signal_cooldown_hours"])
         scanner.is_on_cooldown = replay_cooldown.is_on_cooldown
@@ -842,6 +855,7 @@ def run():
     finally:
         for name, value in original.items():
             setattr(scanner, name, value)
+        CONFIG.update(saved_config)
 
     results = []
     for sig in captured:
@@ -901,6 +915,7 @@ def run():
             "end": end.isoformat(),
             "days": DAYS,
             "fixed_window": bool(os.getenv("BACKTEST_END", "").strip()),
+            "research_overrides": overrides,
             "symbols": SYMBOLS,
             "timeframes": list(INTERVALS),
             "lookahead_policy": "future candles begin strictly after replay timestamp",
