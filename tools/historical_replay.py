@@ -692,6 +692,75 @@ def load_store(start: pd.Timestamp, end: pd.Timestamp) -> HistoricalStore:
     return HistoricalStore(candles=candles, funding=funding, oi=oi, end=end)
 
 
+def _window_data_diagnostics(frame: pd.DataFrame | None, timestamp_col: str, start: pd.Timestamp, end: pd.Timestamp) -> dict:
+    """Describe source-data coverage within the replay window without changing signals."""
+    if frame is None or frame.empty or timestamp_col not in frame.columns:
+        return {
+            "rows_in_window": 0,
+            "first_timestamp_in_window": None,
+            "last_timestamp_in_window": None,
+            "has_data_in_window": False,
+        }
+    timestamps = pd.to_datetime(frame[timestamp_col], utc=True, errors="coerce")
+    window = timestamps[(timestamps >= start) & (timestamps <= end)].dropna().sort_values()
+    return {
+        "rows_in_window": int(len(window)),
+        "first_timestamp_in_window": window.iloc[0].isoformat() if not window.empty else None,
+        "last_timestamp_in_window": window.iloc[-1].isoformat() if not window.empty else None,
+        "has_data_in_window": bool(not window.empty),
+    }
+
+
+def market_data_diagnostics(store: HistoricalStore, start: pd.Timestamp, end: pd.Timestamp) -> dict:
+    """Per-symbol OI/funding archive coverage; observation-only and research-only."""
+    diagnostics = {}
+    for symbol in DATA_SYMBOLS:
+        funding = store.funding.get(symbol)
+        oi = store.oi.get(symbol)
+        diagnostics[symbol] = {
+            "funding": _window_data_diagnostics(funding, "timestamp", start, end),
+            "open_interest": _window_data_diagnostics(oi, "timestamp", start, end),
+        }
+    return diagnostics
+
+
+def feature_telemetry_diagnostics(rows: list[dict]) -> dict:
+    """Summarize emitted candidate telemetry without inferring source causality."""
+    oi_counts = {}
+    funding_missing = 0
+    funding_zero = 0
+    funding_nonzero = 0
+    for row in rows:
+        oi_value = row.get("oi_signal")
+        oi_key = "MISSING" if oi_value is None or str(oi_value).strip() == "" else str(oi_value)
+        oi_counts[oi_key] = oi_counts.get(oi_key, 0) + 1
+        funding_value = row.get("funding_pct_raw")
+        try:
+            numeric_funding = float(funding_value)
+        except (TypeError, ValueError):
+            funding_missing += 1
+        else:
+            if not math.isfinite(numeric_funding):
+                funding_missing += 1
+            elif numeric_funding == 0:
+                funding_zero += 1
+            else:
+                funding_nonzero += 1
+    return {
+        "candidate_rows": len(rows),
+        "oi_signal_counts": oi_counts,
+        "funding_pct_raw": {
+            "missing_or_non_numeric": funding_missing,
+            "zero": funding_zero,
+            "nonzero": funding_nonzero,
+        },
+        "interpretation_limit": (
+            "Coverage and emitted values are diagnostics only; they do not prove "
+            "that a feature affected candidate qualification or ranking."
+        ),
+    }
+
+
 def summarize(rows: list[dict]) -> dict:
     resolved_statuses = {
         "TP1_HIT", "TP2_HIT", "TP3_HIT", "SL_HIT",
@@ -925,6 +994,8 @@ def run():
             "cooldown_hours": CONFIG["signal_cooldown_hours"],
             "harness_mode": "scanner_v5.main historical injection",
         },
+        "data_diagnostics": market_data_diagnostics(store, start, end),
+        "feature_telemetry_diagnostics": feature_telemetry_diagnostics(results),
         "summary": summarize(results),
         "results": results,
     }
