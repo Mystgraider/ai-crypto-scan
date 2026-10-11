@@ -8,14 +8,22 @@ on:
       - "config.py"
       - "engines/**"
       - "indicators/**"
+      - ".github/workflows/historical-backtest.yml"
       - "tests/test_historical_replay_boundary.py"
       - "tests/test_historical_replay_funding.py"
+      - "tests/test_historical_replay_window.py"
   workflow_dispatch:
     inputs:
       backtest_days:
         description: "Chronological replay window in days"
         required: false
-        default: "30"
+        default: "7"
+        type: string
+      backtest_end:
+        description: "Optional fixed UTC end hour, e.g. 2026-10-12T00:00:00Z. Leave blank for rolling end."
+        required: false
+        default: ""
+        type: string
 
 jobs:
   replay:
@@ -31,12 +39,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Run replay-boundary unit tests
+      - name: Run replay-boundary and fixed-window unit tests
         run: |
-          python -m unittest tests/test_historical_replay_boundary.py tests/test_historical_replay_funding.py
+          python -m unittest tests/test_historical_replay_boundary.py tests/test_historical_replay_funding.py tests/test_historical_replay_window.py
       - name: Run historical replay
         env:
-          BACKTEST_DAYS: "${{ github.event_name == 'workflow_dispatch' && inputs.backtest_days || '30' }}"
+          BACKTEST_DAYS: "${{ github.event_name == 'workflow_dispatch' && inputs.backtest_days || '7' }}"
+          BACKTEST_END: "${{ github.event_name == 'workflow_dispatch' && inputs.backtest_end || '' }}"
         run: |
           python tools/historical_replay.py
       - name: Upload backtest result
