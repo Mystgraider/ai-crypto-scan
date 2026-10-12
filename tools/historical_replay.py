@@ -676,7 +676,13 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
             elif status == "OPEN_TP2" and low <= tp3:
                 return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
 
-    return {"status": "EXPIRED" if not future_window.empty else "OPEN"}
+    if future_window.empty:
+        return {"status": "OPEN"}
+    # EXPIRED only when the data covers the whole expiry window (one 5m candle of
+    # slack for tail gaps). A window cut short by the end of the data is censored:
+    # the signal is unresolved (OPEN), not expired.
+    covered_until = future_window["timestamp"].max() + pd.Timedelta(minutes=5)
+    return {"status": "EXPIRED" if covered_until >= end - pd.Timedelta(minutes=5) else "OPEN"}
 
 
 def load_store(start: pd.Timestamp, end: pd.Timestamp) -> HistoricalStore:

@@ -74,8 +74,9 @@ class DocumentedBehaviourTests(unittest.TestCase):
 
     def test_expiry_boundary_and_unresolved_labels(self):
         s = sig("LONG")
-        quiet = [(100.5, 99.5)] * 3
-        self.assertEqual(historical_outcome(s, candles(quiet))["status"], "EXPIRED")  # window non-empty, no event
+        quiet = [(100.5, 99.5)] * (72 * 12)                                         # data covers the whole window
+        self.assertEqual(historical_outcome(s, candles(quiet))["status"], "EXPIRED")
+        self.assertEqual(historical_outcome(s, candles(quiet[:3]))["status"], "OPEN")  # window cut short => censored
         self.assertEqual(historical_outcome(s, candles([], 1))["status"], "OPEN")      # no future data at all
         # a candle that would complete AFTER the 72h expiry must be ignored
         late = candles([(111.0, 99.0)], first_offset=72 * 12)   # opens exactly at expiry
@@ -110,7 +111,7 @@ class DifferentialAgainstProductionTrackerTests(unittest.TestCase):
             status = new
             if res.get("sl") is not None:
                 sl = res["sl"]
-        return "EXPIRED", None
+        return "OPEN", None   # 60-candle paths never cover the 72h window: censored, not expired
 
     def test_random_paths_match_production_state_machine(self):
         rng = np.random.default_rng(2026)
@@ -124,9 +125,9 @@ class DifferentialAgainstProductionTrackerTests(unittest.TestCase):
             df = candles(rows)
             out = historical_outcome(s, df)
             exp, when = self._walk(s, df)
-            if exp != "EXPIRED":
+            if exp != "OPEN":
                 n_term += 1
-            if out["status"] != exp or (exp != "EXPIRED" and out.get("event_time") != when):
+            if out["status"] != exp or (exp != "OPEN" and out.get("event_time") != when):
                 mismatches.append((i, d, out["status"], exp))
         self.assertGreater(n_term, 200, "paths too tame to be a meaningful differential test")
         self.assertEqual(mismatches, [], mismatches[:5])
