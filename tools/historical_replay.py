@@ -388,7 +388,14 @@ class ReplayExchange:
         df = self.store.oi.get(symbol)
         if df is None or df.empty:
             return []
-        past = df[df["timestamp"] <= self.store.end].tail(limit)
+        past = df[df["timestamp"] <= self.store.end]
+        # Production asks for timeframe="1h" bars; the archive is a 5-minute series.
+        # Keep only snapshots on the requested timeframe grid so the comparison window
+        # matches production (never fabricate bars when the grid snapshot is missing).
+        step = INTERVAL_DELTAS.get(timeframe)
+        if step is not None and step > INTERVAL_DELTAS["5m"]:
+            past = past[past["timestamp"] == past["timestamp"].dt.floor(step)]
+        past = past.tail(limit)
         return [
             {
                 "openInterestValue": float(row["sumOpenInterestValue"]),
