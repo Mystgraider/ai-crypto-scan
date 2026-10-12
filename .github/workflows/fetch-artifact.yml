@@ -16,19 +16,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download existing artifact from Historical Backtest #81
+      - name: Download existing artifact from Historical Backtest #85
         uses: actions/download-artifact@v4
         with:
           name: historical-backtest-result
-          run-id: 38146662222
+          run-id: 38211979996
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: fetched
+          path: fetched-run85
       - name: Record checksums and commit to this branch
         run: |
-          ls -l fetched
-          sha256sum fetched/* | tee fetched/SHA256.txt
+          ls -l fetched-run85
+          sha256sum fetched-run85/* | tee fetched-run85/SHA256.txt
           git config user.name "claude-audit"
           git config user.email "claude-audit@users.noreply.github.com"
-          git add fetched
-          git commit -m "Add Run #81 artifact copy for forensic review [skip ci]"
+          git add fetched-run85
+          git commit -m "Add Run #85 artifact copy for forensic review [skip ci]"
           git push origin HEAD:research/fetch-run81-artifact
