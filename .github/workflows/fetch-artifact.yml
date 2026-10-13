@@ -1,7 +1,7 @@
 name: Fetch replay artifact (research, read-only)
 
-# One-shot helper: copies an EXISTING artifact of a finished run onto this branch so
-# it can be inspected. It does not run the scanner or any backtest.
+# One-shot helper: copies EXISTING artifacts of finished runs onto this branch so they
+# can be inspected. It does not run the scanner or any backtest.
 on:
   push:
     branches: [research/fetch-run81-artifact]
@@ -16,19 +16,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download existing artifact from Historical Backtest #85
+      - name: Download cadence experiment artifact (hourly)
         uses: actions/download-artifact@v4
         with:
-          name: historical-backtest-result
-          run-id: 38211979996
+          name: historical-backtest-result-step60
+          run-id: 38354755083
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: fetched-run85
+          path: exp-step60
+      - name: Download cadence experiment artifact (15 min)
+        uses: actions/download-artifact@v4
+        with:
+          name: historical-backtest-result-step15
+          run-id: 38354757286
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: exp-step15
       - name: Record checksums and commit to this branch
         run: |
-          ls -l fetched-run85
-          sha256sum fetched-run85/* | tee fetched-run85/SHA256.txt
+          sha256sum exp-step60/* exp-step15/* | tee exp-SHA256.txt
           git config user.name "claude-audit"
           git config user.email "claude-audit@users.noreply.github.com"
-          git add fetched-run85
-          git commit -m "Add Run #85 artifact copy for forensic review [skip ci]"
+          git add exp-step60 exp-step15 exp-SHA256.txt
+          git commit -m "Add cadence experiment artifacts (steps 60 and 15) [skip ci]"
           git push origin HEAD:research/fetch-run81-artifact
