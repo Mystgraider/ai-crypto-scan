@@ -359,6 +359,13 @@ class ReplayExchange:
         self.store = store
 
     def fetch_ticker(self, symbol: str) -> dict:
+        if self.store.end != self.store.end.floor("h"):
+            # Sub-hourly cutoff: the latest price knowable is the last COMPLETED 5m close.
+            m5 = self.store.candles[(symbol, "5m")]
+            done = m5[m5["timestamp"] + INTERVAL_DELTAS["5m"] <= self.store.end]
+            if done.empty:
+                raise RuntimeError(f"no_completed_5m_ticker:{symbol}:{self.store.end.isoformat()}")
+            return {"last": float(done.iloc[-1]["close"])}
         df = self.store.candles[(symbol, "1h")]
         completed = df[df["timestamp"] + INTERVAL_DELTAS["1h"] <= self.store.end]
         if completed.empty:
@@ -750,6 +757,27 @@ def summarize(rows: list[dict]) -> dict:
     }
 
 
+def validate_step_minutes(value) -> int:
+    """Replay cadence in minutes: a multiple of 5 (the finest archive data) dividing 60."""
+    step = int(value)
+    if step < 5 or step > 60 or step % 5 or 60 % step:
+        raise ValueError(f"BACKTEST_STEP_MINUTES must be a multiple of 5 that divides 60, got {value!r}")
+    return step
+
+
+def step_minutes_from_env() -> int:
+    """Research-only. Default 60 reproduces the historical hourly-boundary behaviour."""
+    raw = os.getenv("BACKTEST_STEP_MINUTES", "").strip()
+    return validate_step_minutes(raw) if raw else 60
+
+
+def replay_cutoffs(start: pd.Timestamp, end: pd.Timestamp, step_minutes: int = 60) -> list:
+    """Scan times in [start, end] on a step_minutes grid (never earlier than start)."""
+    step = pd.Timedelta(minutes=validate_step_minutes(step_minutes))
+    first = pd.Timestamp(start).ceil(step)
+    return list(pd.date_range(first, end, freq=step))
+
+
 def research_overrides() -> dict:
     """Research-only counterfactual switches (env). Never active unless set."""
     out = {}
@@ -790,9 +818,9 @@ def run():
     # Use timestamps for completed 1H candles only. Replay warmup is sized from
     # the production indicator minimum for the slowest RRCE timeframe (4H),
     # with an additional 48-hour alignment/data margin.
-    timeline = store.candles[(SYMBOLS[0], "1h")]
-    timeline = timeline[(timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start) & (timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)]
-    if timeline.empty:
+    step_minutes = step_minutes_from_env()
+    timeline = replay_cutoffs(start, end, step_minutes)
+    if not timeline:
         raise RuntimeError("empty_replay_timeline")
 
     original = {
@@ -842,8 +870,7 @@ def run():
         scanner.AnalyticsEngine = ReplayAnalytics
         scanner.AISignalRanker = lambda: ReplayTelemetryRanker(replay_telemetry)
 
-        for i, row in enumerate(timeline.itertuples(index=False), start=1):
-            replay_time = pd.Timestamp(row.timestamp) + INTERVAL_DELTAS["1h"]
+        for i, replay_time in enumerate(timeline, start=1):
             replay_cooldown.advance(replay_time)
             store.end = replay_time
             assert_replay_boundary(store)
@@ -928,6 +955,7 @@ def run():
             "end": end.isoformat(),
             "days": DAYS,
             "fixed_window": bool(os.getenv("BACKTEST_END", "").strip()),
+            "step_minutes": step_minutes,
             "research_overrides": overrides,
             "symbols": SYMBOLS,
             "timeframes": list(INTERVALS),
