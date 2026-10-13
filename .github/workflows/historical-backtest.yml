@@ -16,6 +16,14 @@ on:
         description: "Chronological replay window in days"
         required: false
         default: "30"
+      backtest_end:
+        description: "Research: fixed window end (ISO UTC, whole hour). Empty = rolling"
+        required: false
+        default: ""
+      step_minutes:
+        description: "Research: replay cadence in minutes (multiple of 5 dividing 60). 60 = hourly (default)"
+        required: false
+        default: "60"
 
 jobs:
   replay:
@@ -37,11 +45,13 @@ jobs:
       - name: Run historical replay
         env:
           BACKTEST_DAYS: "${{ github.event_name == 'workflow_dispatch' && inputs.backtest_days || '30' }}"
+          BACKTEST_END: "${{ github.event_name == 'workflow_dispatch' && inputs.backtest_end || '' }}"
+          BACKTEST_STEP_MINUTES: "${{ github.event_name == 'workflow_dispatch' && inputs.step_minutes || '60' }}"
         run: |
           python tools/historical_replay.py
       - name: Upload backtest result
         uses: actions/upload-artifact@v4
         with:
-          name: historical-backtest-result
+          name: ${{ github.event_name == 'workflow_dispatch' && format('historical-backtest-result-step{0}', inputs.step_minutes) || 'historical-backtest-result' }}
           path: backtest_results.json
           if-no-files-found: error
