@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from reports.execution_outcome import calculate_canonical_trade_r
 from storage.signal_logger import load_signals
 from alerts.telegram_alerts import send_telegram_alert
+from storage.atomic_json import atomic_json_dump
 
 BREAKER_FILE = "storage/circuit_breaker.json"
 MAX_DAILY_LOSSES = 3
@@ -38,9 +39,7 @@ def _load_state() -> dict:
 
 
 def _save_state(state: dict):
-    os.makedirs("storage", exist_ok=True)
-    with open(BREAKER_FILE, "w") as f:
-        json.dump(state, f)
+    atomic_json_dump(BREAKER_FILE, state)
 
 
 def _count_canonical_losses(signals: list[dict], today: str) -> int:
