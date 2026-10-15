@@ -8,6 +8,7 @@ or signal queue: every trade still has to pass the full live RRCE evaluation.
 import json
 import os
 from datetime import datetime, timedelta, timezone
+from storage.atomic_json import atomic_json_dump
 
 
 WATCHLIST_FILE = "storage/rrce_watchlist.json"
@@ -27,9 +28,7 @@ def _load() -> dict:
 
 
 def _save(entries: dict) -> None:
-    os.makedirs(os.path.dirname(WATCHLIST_FILE), exist_ok=True)
-    with open(WATCHLIST_FILE, "w") as file:
-        json.dump(entries, file, indent=2, sort_keys=True)
+    atomic_json_dump(WATCHLIST_FILE, entries, indent=2, sort_keys=True)
 
 
 def _prune(entries: dict, now: datetime, ttl_hours: float) -> dict:
