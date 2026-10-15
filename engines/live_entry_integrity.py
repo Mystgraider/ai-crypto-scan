@@ -3,7 +3,8 @@
 from engines.tp_ladder import build_tp_ladder
 
 
-def revalidate(rrce_engine, direction, live_price, stage4, max_deviation_pct, min_rr):
+def revalidate(rrce_engine, direction, live_price, stage4, max_deviation_pct, min_rr,
+               max_rr=None, min_stop_pct=None):
     """Recalculate executable RRCE levels and attach the staged TP ladder.
 
     RRCE remains the source of the structural SL/TP contract. The live price
@@ -14,12 +15,21 @@ def revalidate(rrce_engine, direction, live_price, stage4, max_deviation_pct, mi
     if not stage4:
         return {"valid": False, "reason": "missing_rrce_stage4"}
 
+    # The opt-in bounds are forwarded only when enabled, so engines implementing the
+    # original interface (and the disabled default) are called exactly as before.
+    optional = {}
+    if max_rr is not None:
+        optional["max_rr"] = max_rr
+    if min_stop_pct is not None:
+        optional["min_stop_pct"] = min_stop_pct
+
     result = rrce_engine.live_entry_levels(
         direction=direction,
         live_price=float(live_price),
         stage4=stage4,
         max_deviation_pct=max_deviation_pct,
         min_rr=min_rr,
+        **optional,
     )
 
     if not result.get("valid"):

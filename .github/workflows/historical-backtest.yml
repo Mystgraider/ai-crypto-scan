@@ -8,34 +8,50 @@ on:
       - "config.py"
       - "engines/**"
       - "indicators/**"
+      - "tests/test_historical_replay_boundary.py"
+      - "tests/test_historical_replay_funding.py"
   workflow_dispatch:
+    inputs:
+      backtest_days:
+        description: "Chronological replay window in days"
+        required: false
+        default: "30"
+      backtest_end:
+        description: "Research: fixed window end (ISO UTC, whole hour). Empty = rolling"
+        required: false
+        default: ""
+      step_minutes:
+        description: "Research: replay cadence in minutes (multiple of 5 dividing 60). 60 = hourly (default)"
+        required: false
+        default: "60"
 
 jobs:
   replay:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
-      - name: Run 7-day historical replay
+      - name: Run replay-boundary unit tests
+        run: |
+          python -m unittest tests/test_historical_replay_boundary.py tests/test_historical_replay_funding.py
+      - name: Run historical replay
         env:
-          BACKTEST_DAYS: "7"
+          BACKTEST_DAYS: "${{ github.event_name == 'workflow_dispatch' && inputs.backtest_days || '30' }}"
+          BACKTEST_END: "${{ github.event_name == 'workflow_dispatch' && inputs.backtest_end || '' }}"
+          BACKTEST_STEP_MINUTES: "${{ github.event_name == 'workflow_dispatch' && inputs.step_minutes || '60' }}"
         run: |
           python tools/historical_replay.py
-
       - name: Upload backtest result
         uses: actions/upload-artifact@v4
         with:
-          name: historical-backtest-result
+          name: ${{ github.event_name == 'workflow_dispatch' && format('historical-backtest-result-step{0}', inputs.step_minutes) || 'historical-backtest-result' }}
           path: backtest_results.json
           if-no-files-found: error
