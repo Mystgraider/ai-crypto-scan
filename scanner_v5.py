@@ -56,6 +56,14 @@ from config                      import CONFIG
 from engines.direction_policy    import get_candidate_directions
 
 
+def _rrce_live_risk_invalid(rrce_risk) -> bool:
+    """Return whether a non-None RRCE risk result explicitly failed validation.
+
+    None means live ticker data was unavailable and must fall through to ATR fallback.
+    """
+    return rrce_risk is not None and not rrce_risk.get("valid")
+
+
 def grade_score(score: float) -> str:
     if score >= CONFIG["signal_score_s"]: return "S"
     if score >= CONFIG["signal_score_a"]: return "A"
@@ -918,7 +926,7 @@ def main():
                         # Live price unavailable: preserve the documented ATR fallback.
                         # Do not dereference None or abort the remaining direction loop.
                         pass
-                    elif not rrce_risk.get("valid"):
+                    elif _rrce_live_risk_invalid(rrce_risk):
                         if rrce_risk.get("reason") == "price_away_from_rrce_entry":
                             skip["rrce_entry_away"] += 1
                         else:
