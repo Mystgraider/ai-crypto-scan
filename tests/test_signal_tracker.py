@@ -190,5 +190,19 @@ class SignalTrackerLifecycleTests(unittest.TestCase):
         self.assertIsNone(result)
 
 
+    def test_candle_opened_before_signal_is_rejected(self):
+        self.assertFalse(self.tracker._candle_is_after_signal(
+            "2026-10-16T12:00:00+00:00", "2026-10-16T12:34:00+00:00"
+        ))
+
+    def test_candle_opened_at_or_after_signal_is_accepted(self):
+        self.assertTrue(self.tracker._candle_is_after_signal(
+            "2026-10-16T13:00:00+00:00", "2026-10-16T12:34:00+00:00"
+        ))
+        self.assertTrue(self.tracker._candle_is_after_signal(
+            "2026-10-16T12:34:00+00:00", "2026-10-16T12:34:00+00:00"
+        ))
+
+
 if __name__ == "__main__":
     unittest.main()
