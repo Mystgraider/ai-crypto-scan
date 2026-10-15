@@ -40,6 +40,13 @@ class SignalTracker:
             raise ValueError("naive_signal_timestamp")
         return ts.astimezone(timezone.utc)
 
+    @classmethod
+    def _candle_is_after_signal(cls, candle_timestamp, signal_timestamp) -> bool:
+        """Only use a candle whose opening timestamp is at/after the signal time."""
+        candle_at = cls._parse_signal_timestamp(candle_timestamp)
+        signal_at = cls._parse_signal_timestamp(signal_timestamp)
+        return candle_at >= signal_at
+
     @staticmethod
     def _realized_r(direction, entry, initial_sl, exit_price):
         risk = abs(entry - initial_sl)
@@ -126,6 +133,9 @@ class SignalTracker:
             try:
                 df = self.loader.get_ohlcv(symbol, limit=2)
                 candle = df.iloc[-1]
+                if not self._candle_is_after_signal(candle["timestamp"], sig.get("timestamp")):
+                    print(f"  ⏳ {symbol}: latest candle began before signal; waiting for a post-signal candle")
+                    continue
                 price = float(candle["close"])
                 high = float(candle["high"])
                 low = float(candle["low"])
