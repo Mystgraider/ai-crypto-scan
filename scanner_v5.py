@@ -64,6 +64,13 @@ def _rrce_live_risk_invalid(rrce_risk) -> bool:
     return rrce_risk is not None and not rrce_risk.get("valid")
 
 
+def _ensure_risk_fallback(rrce_risk, risk_engine, direction, price, atr):
+    """Use existing RRCE risk, or calculate ATR risk when RRCE revalidation failed/unavailable."""
+    if rrce_risk is not None:
+        return rrce_risk
+    return risk_engine.calculate(direction, price, atr)
+
+
 def grade_score(score: float) -> str:
     if score >= CONFIG["signal_score_s"]: return "S"
     if score >= CONFIG["signal_score_a"]: return "A"
@@ -956,16 +963,17 @@ def main():
                                 {"symbol": symbol, **trace_extra}, default=str, sort_keys=True
                             ))
 
-                if rrce_risk is None:
-                    _fallback_atr = None
-                    if "atr" in df_1h.columns and len(df_1h) >= 2:
-                        try:
-                            _atr_value = float(df_1h["atr"].iloc[-2])
-                            if _atr_value > 0:
-                                _fallback_atr = _atr_value
-                        except (TypeError, ValueError, OverflowError):
-                            _fallback_atr = None
-                    rrce_risk = risk_engine.calculate(direction, price, _fallback_atr)
+                _fallback_atr = None
+                if rrce_risk is None and "atr" in df_1h.columns and len(df_1h) >= 2:
+                    try:
+                        _atr_value = float(df_1h["atr"].iloc[-2])
+                        if _atr_value > 0:
+                            _fallback_atr = _atr_value
+                    except (TypeError, ValueError, OverflowError):
+                        _fallback_atr = None
+                rrce_risk = _ensure_risk_fallback(
+                    rrce_risk, risk_engine, direction, price, _fallback_atr
+                )
                 if direction == "SHORT" and CONFIG["short_requires_resistance"]:
                     if not sr_engine.short_has_ceiling(sr_levels, CONFIG["short_resistance_max_pct"]):
                         skip["sr_no_ceil"] += 1
