@@ -45,6 +45,13 @@ jobs:
           echo "Workflow SHA: $GITHUB_SHA"
           echo "Requested scan ref: $SCAN_REF"
 
+      - name: Enforce trusted production ref
+        run: |
+          if [ "$SCAN_REF" != "main" ]; then
+            echo "::error::Production scanner dispatch is restricted to the main ref."
+            exit 1
+          fi
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
