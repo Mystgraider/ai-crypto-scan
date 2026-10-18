@@ -914,7 +914,12 @@ def main():
                             max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
                             min_rr=CONFIG["min_rr"],
                         )
-                    if not rrce_risk.get("valid"):
+                    if rrce_risk is None:
+                        # Live price unavailable: rrce_live_failure_reason is already set.
+                        # Fall through to the documented ATR fallback instead of
+                        # dereferencing None (which aborted the whole symbol).
+                        pass
+                    elif not rrce_risk.get("valid"):
                         if rrce_risk.get("reason") == "price_away_from_rrce_entry":
                             skip["rrce_entry_away"] += 1
                         else:
