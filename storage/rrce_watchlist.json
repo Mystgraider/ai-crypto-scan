@@ -50,13 +50,13 @@
   "AVAX/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-10-20T16:57:14.909148+00:00",
-    "last_seen": "2026-10-20T16:57:14.909148+00:00",
-    "observations": 1,
+    "last_seen": "2026-10-20T20:15:20.351705+00:00",
+    "observations": 2,
     "pool_level": 9.554,
     "range_high": 10.516,
     "range_low": 9.254,
     "regime": "BULL",
-    "sweep_extreme": 9.523,
+    "sweep_extreme": 9.551,
     "symbol": "AVAX/USDT:USDT"
   },
   "CHZ/USDT:USDT|LONG": {
@@ -98,13 +98,13 @@
   "FIL/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-10-20T16:57:01.371664+00:00",
-    "last_seen": "2026-10-20T16:57:01.371664+00:00",
-    "observations": 1,
+    "last_seen": "2026-10-20T20:15:18.928257+00:00",
+    "observations": 2,
     "pool_level": 1.0374,
     "range_high": 1.2221,
     "range_low": 0.9917,
     "regime": "BULL",
-    "sweep_extreme": 1.0237,
+    "sweep_extreme": 1.0334,
     "symbol": "FIL/USDT:USDT"
   },
   "GMX/USDT:USDT|LONG": {
@@ -134,13 +134,13 @@
   "ICP/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-10-20T16:56:57.971519+00:00",
-    "last_seen": "2026-10-20T16:56:57.971519+00:00",
-    "observations": 1,
+    "last_seen": "2026-10-20T20:15:14.771412+00:00",
+    "observations": 2,
     "pool_level": 2.866,
     "range_high": 3.114,
     "range_low": 2.763,
     "regime": "BULL",
-    "sweep_extreme": 2.86,
+    "sweep_extreme": 2.851,
     "symbol": "ICP/USDT:USDT"
   },
   "IOTA/USDT:USDT|LONG": {
@@ -218,8 +218,8 @@
   "NEAR/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-10-20T16:57:25.064302+00:00",
-    "last_seen": "2026-10-20T16:57:25.064302+00:00",
-    "observations": 1,
+    "last_seen": "2026-10-20T20:15:25.404855+00:00",
+    "observations": 2,
     "pool_level": 4.7656,
     "range_high": 5.4375,
     "range_low": 4.5231,
@@ -262,6 +262,18 @@
     "regime": "BULL",
     "sweep_extreme": 0.33232,
     "symbol": "TRX/USDT:USDT"
+  },
+  "USDC/USDT:USDT|LONG": {
+    "direction": "LONG",
+    "first_seen": "2026-10-20T20:15:51.634332+00:00",
+    "last_seen": "2026-10-20T20:15:51.634332+00:00",
+    "observations": 1,
+    "pool_level": 1.0004,
+    "range_high": 1.0008,
+    "range_low": 1.0,
+    "regime": "BULL",
+    "sweep_extreme": 1.0003,
+    "symbol": "USDC/USDT:USDT"
   },
   "XRP/USDT:USDT|LONG": {
     "direction": "LONG",
