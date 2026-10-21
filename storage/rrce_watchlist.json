@@ -25,27 +25,15 @@
   },
   "FIL/USDT:USDT|LONG": {
     "direction": "LONG",
-    "first_seen": "2026-10-20T16:57:01.371664+00:00",
-    "last_seen": "2026-10-20T20:15:18.928257+00:00",
-    "observations": 2,
+    "first_seen": "2026-10-21T01:33:27.250061+00:00",
+    "last_seen": "2026-10-21T01:33:27.250061+00:00",
+    "observations": 1,
     "pool_level": 1.0374,
     "range_high": 1.2221,
     "range_low": 0.9917,
     "regime": "BULL",
-    "sweep_extreme": 1.0334,
+    "sweep_extreme": 1.0266,
     "symbol": "FIL/USDT:USDT"
-  },
-  "ICP/USDT:USDT|LONG": {
-    "direction": "LONG",
-    "first_seen": "2026-10-20T16:56:57.971519+00:00",
-    "last_seen": "2026-10-20T20:15:14.771412+00:00",
-    "observations": 2,
-    "pool_level": 2.866,
-    "range_high": 3.114,
-    "range_low": 2.763,
-    "regime": "BULL",
-    "sweep_extreme": 2.851,
-    "symbol": "ICP/USDT:USDT"
   },
   "LUNC/USDT:USDT|SHORT": {
     "direction": "SHORT",
@@ -59,17 +47,17 @@
     "sweep_extreme": 4.702e-05,
     "symbol": "LUNC/USDT:USDT"
   },
-  "NEAR/USDT:USDT|LONG": {
+  "MINA/USDT:USDT|LONG": {
     "direction": "LONG",
-    "first_seen": "2026-10-20T16:57:25.064302+00:00",
-    "last_seen": "2026-10-20T20:15:25.404855+00:00",
-    "observations": 2,
-    "pool_level": 4.7656,
-    "range_high": 5.4375,
-    "range_low": 4.5231,
+    "first_seen": "2026-10-21T01:34:03.412428+00:00",
+    "last_seen": "2026-10-21T01:34:03.412428+00:00",
+    "observations": 1,
+    "pool_level": 0.07178,
+    "range_high": 0.08021,
+    "range_low": 0.06856,
     "regime": "BULL",
-    "sweep_extreme": 4.7505,
-    "symbol": "NEAR/USDT:USDT"
+    "sweep_extreme": 0.07138,
+    "symbol": "MINA/USDT:USDT"
   },
   "RSR/USDT:USDT|LONG": {
     "direction": "LONG",
@@ -98,8 +86,8 @@
   "USDC/USDT:USDT|LONG": {
     "direction": "LONG",
     "first_seen": "2026-10-20T20:15:51.634332+00:00",
-    "last_seen": "2026-10-20T23:13:20.038881+00:00",
-    "observations": 2,
+    "last_seen": "2026-10-21T01:34:08.783631+00:00",
+    "observations": 3,
     "pool_level": 1.0004,
     "range_high": 1.0008,
     "range_low": 1.0,
