@@ -60,7 +60,7 @@ def paths(price_dir, oi_dir, spike=False):
 
 def mk_store(price, oi, end, drop_oi=None, poison=False):
     p = pd.Series(price, index=GRID)
-    m5 = pd.DataFrame({"timestamp": GRID, "open": p.shift(1).fillna(p.iloc[0]).values, "close": p.values})
+    m5 = pd.DataFrame({"timestamp": GRID, "open": p.values, "close": p.values})
     m5["high"] = m5[["open", "close"]].max(axis=1)
     m5["low"] = m5[["open", "close"]].min(axis=1)
     m5["volume"] = 1.0
@@ -162,7 +162,7 @@ def record(case, T, direction, e, a, expect_label=None):
                      exp_price=None if e_pc is None else round(e_pc, 5), act_price=None if a["price"] is None else round(a["price"], 5),
                      d_price=None if d_pr is None else round(d_pr, 5),
                      exp_oi=None if e_oc is None else round(e_oc, 5), act_oi=a["oi"], d_oi=None if d_oi is None else round(d_oi, 5),
-                     exp=expect_label or e_lab, act=a["label"], label_ok=lab_ok, price_ok=pr_ok, oi_ok=oi_ok, ok=lab_ok and pr_ok and oi_ok))
+                     exp=expect_label or e_lab, act=a["label"], label_ok=bool(lab_ok), price_ok=bool(pr_ok), oi_ok=bool(oi_ok), ok=bool(lab_ok and pr_ok and oi_ok)))
 
 
 # A. Four direction combinations x five cutoffs x two directions.
