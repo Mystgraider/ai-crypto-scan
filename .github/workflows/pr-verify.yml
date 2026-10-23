@@ -67,9 +67,9 @@ jobs:
           OI_OUT_DIR: ${{ runner.temp }}/oi-results
         run: |
           set +e
-          python tools/oi_fixtures_v2.py "$GITHUB_WORKSPACE/baseline" main
+          python tools/oi_fixtures_v2.py "$GITHUB_WORKSPACE/baseline" main --strict-oracle
           main_rc=$?
-          python tools/oi_fixtures_v2.py "$GITHUB_WORKSPACE/candidate" pr113
+          python tools/oi_fixtures_v2.py "$GITHUB_WORKSPACE/candidate" pr113 --strict-oracle
           candidate_rc=$?
           echo "MAIN_EXIT=$main_rc" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "PR113_EXIT=$candidate_rc" | tee -a "$GITHUB_STEP_SUMMARY"
