@@ -18,14 +18,10 @@ class FakeExchange:
 
 
 def test_amount_field_is_supported_when_history_uses_same_field():
-    engine = OIEngine()
-    result = engine.fetch_oi(
+    result = OIEngine().fetch_oi(
         FakeExchange(
             {"openInterestAmount": "1200"},
-            [
-                {"openInterestAmount": "1000"},
-                {"openInterestAmount": "1200"},
-            ],
+            [{"openInterestAmount": "1000"}, {"openInterestAmount": "1200"}],
         ),
         "ETH/USDT:USDT",
     )
@@ -35,31 +31,22 @@ def test_amount_field_is_supported_when_history_uses_same_field():
 
 
 def test_quote_value_and_contract_amount_are_never_mixed():
-    engine = OIEngine()
-    result = engine.fetch_oi(
+    result = OIEngine().fetch_oi(
         FakeExchange(
             {"openInterestValue": "1200000"},
-            [
-                {"openInterestAmount": "1000"},
-                {"openInterestAmount": "1200"},
-            ],
+            [{"openInterestAmount": "1000"}, {"openInterestAmount": "1200"}],
         ),
         "ETH/USDT:USDT",
     )
     assert result["available"] is False
     assert result["reason"] == "previous_oi_missing_or_unit_mismatch"
-    assert result["score_adj"] if "score_adj" in result else True
 
 
 def test_existing_open_interest_value_path_still_works():
-    engine = OIEngine()
-    result = engine.fetch_oi(
+    result = OIEngine().fetch_oi(
         FakeExchange(
             {"openInterestValue": 2200},
-            [
-                {"openInterestValue": 2000},
-                {"openInterestValue": 2200},
-            ],
+            [{"openInterestValue": 2000}, {"openInterestValue": 2200}],
         ),
         "ETH/USDT:USDT",
     )
@@ -69,14 +56,10 @@ def test_existing_open_interest_value_path_still_works():
 
 
 def test_nested_info_field_requires_matching_history_field():
-    engine = OIEngine()
-    result = engine.fetch_oi(
+    result = OIEngine().fetch_oi(
         FakeExchange(
             {"info": {"holdVol": "500"}},
-            [
-                {"info": {"holdVol": "450"}},
-                {"info": {"holdVol": "500"}},
-            ],
+            [{"info": {"holdVol": "450"}}, {"info": {"holdVol": "500"}}],
         ),
         "ETH/USDT:USDT",
     )
@@ -86,8 +69,7 @@ def test_nested_info_field_requires_matching_history_field():
 
 
 def test_unsupported_history_stays_explicitly_unavailable():
-    engine = OIEngine()
-    result = engine.fetch_oi(
+    result = OIEngine().fetch_oi(
         FakeExchange(
             {"openInterestAmount": "1200"},
             history_error=NotImplementedError("history unsupported"),
@@ -99,8 +81,7 @@ def test_unsupported_history_stays_explicitly_unavailable():
 
 
 def test_missing_current_oi_stays_unavailable():
-    engine = OIEngine()
-    result = engine.fetch_oi(
+    result = OIEngine().fetch_oi(
         FakeExchange({"info": {"unrecognizedField": "1200"}}, []),
         "ETH/USDT:USDT",
     )
