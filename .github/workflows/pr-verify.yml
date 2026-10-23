@@ -74,9 +74,16 @@ jobs:
           echo "MAIN_EXIT=$main_rc" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "PR113_EXIT=$candidate_rc" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "Fixture JSON files are uploaded even when a strict comparison fails."
-          if [ "$main_rc" -ne 0 ] || [ "$candidate_rc" -ne 0 ]; then
+          if [ "$candidate_rc" -ne 0 ]; then
+            echo "FAIL: PR #113 candidate did not match the strict oracle."
             exit 1
           fi
+          if [ "$main_rc" -ne 0 ]; then
+            echo "EXPECTED BASELINE DIFFERENCE: main does not match the corrected fixture oracle; candidate matches."
+          else
+            echo "NOTE: main also matched the oracle; inspect baseline/candidate artifacts for unintended changes."
+          fi
+          echo "PASS: PR #113 candidate matched all strict oracle checks."
       - name: Upload differential results
         if: always()
         uses: actions/upload-artifact@v4
