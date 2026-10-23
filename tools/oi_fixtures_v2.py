@@ -37,13 +37,13 @@ GRID = pd.date_range(T0, T0 + pd.Timedelta(hours=7), freq=FIVE)          # 5-min
 SPIKE_TS = pd.Timestamp("2026-10-01T02:10:00Z")                          # injected FUTURE level shift
 # Tolerances (percentage points):
 #  * OIEngine.analyze rounds oi_change_pct to 2 decimals -> |error| <= 0.005
-#  * The replay computes pct_change() on the hourly frame, whose completed candles are
-#    labeled H-1h and H and close at H-1h-5m and H-5m respectively. The independent oracle
-#    therefore compares those two completed-hour close observations. Do not compare p[T] to
-#    p[floor(T)]: at an exact hour that accidentally compares an observation with itself.
-#  * The linear price path makes the expected hourly close-to-close change slightly less than
-#    0.6 percentage points because the path is additive in price, not compounded. TOL_PRICE is
-#    only a numerical tolerance, not permission to compare different intervals.
+#  * ReplayMarketLoader._frame appends a causal forming hourly candle. At an exact hour,
+#    that row's close is its open; after the hour starts, its close is the last fully closed
+#    5m row included by the cutoff. In this fixture, each 5m row's synthetic close is keyed by
+#    its timestamp, so the observable close is T at an exact hour and T-5m otherwise.
+#    The prior completed hourly candle's close is H-5m. Therefore compare the observable
+#    forming close against H-5m, not against H or the previous hour's close.
+#  * TOL_PRICE is only a numerical tolerance, not permission to compare different intervals.
 TOL_OI, TOL_PRICE = 0.005, 0.001
 
 
@@ -92,11 +92,12 @@ def oracle(grid_prefix, price_prefix, oi_prefix, T, direction):
     assert grid_prefix[-1] == T and len(grid_prefix) == len(price_prefix) == len(oi_prefix), "oracle fed non-prefix data"
     idx = {t: i for i, t in enumerate(grid_prefix)}
     H = T.floor("h")
-    # ReplayMarketLoader's hourly frame is expected to expose only completed candles.
-    # At cutoff T, the latest completed hourly close is at H-5m; its predecessor is H-1h-5m.
-    # This avoids the old p[T]/p[floor(T)] self-comparison at exact-hour cutoffs.
-    price_now_ts = H - FIVE
-    price_prev_ts = H - pd.Timedelta(hours=1) - FIVE
+    # Mirror the candle timestamps exposed by ReplayMarketLoader._frame, independently:
+    # the hourly frame contains completed candles plus the forming H candle. With this
+    # synthetic data convention, the forming close is p[T] at the exact hour and p[T-5m]
+    # at sub-hour cutoffs. The previous completed hourly close is p[H-5m].
+    price_now_ts = T if T == H else T - FIVE
+    price_prev_ts = H - FIVE
     Hm1 = H - pd.Timedelta(hours=1)
     if price_now_ts not in idx or price_prev_ts not in idx or Hm1 not in idx:
         return None, None, "UNAVAILABLE"
