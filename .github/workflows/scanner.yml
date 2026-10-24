@@ -76,6 +76,13 @@ jobs:
 
           git add storage/signals.csv storage/cooldown.json storage/circuit_breaker.json storage/rrce_watchlist.json storage/scan_debug_log.jsonl storage/symbol_trace_log.jsonl || true
 
+          # OI snapshots are optional until a separately reviewed caller
+          # writes them. Add the file only when it exists so a missing file
+          # cannot interfere with staging the other scanner state files.
+          if [ -f storage/oi_snapshots.jsonl ]; then
+            git add storage/oi_snapshots.jsonl
+          fi
+
           if git diff --staged --quiet; then
             echo "No generated scanner state changes to commit."
             exit 0
