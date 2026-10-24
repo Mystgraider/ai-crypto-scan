@@ -36,8 +36,15 @@ class RRCEEngine:
 
     @staticmethod
     def live_entry_levels(direction: str, live_price: float, stage4: dict,
-                          max_deviation_pct: float, min_rr: float) -> dict:
-        """Validate a live fill against the RRCE pullback zone."""
+                          max_deviation_pct: float, min_rr: float,
+                          max_rr: float = None, min_stop_pct: float = None) -> dict:
+        """Validate a live fill against the RRCE pullback zone.
+
+        max_rr / min_stop_pct are OPT-IN final-entry integrity bounds (default
+        None = disabled, behaviour identical to before). The planned target is
+        capped at 4R from the *planned* entry, but rebasing the entry to the live
+        price can shrink the stop distance and push the final RR far above that.
+        """
         if not stage4:
             return {"valid": False, "reason": "missing_stage4"}
         if stage4.get("valid") is not True:
@@ -71,8 +78,15 @@ class RRCEEngine:
         risk = abs(live_price - sl)
         reward = abs(tp - live_price)
         rr = reward / risk if risk else 0.0
+        if min_stop_pct is not None:
+            stop_pct = risk / live_price * 100
+            if stop_pct < min_stop_pct:
+                return {"valid": False, "reason": "stop_distance_below_minimum",
+                        "stop_pct": round(stop_pct, 4)}
         if rr < min_rr:
             return {"valid": False, "reason": "rr_below_minimum", "rr": round(rr, 2)}
+        if max_rr is not None and rr > max_rr:
+            return {"valid": False, "reason": "rr_above_maximum", "rr": round(rr, 2)}
 
         return {
             "valid": True,

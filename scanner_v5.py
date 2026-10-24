@@ -913,8 +913,15 @@ def main():
                             stage4=rrce_result["stage4"],
                             max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
                             min_rr=CONFIG["min_rr"],
+                            max_rr=CONFIG.get("rrce_final_max_rr"),
+                            min_stop_pct=CONFIG.get("rrce_min_stop_pct"),
                         )
-                    if not rrce_risk.get("valid"):
+                    if rrce_risk is None:
+                        # Live price unavailable: rrce_live_failure_reason is already
+                        # set. Fall through to the documented ATR fallback contract
+                        # instead of dereferencing None (which dropped the candidate).
+                        pass
+                    elif not rrce_risk.get("valid"):
                         if rrce_risk.get("reason") == "price_away_from_rrce_entry":
                             skip["rrce_entry_away"] += 1
                         else:
@@ -1334,6 +1341,8 @@ def main():
                     stage4=sig["_rrce_stage4"],
                     max_deviation_pct=CONFIG["rrce_entry_max_deviation_pct"],
                     min_rr=CONFIG["min_rr"],
+                    max_rr=CONFIG.get("rrce_final_max_rr"),
+                    min_stop_pct=CONFIG.get("rrce_min_stop_pct"),
                 )
                 if not live_risk.get("valid"):
                     skip["live_rrce_revalidation"] += 1
