@@ -1,14 +1,6 @@
-import shutil
-
 import pytest
 
 from storage.state_merge import StateMergeConflict, merge_text
-
-
-pytestmark = pytest.mark.skipif(
-    shutil.which("git") is None,
-    reason="git is required for deterministic three-way merge tests",
-)
 
 
 def test_interleaved_non_overlapping_writers_preserve_both_changes():
@@ -48,3 +40,27 @@ def test_identical_concurrent_change_is_not_treated_as_data_loss():
     generated = "state=new\n"
 
     assert merge_text(base=base, latest=latest, generated=generated) == "state=new\n"
+
+
+def test_independent_insertions_at_different_positions_are_preserved():
+    base = "alpha\nomega\n"
+    latest = "alpha\nremote\nomega\n"
+    generated = "alpha\nomega\nlocal-tail\n"
+
+    merged = merge_text(base=base, latest=latest, generated=generated)
+
+    assert merged == "alpha\nremote\nomega\nlocal-tail\n"
+
+
+def test_different_insertions_at_same_position_raise_conflict():
+    base = "alpha\nomega\n"
+    latest = "alpha\nremote\nomega\n"
+    generated = "alpha\nlocal\nomega\n"
+
+    with pytest.raises(StateMergeConflict):
+        merge_text(base=base, latest=latest, generated=generated)
+
+
+def test_empty_base_with_different_initial_contents_conflicts():
+    with pytest.raises(StateMergeConflict):
+        merge_text(base="", latest="remote\n", generated="local\n")
