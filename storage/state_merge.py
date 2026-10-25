@@ -1,59 +1,70 @@
-"""Fail-safe three-way text merge primitive for scanner state-save research.
-
-This helper is intentionally not wired into production workflow yet. It provides
-a deterministic primitive: preserve non-overlapping changes and reject conflicts
-instead of silently overwriting another writer's updates.
-"""
+"""Fail-safe line-based three-way text merge primitive for research only."""
 from __future__ import annotations
 
-import subprocess
-import tempfile
-from pathlib import Path
+import difflib
 
 
 class StateMergeConflict(RuntimeError):
     """Raised when concurrent state changes overlap and cannot be merged safely."""
 
 
+def _edits(base_lines: list[str], changed_lines: list[str]):
+    matcher = difflib.SequenceMatcher(a=base_lines, b=changed_lines, autojunk=False)
+    return [
+        (i1, i2, changed_lines[j1:j2])
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes()
+        if tag != "equal"
+    ]
+
+
 def merge_text(base: str, latest: str, generated: str) -> str:
-    """Merge generated changes onto latest using base as the common ancestor.
+    """Merge two versions against a common base, preserving non-overlapping edits.
 
-    Arguments:
-        base: File content at the writer's starting commit.
-        latest: Current remote/main file content.
-        generated: File content after the writer's local job changes.
-
-    Raises:
-        StateMergeConflict: If edits overlap.
-        RuntimeError: If git merge-file is unavailable or fails unexpectedly.
+    Raises StateMergeConflict when the writers changed overlapping base ranges.
     """
-    with tempfile.TemporaryDirectory(prefix="state-merge-") as directory:
-        root = Path(directory)
-        current_path = root / "latest.txt"
-        base_path = root / "base.txt"
-        generated_path = root / "generated.txt"
-        current_path.write_text(latest, encoding="utf-8")
-        base_path.write_text(base, encoding="utf-8")
-        generated_path.write_text(generated, encoding="utf-8")
+    if latest == generated:
+        return latest
+    if latest == base:
+        return generated
+    if generated == base:
+        return latest
 
-        result = subprocess.run(
-            [
-                "git", "merge-file", "--stdout",
-                str(current_path), str(base_path), str(generated_path),
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-        )
+    base_lines = base.splitlines(keepends=True)
+    latest_lines = latest.splitlines(keepends=True)
+    generated_lines = generated.splitlines(keepends=True)
 
-        if result.returncode == 0:
-            return result.stdout
-        if result.returncode == 1:
-            raise StateMergeConflict(
-                "Concurrent edits overlap; refusing to discard either writer's changes."
-            )
-        raise RuntimeError(
-            "git merge-file failed unexpectedly: "
-            + (result.stderr.strip() or f"exit code {result.returncode}")
-        )
+    latest_edits = _edits(base_lines, latest_lines)
+    generated_edits = _edits(base_lines, generated_lines)
+    combined = list(latest_edits)
+
+    for edit in generated_edits:
+        start, end, replacement = edit
+        duplicate = False
+        for other_start, other_end, other_replacement in latest_edits:
+            if (start, end, replacement) == (other_start, other_end, other_replacement):
+                duplicate = True
+                break
+
+            # Two insertions at the same position conflict unless identical.
+            if start == end and other_start == other_end:
+                overlaps = start == other_start
+            # An insertion conflicts when it falls inside or at the boundary of
+            # a range another writer replaces/deletes.
+            elif start == end:
+                overlaps = other_start <= start <= other_end
+            elif other_start == other_end:
+                overlaps = start <= other_start <= end
+            else:
+                overlaps = max(start, other_start) < min(end, other_end)
+
+            if overlaps:
+                raise StateMergeConflict(
+                    "Concurrent edits overlap; refusing to discard either writer's changes."
+                )
+        if not duplicate:
+            combined.append(edit)
+
+    merged_lines = list(base_lines)
+    for start, end, replacement in sorted(combined, key=lambda item: (item[0], item[1]), reverse=True):
+        merged_lines[start:end] = replacement
+    return "".join(merged_lines)
