@@ -1,0 +1,50 @@
+import shutil
+
+import pytest
+
+from storage.state_merge import StateMergeConflict, merge_text
+
+
+pytestmark = pytest.mark.skipif(
+    shutil.which("git") is None,
+    reason="git is required for deterministic three-way merge tests",
+)
+
+
+def test_interleaved_non_overlapping_writers_preserve_both_changes():
+    base = "signal_id,status\nA,OPEN\nB,OPEN\n"
+    latest = "signal_id,status\nA,TP1\nB,OPEN\n"
+    generated = "signal_id,status\nA,OPEN\nB,SL\n"
+
+    merged = merge_text(base=base, latest=latest, generated=generated)
+
+    assert "A,TP1" in merged
+    assert "B,SL" in merged
+
+
+def test_overlapping_writer_changes_fail_safe_instead_of_overwriting():
+    base = "signal_id,status\nA,OPEN\n"
+    latest = "signal_id,status\nA,TP1\n"
+    generated = "signal_id,status\nA,SL\n"
+
+    with pytest.raises(StateMergeConflict, match="refusing to discard"):
+        merge_text(base=base, latest=latest, generated=generated)
+
+
+def test_preserves_unrelated_latest_file_changes():
+    base = "alpha\nbeta\ngamma\n"
+    latest = "alpha\nbeta-from-other-writer\ngamma\n"
+    generated = "alpha\nbeta\ngamma-from-this-writer\n"
+
+    merged = merge_text(base=base, latest=latest, generated=generated)
+
+    assert "beta-from-other-writer" in merged
+    assert "gamma-from-this-writer" in merged
+
+
+def test_identical_concurrent_change_is_not_treated_as_data_loss():
+    base = "state=old\n"
+    latest = "state=new\n"
+    generated = "state=new\n"
+
+    assert merge_text(base=base, latest=latest, generated=generated) == "state=new\n"
