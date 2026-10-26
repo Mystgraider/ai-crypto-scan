@@ -28,9 +28,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run 14-day historical replay
+      - name: Run 30-day historical replay
         env:
-          BACKTEST_DAYS: "14"
+          BACKTEST_DAYS: "30"
         run: |
           python tools/historical_replay.py
 
