@@ -40,6 +40,11 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in os.sys.path:
     os.sys.path.insert(0, str(ROOT))
+
+from indicators.indicators import Indicators
+from config import CONFIG
+
+
 RESULTS = ROOT / "backtest_results.json"
 SYMBOLS = [
     "ETH/USDT:USDT",
@@ -59,7 +64,7 @@ DATA_SYMBOLS = list(dict.fromkeys(SYMBOLS + ["BTC/USDT:USDT"]))
 INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
 DAYS = int(os.getenv("BACKTEST_DAYS", "7"))
-WARMUP_HOURS = 120
+WARMUP_HOURS = CONFIG["ohlcv_4h_limit"] * 4 + 48
 BINANCE = "https://fapi.binance.com/fapi/v1"
 BINANCE_DATA = "https://fapi.binance.com/futures/data"
 
@@ -294,12 +299,81 @@ class ReplayMarketLoader:
         self.store = store
         self.exchange = ReplayExchange(store)
 
+    def _forming_row(self, symbol: str, timeframe: str):
+        """Reconstruct the forming candle using only information available at T.
+
+        Binance Vision archive rows are complete candles. Therefore the archived
+        row for an unfinished candle cannot be exposed directly: its high/low/
+        close/volume contain information from after the replay cutoff.
+        """
+        end = self.store.end
+        delta = INTERVAL_DELTAS[timeframe]
+        start = end.floor(delta)
+        raw = self.store.candles[(symbol, timeframe)]
+        archived = raw[raw["timestamp"] == start]
+
+        # At the exact candle open, only the open is known.
+        if start == end:
+            if archived.empty:
+                return None
+            o = float(archived.iloc[0]["open"])
+            return {"timestamp": start, "open": o, "high": o, "low": o,
+                    "close": o, "volume": 0.0}
+
+        # Historical replay cutoffs are hourly, hence 5m-aligned.
+        five = INTERVAL_DELTAS["5m"]
+        if end != end.floor(five):
+            raise AssertionError(f"replay_cutoff_not_5m_aligned:{end.isoformat()}")
+
+        # A 4H candle can already be forming before T. Rebuild it from only
+        # fully closed 5m candles; never use the archived final 4H H/L/C/V.
+        m5 = self.store.candles.get((symbol, "5m"))
+        if m5 is None:
+            raise RuntimeError(f"cannot_reconstruct_forming_candle_no_5m:{symbol}:{timeframe}")
+        seg = m5[(m5["timestamp"] >= start) & (m5["timestamp"] + five <= end)]
+
+        if not archived.empty:
+            o = float(archived.iloc[0]["open"])
+        elif not seg.empty:
+            o = float(seg.iloc[0]["open"])
+        else:
+            return None
+
+        if seg.empty:
+            return {"timestamp": start, "open": o, "high": o, "low": o,
+                    "close": o, "volume": 0.0}
+
+        return {
+            "timestamp": start,
+            "open": o,
+            "high": max(o, float(seg["high"].max())),
+            "low": min(o, float(seg["low"].min())),
+            "close": float(seg.iloc[-1]["close"]),
+            "volume": float(seg["volume"].sum()),
+        }
+
     def _frame(self, symbol: str, timeframe: str, limit: int | None):
-        df = self.store.candles[(symbol, timeframe)]
-        df = df[df["timestamp"] + INTERVAL_DELTAS[timeframe] <= self.store.end]
-        if limit is not None:
-            df = df.tail(int(limit))
-        return df.copy(deep=True).reset_index(drop=True)
+        """Return the production-visible, strictly causal candle state at T."""
+        raw = self.store.candles[(symbol, timeframe)]
+        delta = INTERVAL_DELTAS[timeframe]
+
+        # Match MarketDataLoader defaults: every production timeframe is
+        # fetched with a 100-candle window unless a caller explicitly asks
+        # for a smaller window.
+        default_limit = (
+            CONFIG["ohlcv_4h_limit"]
+            if timeframe == "4h"
+            else CONFIG["ohlcv_limit"]
+        )
+        effective_limit = default_limit if limit is None else min(int(limit), default_limit)
+
+        completed = raw[raw["timestamp"] + delta <= self.store.end]
+        forming = self._forming_row(symbol, timeframe)
+        if forming is not None:
+            row = pd.DataFrame([forming], columns=list(raw.columns))
+            completed = pd.concat([completed, row], ignore_index=True)
+
+        return completed.tail(effective_limit).copy(deep=True).reset_index(drop=True)
 
     def get_ohlcv(self, symbol: str, timeframe: str = None, limit: int = None):
         return self._frame(symbol, timeframe or "1h", limit)
@@ -326,20 +400,46 @@ class ReplayTopSymbols:
 
 
 def assert_replay_boundary(store: HistoricalStore) -> None:
-    """Verify the replay-visible views contain no unfinished/future data.
+    """Verify every replay-visible candle is causal and production-shaped."""
+    loader = ReplayMarketLoader(store)
+    end = store.end
 
-    HistoricalStore intentionally contains the full downloaded window, including
-    future candles needed later for outcome evaluation. The assertion therefore
-    validates the exact visibility predicates used by ReplayMarketLoader and
-    ReplayExchange rather than rejecting the raw store for containing future data.
-    """
-    for (symbol, timeframe), df in store.candles.items():
+    for (symbol, timeframe) in store.candles:
         delta = INTERVAL_DELTAS[timeframe]
-        visible = df[df["timestamp"] + delta <= store.end]
-        if not visible.empty and (visible["timestamp"] + delta > store.end).any():
-            raise AssertionError(
-                f"future_visible_candle:{symbol}:{timeframe}:{store.end.isoformat()}"
-            )
+        frame = loader._frame(symbol, timeframe, None)
+        if frame.empty:
+            continue
+
+        ts = frame["timestamp"]
+        if (ts > end).any():
+            raise AssertionError(f"future_visible_candle:{symbol}:{timeframe}:{end.isoformat()}")
+        if not ts.is_monotonic_increasing or ts.duplicated().any():
+            raise AssertionError(f"unordered_replay_candles:{symbol}:{timeframe}")
+
+        unfinished = frame[ts + delta > end]
+        if len(unfinished) > 1:
+            raise AssertionError(f"multiple_unfinished_candles:{symbol}:{timeframe}")
+        if len(unfinished) == 1:
+            row = unfinished.iloc[0]
+            if row["timestamp"] != end.floor(delta) or row["timestamp"] != ts.iloc[-1]:
+                raise AssertionError(f"misplaced_forming_candle:{symbol}:{timeframe}")
+            if row["timestamp"] == end and not (
+                row["high"] == row["open"] == row["low"] == row["close"]
+                and row["volume"] == 0
+            ):
+                raise AssertionError(
+                    f"forming_candle_exposes_future_ohlcv:{symbol}:{timeframe}:{end.isoformat()}"
+                )
+            if not (row["low"] <= min(row["open"], row["close"])
+                    and row["high"] >= max(row["open"], row["close"])):
+                raise AssertionError(f"inconsistent_forming_candle:{symbol}:{timeframe}")
+
+        if len(frame) >= 2 and len(unfinished) == 1:
+            if ts.iloc[-2] + delta != ts.iloc[-1]:
+                raise AssertionError(
+                    f"noncontiguous_replay_candles:{symbol}:{timeframe}:"
+                    f"{ts.iloc[-2].isoformat()}->{ts.iloc[-1].isoformat()}"
+                )
 
     for symbol, df in store.funding.items():
         visible = df[df["timestamp"] <= store.end]
@@ -489,9 +589,9 @@ def run():
     print(f"Historical replay: {start} -> {end}")
     store = load_store(start, end)
 
-    # Use timestamps for completed 1H candles only. The first 120 hours are
-    # reserved for indicator warmup, so no early NaNs are treated as strategy
-    # failures.
+    # Use timestamps for completed 1H candles only. Replay warmup is sized from
+    # the production indicator minimum for the slowest RRCE timeframe (4H),
+    # with an additional 48-hour alignment/data margin.
     timeline = store.candles[(SYMBOLS[0], "1h")]
     timeline = timeline[(timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start) & (timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)]
     if timeline.empty:
@@ -574,8 +674,31 @@ def run():
                 "rr": sig.get("rr"),
                 "rrce_status": sig.get("rrce_status", "NOT_RUN"),
                 "rrce_failed_stage": sig.get("rrce_failed_stage", ""),
+                "rrce_failure_reason": sig.get("rrce_failure_reason", ""),
                 "rrce_choch_confirmed": bool(sig.get("rrce_choch_confirmed")),
                 "rrce_risk_contract": sig.get("rrce_risk_contract", "ATR_FALLBACK"),
+                # Forensic feature telemetry only. These values are already
+                # produced by scanner_v5 for each candidate; exporting them
+                # here does not alter candidate generation, gating, ranking,
+                # risk, or outcome scoring.
+                "trend_score": sig.get("trend_score"),
+                "quality_score": sig.get("quality_score"),
+                "rs_score": sig.get("rs_score"),
+                "rs_label": sig.get("rs_label"),
+                "rsi": sig.get("rsi"),
+                "adx": sig.get("adx"),
+                "rel_volume": sig.get("rel_volume"),
+                "stoch_k": sig.get("stoch_k"),
+                "macd_hist": sig.get("macd_hist"),
+                "bb_pct_b": sig.get("bb_pct_b"),
+                "mtf_status": sig.get("mtf_status"),
+                "mtf_4h": sig.get("mtf_4h"),
+                "mtf_15m": sig.get("mtf_15m"),
+                "btc_regime": sig.get("btc_regime"),
+                "funding_pct_raw": sig.get("funding_pct_raw"),
+                "oi_signal": sig.get("oi_signal"),
+                "beta_label": sig.get("beta_label"),
+                "rrce_engine_mode": sig.get("rrce_engine_mode", ""),
                 "entry": sig.get("entry"),
                 "sl": sig.get("sl"),
                 "tp1": sig.get("tp1"),
