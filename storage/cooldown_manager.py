@@ -2,6 +2,7 @@ import os
 import json
 from datetime import datetime, timezone, timedelta
 from config import CONFIG
+from storage.atomic_json import atomic_json_dump
 
 COOLDOWN_FILE = "storage/cooldown.json"
 
@@ -17,9 +18,7 @@ def _load() -> dict:
 
 
 def _save(data: dict):
-    os.makedirs("storage", exist_ok=True)
-    with open(COOLDOWN_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    atomic_json_dump(COOLDOWN_FILE, data, indent=2)
 
 
 def is_on_cooldown(symbol: str) -> bool:
