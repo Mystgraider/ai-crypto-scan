@@ -453,6 +453,72 @@ def load_store(start: pd.Timestamp, end: pd.Timestamp) -> HistoricalStore:
     return HistoricalStore(candles=candles, funding=funding, oi=oi, end=end)
 
 
+def _outcome_counts(rows: list[dict]) -> dict:
+    outcomes = {}
+    for row in rows:
+        key = row.get("outcome", "UNKNOWN")
+        outcomes[key] = outcomes.get(key, 0) + 1
+    tp3 = outcomes.get("TP3_HIT", 0)
+    sl = outcomes.get("SL_HIT", 0)
+    return {
+        "signals": len(rows),
+        "outcomes": outcomes,
+        "resolved_tp3_or_sl": tp3 + sl,
+        "tp3": tp3,
+        "sl": sl,
+        "tp3_rate_pct": round(100 * tp3 / (tp3 + sl), 2) if tp3 + sl else None,
+    }
+
+
+def _candidate_c_analysis(rows: list[dict]) -> dict:
+    """Research-only counterfactual; does not change scanner candidate generation."""
+    shorts = [r for r in rows if r.get("direction") == "SHORT"]
+    eligible = []
+    missing_indicators = 0
+    for row in shorts:
+        try:
+            rsi = float(row.get("rsi"))
+            adx = float(row.get("adx"))
+        except (TypeError, ValueError):
+            missing_indicators += 1
+            continue
+        if not (math.isfinite(rsi) and math.isfinite(adx)):
+            missing_indicators += 1
+            continue
+        if rsi >= 50 and adx >= 25:
+            eligible.append(row)
+
+    # Three chronological diagnostic buckets. These are not an untouched holdout.
+    times = sorted({str(r.get("replay_time", "")) for r in shorts})
+    windows = []
+    for idx in range(3):
+        lo = idx * len(times) // 3
+        hi = (idx + 1) * len(times) // 3
+        chunk = times[lo:hi]
+        if not chunk:
+            continue
+        tset = set(chunk)
+        base_window = [r for r in shorts if str(r.get("replay_time", "")) in tset]
+        c_window = [r for r in eligible if str(r.get("replay_time", "")) in tset]
+        windows.append({
+            "window": idx + 1,
+            "start": chunk[0],
+            "end": chunk[-1],
+            "short_baseline": _outcome_counts(base_window),
+            "candidate_c": _outcome_counts(c_window),
+        })
+
+    return {
+        "rule": "SHORT only when RSI >= 50 and ADX >= 25",
+        "research_only": True,
+        "production_strategy_changed": False,
+        "short_baseline": _outcome_counts(shorts),
+        "candidate_c": _outcome_counts(eligible),
+        "short_rows_missing_rsi_or_adx": missing_indicators,
+        "chronological_diagnostic_windows_not_untouched_holdout": windows,
+    }
+
+
 def summarize(rows: list[dict]) -> dict:
     resolved = [r for r in rows if r["outcome"] in {"TP1_HIT", "TP2_HIT", "TP3_HIT", "SL_HIT"}]
     tp = [r for r in resolved if r["outcome"].startswith("TP")]
@@ -476,6 +542,7 @@ def summarize(rows: list[dict]) -> dict:
         "sl": len(sl),
         "tp_vs_sl_pct": round(100 * len(tp) / (len(tp) + len(sl)), 2) if tp or sl else None,
         "by_rrce_status": by_rrce,
+        "candidate_c_research": _candidate_c_analysis(rows),
     }
 
 
@@ -569,6 +636,13 @@ def run():
                 "replay_time": sig["_replay_time"],
                 "symbol": symbol,
                 "direction": sig["direction"],
+                # Signal-time values for retrospective, no-lookahead filter analysis.
+                "rsi": sig.get("rsi"),
+                "adx": sig.get("adx"),
+                "rel_volume": sig.get("rel_volume"),
+                "spike_tier": sig.get("spike_tier"),
+                "mtf_status": sig.get("mtf_status"),
+                "btc_regime": sig.get("btc_regime"),
                 "score": sig.get("score", sig.get("composite")),
                 "grade": sig.get("grade"),
                 "rr": sig.get("rr"),
