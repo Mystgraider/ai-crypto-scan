@@ -69,21 +69,54 @@ class OIEngine:
             "reason": reason,
         }
 
+    @staticmethod
+    def _read_oi_value(payload):
+        """Return (value, field_path) without silently mixing OI units.
+
+        CCXT may expose OI as quote-currency value or contract/base amount.
+        A current observation and its historical comparator must use the
+        same field path; if history lacks that field, report unavailable.
+        """
+        if not isinstance(payload, dict):
+            return None, None
+
+        for key in ("openInterestValue", "openInterest", "openInterestAmount"):
+            value = payload.get(key)
+            if value is not None and value != "":
+                return value, key
+
+        info = payload.get("info")
+        if isinstance(info, dict):
+            for key in ("holdVol", "oi"):
+                value = info.get(key)
+                if value is not None and value != "":
+                    return value, "info." + key
+
+        return None, None
+
+    @staticmethod
+    def _read_matching_oi_value(payload, field_path):
+        """Read only the same field used by the current OI observation."""
+        if not isinstance(payload, dict) or not field_path:
+            return None
+        if field_path.startswith("info."):
+            info = payload.get("info")
+            return info.get(field_path.split(".", 1)[1]) if isinstance(info, dict) else None
+        return payload.get(field_path)
+
     def fetch_oi(self, exchange, symbol: str) -> dict:
         """Fetch OI without making OI availability a signal-discovery gate."""
         try:
             oi_data = exchange.fetch_open_interest(symbol)
-            current_oi = (
-                oi_data.get("openInterestValue") or
-                oi_data.get("openInterest") or
-                oi_data.get("info", {}).get("holdVol") or
-                oi_data.get("info", {}).get("oi") or
-                None
-            )
-            if current_oi is None:
+            current_raw, current_field = self._read_oi_value(oi_data)
+            if current_raw is None:
                 return self._soft_unavailable(reason="current_oi_missing")
 
-            current_oi = float(current_oi)
+            try:
+                current_oi = float(current_raw)
+            except (TypeError, ValueError, OverflowError):
+                return self._soft_unavailable(reason="invalid_current_oi")
+
             if current_oi <= 0:
                 return self._soft_unavailable(
                     current_oi=current_oi,
@@ -94,23 +127,24 @@ class OIEngine:
                 history = exchange.fetch_open_interest_history(
                     symbol, timeframe="1h", limit=2
                 )
-                if history and len(history) >= 2:
-                    prev_raw = (
-                        history[-2].get("openInterestValue") or
-                        history[-2].get("openInterest") or
-                        None
-                    )
-                    if prev_raw is not None:
-                        previous_oi = float(prev_raw)
-                    else:
-                        return self._soft_unavailable(
-                            current_oi=current_oi,
-                            reason="previous_oi_missing",
-                        )
-                else:
+                if not history or len(history) < 2:
                     return self._soft_unavailable(
                         current_oi=current_oi,
                         reason="oi_history_unavailable",
+                    )
+
+                prev_raw = self._read_matching_oi_value(history[-2], current_field)
+                if prev_raw is None:
+                    return self._soft_unavailable(
+                        current_oi=current_oi,
+                        reason="previous_oi_missing_or_unit_mismatch",
+                    )
+                try:
+                    previous_oi = float(prev_raw)
+                except (TypeError, ValueError, OverflowError):
+                    return self._soft_unavailable(
+                        current_oi=current_oi,
+                        reason="invalid_previous_oi",
                     )
             except Exception:
                 return self._soft_unavailable(
