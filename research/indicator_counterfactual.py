@@ -126,14 +126,19 @@ def window_report(rows: list[Row], rules: list[Rule], window_count: int = 5) -> 
             },
         })
     return reports
-\n\ndef main() -> int:
+
+
+def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--csv", type=Path, default=Path("storage/signals.csv"))
-    parser.add_argument("--train-fraction", type=float, default=0.70)\n    parser.add_argument("--windows", type=int, default=5, help="number of contiguous chronological windows")
+    parser.add_argument("--train-fraction", type=float, default=0.70)
+    parser.add_argument("--windows", type=int, default=5, help="number of contiguous chronological windows")
     args = parser.parse_args()
     if not 0.5 <= args.train_fraction < 1:
         parser.error("--train-fraction must be >= 0.5 and < 1")
-    if args.windows < 2:\n        parser.error("--windows must be >= 2")\n    if not args.csv.is_file():
+    if args.windows < 2:
+        parser.error("--windows must be >= 2")
+    if not args.csv.is_file():
         parser.error(f"CSV file not found: {args.csv}")
 
     rows = resolved_rows(args.csv)
@@ -155,12 +160,14 @@ def window_report(rows: list[Row], rules: list[Rule], window_count: int = 5) -> 
             "test_n": len(test),
             "test_dates_utc": [test[0]["timestamp"], test[-1]["timestamp"]],
         },
-        "metrics": [],\n        "multi_window": window_report(rows, build_rules(), args.windows),
+        "metrics": [],
+        "multi_window": window_report(rows, build_rules(), args.windows),
         "limitations": [
             "Only TP3_HIT and SL_HIT are included; TP1_HIT, TP2_HIT, expired, and open outcomes are excluded.",
             "Rows are filtered after outcomes are known; these results are not live trade expectancy.",
             "A saved-row filter is not equivalent to re-running scanner logic because the CSV does not store every gate input or pre-filter candidate.",
-            "The multi-window report is a stability check, not independent validation if thresholds were selected after inspecting these outcomes.",\n            "Do not promote a candidate to production without all-status, realized-R/execution-aware analysis and isolated scanner replay.",
+            "The multi-window report is a stability check, not independent validation if thresholds were selected after inspecting these outcomes.",
+            "Do not promote a candidate to production without all-status, realized-R/execution-aware analysis and isolated scanner replay.",
         ],
     }
     for name, predicate in rules:
