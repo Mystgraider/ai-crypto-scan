@@ -8,6 +8,7 @@ on:
       - "config.py"
       - "engines/**"
       - "indicators/**"
+      - ".github/workflows/historical-backtest.yml"
   workflow_dispatch:
 
 jobs:
@@ -27,9 +28,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run 7-day historical replay
+      - name: Run 14-day historical replay
         env:
-          BACKTEST_DAYS: "7"
+          BACKTEST_DAYS: "14"
         run: |
           python tools/historical_replay.py
 
