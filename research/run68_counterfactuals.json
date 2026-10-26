@@ -1,0 +1,203 @@
+{
+  "parameters": {
+    "max_rr": 4.0,
+    "min_stop_pct": 0.3,
+    "scope": "RRCE-contract rows only; ATR_FALLBACK has its own ladder and min_sl_pct"
+  },
+  "option_C_adjust_target": "NOT VERIFIABLE without candle data (outcome path changes)",
+  "level_audit": {
+    "rows": 3456,
+    "rrce_rows": 54,
+    "zero_risk_rows": 0,
+    "rrce_rr3_above_max": 21,
+    "rrce_stop_below_min": 7,
+    "rrce_max_rr3": 56.65,
+    "rrce_min_stop_pct": 0.013
+  },
+  "counterfactuals": {
+    "A_baseline": {
+      "rejected": 0,
+      "retained": 3456,
+      "retained_outcomes": {
+        "n": 3456,
+        "TP3": 505,
+        "SL": 2280,
+        "BE": 455,
+        "EXPIRED": 213,
+        "OPEN": 3,
+        "TP3_over_TP3_plus_SL_pct": 18.13
+      },
+      "rejected_outcomes_under_original_targets": {
+        "n": 0,
+        "TP3": 0,
+        "SL": 0,
+        "BE": 0,
+        "EXPIRED": 0,
+        "OPEN": 0,
+        "TP3_over_TP3_plus_SL_pct": null
+      },
+      "development_before_split": {
+        "rejected": 0,
+        "retained_outcomes": {
+          "n": 1590,
+          "TP3": 343,
+          "SL": 1006,
+          "BE": 215,
+          "EXPIRED": 26,
+          "OPEN": 0,
+          "TP3_over_TP3_plus_SL_pct": 25.43
+        }
+      },
+      "validation_from_split": {
+        "rejected": 0,
+        "retained_outcomes": {
+          "n": 1866,
+          "TP3": 162,
+          "SL": 1274,
+          "BE": 240,
+          "EXPIRED": 187,
+          "OPEN": 3,
+          "TP3_over_TP3_plus_SL_pct": 11.28
+        }
+      }
+    },
+    "B_reject_rr_above_max": {
+      "rejected": 21,
+      "retained": 3435,
+      "retained_outcomes": {
+        "n": 3435,
+        "TP3": 497,
+        "SL": 2269,
+        "BE": 453,
+        "EXPIRED": 213,
+        "OPEN": 3,
+        "TP3_over_TP3_plus_SL_pct": 17.97
+      },
+      "rejected_outcomes_under_original_targets": {
+        "n": 21,
+        "TP3": 8,
+        "SL": 11,
+        "BE": 2,
+        "EXPIRED": 0,
+        "OPEN": 0,
+        "TP3_over_TP3_plus_SL_pct": 42.11
+      },
+      "development_before_split": {
+        "rejected": 11,
+        "retained_outcomes": {
+          "n": 1579,
+          "TP3": 336,
+          "SL": 1002,
+          "BE": 215,
+          "EXPIRED": 26,
+          "OPEN": 0,
+          "TP3_over_TP3_plus_SL_pct": 25.11
+        }
+      },
+      "validation_from_split": {
+        "rejected": 10,
+        "retained_outcomes": {
+          "n": 1856,
+          "TP3": 161,
+          "SL": 1267,
+          "BE": 238,
+          "EXPIRED": 187,
+          "OPEN": 3,
+          "TP3_over_TP3_plus_SL_pct": 11.27
+        }
+      }
+    },
+    "D_reject_stop_below_min": {
+      "rejected": 7,
+      "retained": 3449,
+      "retained_outcomes": {
+        "n": 3449,
+        "TP3": 503,
+        "SL": 2275,
+        "BE": 455,
+        "EXPIRED": 213,
+        "OPEN": 3,
+        "TP3_over_TP3_plus_SL_pct": 18.11
+      },
+      "rejected_outcomes_under_original_targets": {
+        "n": 7,
+        "TP3": 2,
+        "SL": 5,
+        "BE": 0,
+        "EXPIRED": 0,
+        "OPEN": 0,
+        "TP3_over_TP3_plus_SL_pct": 28.57
+      },
+      "development_before_split": {
+        "rejected": 3,
+        "retained_outcomes": {
+          "n": 1587,
+          "TP3": 342,
+          "SL": 1004,
+          "BE": 215,
+          "EXPIRED": 26,
+          "OPEN": 0,
+          "TP3_over_TP3_plus_SL_pct": 25.41
+        }
+      },
+      "validation_from_split": {
+        "rejected": 4,
+        "retained_outcomes": {
+          "n": 1862,
+          "TP3": 161,
+          "SL": 1271,
+          "BE": 240,
+          "EXPIRED": 187,
+          "OPEN": 3,
+          "TP3_over_TP3_plus_SL_pct": 11.24
+        }
+      }
+    },
+    "E_reject_both": {
+      "rejected": 22,
+      "retained": 3434,
+      "retained_outcomes": {
+        "n": 3434,
+        "TP3": 497,
+        "SL": 2268,
+        "BE": 453,
+        "EXPIRED": 213,
+        "OPEN": 3,
+        "TP3_over_TP3_plus_SL_pct": 17.97
+      },
+      "rejected_outcomes_under_original_targets": {
+        "n": 22,
+        "TP3": 8,
+        "SL": 12,
+        "BE": 2,
+        "EXPIRED": 0,
+        "OPEN": 0,
+        "TP3_over_TP3_plus_SL_pct": 40.0
+      },
+      "development_before_split": {
+        "rejected": 11,
+        "retained_outcomes": {
+          "n": 1579,
+          "TP3": 336,
+          "SL": 1002,
+          "BE": 215,
+          "EXPIRED": 26,
+          "OPEN": 0,
+          "TP3_over_TP3_plus_SL_pct": 25.11
+        }
+      },
+      "validation_from_split": {
+        "rejected": 11,
+        "retained_outcomes": {
+          "n": 1855,
+          "TP3": 161,
+          "SL": 1266,
+          "BE": 238,
+          "EXPIRED": 187,
+          "OPEN": 3,
+          "TP3_over_TP3_plus_SL_pct": 11.28
+        }
+      }
+    }
+  }
+}
