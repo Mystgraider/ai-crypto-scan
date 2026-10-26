@@ -1,4 +1,16 @@
 {
+  "DASH/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-26T23:18:12.229903+00:00",
+    "last_seen": "2026-10-26T23:18:12.229903+00:00",
+    "observations": 1,
+    "pool_level": 52.96,
+    "range_high": 55.97,
+    "range_low": 48.82,
+    "regime": "BEAR",
+    "sweep_extreme": 53.13,
+    "symbol": "DASH/USDT:USDT"
+  },
   "TRX/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-10-26T19:34:56.020345+00:00",
@@ -14,8 +26,8 @@
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-10-26T19:36:34.134789+00:00",
-    "last_seen": "2026-10-26T19:36:34.134789+00:00",
-    "observations": 1,
+    "last_seen": "2026-10-26T23:18:56.980505+00:00",
+    "observations": 2,
     "pool_level": 1.0007,
     "range_high": 1.0008,
     "range_low": 0.9998,
