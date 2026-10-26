@@ -81,14 +81,59 @@ def build_rules() -> list[Rule]:
     ]
 
 
-def main() -> int:
+
+def chronological_windows(rows: list[Row], window_count: int = 5) -> list[list[Row]]:
+    """Split sorted rows into contiguous, non-overlapping chronological windows."""
+    if window_count < 2:
+        raise ValueError("window_count must be >= 2")
+    if len(rows) < window_count:
+        raise ValueError("rows must contain at least one row per window")
+    base, remainder = divmod(len(rows), window_count)
+    windows: list[list[Row]] = []
+    start = 0
+    for index in range(window_count):
+        size = base + (1 if index < remainder else 0)
+        windows.append(rows[start:start + size])
+        start += size
+    return windows
+
+
+def window_report(rows: list[Row], rules: list[Rule], window_count: int = 5) -> list[dict[str, object]]:
+    """Report each rule per chronological window and candidate-vs-SHORT baseline."""
+    windows = chronological_windows(rows, window_count)
+    reports: list[dict[str, object]] = []
+    for index, window in enumerate(windows, start=1):
+        by_name = {
+            name: metrics([row for row in window if predicate(row)])
+            for name, predicate in rules
+        }
+        short_base = by_name.get("SHORT baseline", metrics([]))
+        candidate = by_name.get("SHORT RSI >= 50 AND ADX >= 20", metrics([]))
+        reports.append({
+            "window": index,
+            "n": len(window),
+            "start_utc": window[0]["timestamp"],
+            "end_utc": window[-1]["timestamp"],
+            "rules": by_name,
+            "candidate_vs_short_baseline": {
+                "tp3_rate_delta_pp": (
+                    round(candidate["tp3_rate_pct"] - short_base["tp3_rate_pct"], 2)
+                    if candidate["tp3_rate_pct"] is not None and short_base["tp3_rate_pct"] is not None
+                    else None
+                ),
+                "candidate_n": candidate["n"],
+                "short_baseline_n": short_base["n"],
+            },
+        })
+    return reports
+\n\ndef main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--csv", type=Path, default=Path("storage/signals.csv"))
-    parser.add_argument("--train-fraction", type=float, default=0.70)
+    parser.add_argument("--train-fraction", type=float, default=0.70)\n    parser.add_argument("--windows", type=int, default=5, help="number of contiguous chronological windows")
     args = parser.parse_args()
     if not 0.5 <= args.train_fraction < 1:
         parser.error("--train-fraction must be >= 0.5 and < 1")
-    if not args.csv.is_file():
+    if args.windows < 2:\n        parser.error("--windows must be >= 2")\n    if not args.csv.is_file():
         parser.error(f"CSV file not found: {args.csv}")
 
     rows = resolved_rows(args.csv)
@@ -110,12 +155,12 @@ def main() -> int:
             "test_n": len(test),
             "test_dates_utc": [test[0]["timestamp"], test[-1]["timestamp"]],
         },
-        "metrics": [],
+        "metrics": [],\n        "multi_window": window_report(rows, build_rules(), args.windows),
         "limitations": [
             "Only TP3_HIT and SL_HIT are included; TP1_HIT, TP2_HIT, expired, and open outcomes are excluded.",
             "Rows are filtered after outcomes are known; these results are not live trade expectancy.",
             "A saved-row filter is not equivalent to re-running scanner logic because the CSV does not store every gate input or pre-filter candidate.",
-            "Do not promote a candidate to production from one split; use multiple chronological windows and realized-R/execution-aware analysis.",
+            "The multi-window report is a stability check, not independent validation if thresholds were selected after inspecting these outcomes.",\n            "Do not promote a candidate to production without all-status, realized-R/execution-aware analysis and isolated scanner replay.",
         ],
     }
     for name, predicate in rules:
