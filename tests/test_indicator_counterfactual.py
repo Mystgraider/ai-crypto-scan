@@ -44,6 +44,41 @@ class IndicatorCounterfactualTests(unittest.TestCase):
             "2026-01-03T00:00:00Z",
         ])
 
+    def test_chronological_windows_are_contiguous_and_cover_all_rows(self):
+        rows = [{"timestamp": f"2026-01-{i:02d}", "status": "SL_HIT"} for i in range(1, 12)]
+        windows = chronological_windows(rows, 5)
+        self.assertEqual([len(w) for w in windows], [3, 2, 2, 2, 2])
+        self.assertEqual([r["timestamp"] for w in windows for r in w],
+                         [r["timestamp"] for r in rows])
+        self.assertEqual(windows[0][0]["timestamp"], "2026-01-01")
+        self.assertEqual(windows[-1][-1]["timestamp"], "2026-01-11")
+
+    def test_chronological_windows_reject_invalid_sizes(self):
+        with self.assertRaises(ValueError):
+            chronological_windows([], 5)
+        with self.assertRaises(ValueError):
+            chronological_windows([{"timestamp": "x"}], 1)
+
+    def test_window_report_includes_candidate_delta_and_sample_sizes(self):
+        rows = []
+        for i in range(1, 11):
+            rows.append({
+                "timestamp": f"2026-01-{i:02d}",
+                "status": "TP3_HIT" if i % 2 == 0 else "SL_HIT",
+                "direction": "SHORT",
+                "rsi": "55",
+                "adx": "25",
+            })
+        report = window_report(rows, [
+            ("SHORT baseline", lambda r: r.get("direction") == "SHORT"),
+            ("SHORT RSI >= 50 AND ADX >= 20",
+             lambda r: r.get("direction") == "SHORT" and at_least(r, "rsi", 50)
+             and at_least(r, "adx", 20)),
+        ], 2)
+        self.assertEqual(len(report), 2)
+        self.assertEqual(report[0]["candidate_vs_short_baseline"]["candidate_n"], 5)
+        self.assertEqual(report[0]["candidate_vs_short_baseline"]["tp3_rate_delta_pp"], 0.0)
+
     def test_metrics_empty_and_non_empty(self):
         self.assertEqual(
             metrics([]),
