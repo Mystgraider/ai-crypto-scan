@@ -40,6 +40,10 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in os.sys.path:
     os.sys.path.insert(0, str(ROOT))
+
+from indicators.indicators import Indicators
+
+
 RESULTS = ROOT / "backtest_results.json"
 SYMBOLS = [
     "ETH/USDT:USDT",
@@ -59,7 +63,7 @@ DATA_SYMBOLS = list(dict.fromkeys(SYMBOLS + ["BTC/USDT:USDT"]))
 INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
 DAYS = int(os.getenv("BACKTEST_DAYS", "7"))
-WARMUP_HOURS = 120
+WARMUP_HOURS = Indicators.MIN_CANDLES * 4 + 48
 BINANCE = "https://fapi.binance.com/fapi/v1"
 BINANCE_DATA = "https://fapi.binance.com/futures/data"
 
@@ -295,8 +299,20 @@ class ReplayMarketLoader:
         self.exchange = ReplayExchange(store)
 
     def _frame(self, symbol: str, timeframe: str, limit: int | None):
+        """Return the exact production-visible candle state at replay cutoff.
+
+        Production receives a dataframe whose final row is the currently
+        forming candle and whose penultimate row is the last completed candle.
+        The historical replay cutoff is defined at a completed 1H close, so
+        the candle opening exactly at store.end is the corresponding forming
+        candle for every timeframe. Future-opened candles remain hidden.
+
+        Do not require timestamp + interval <= end here: that predicate
+        removes the forming candle and shifts production iloc[-1] / iloc[-2]
+        semantics by one bar.
+        """
         df = self.store.candles[(symbol, timeframe)]
-        df = df[df["timestamp"] + INTERVAL_DELTAS[timeframe] <= self.store.end]
+        df = df[df["timestamp"] <= self.store.end]
         if limit is not None:
             df = df.tail(int(limit))
         return df.copy(deep=True).reset_index(drop=True)
@@ -326,20 +342,27 @@ class ReplayTopSymbols:
 
 
 def assert_replay_boundary(store: HistoricalStore) -> None:
-    """Verify the replay-visible views contain no unfinished/future data.
-
-    HistoricalStore intentionally contains the full downloaded window, including
-    future candles needed later for outcome evaluation. The assertion therefore
-    validates the exact visibility predicates used by ReplayMarketLoader and
-    ReplayExchange rather than rejecting the raw store for containing future data.
-    """
+    """Verify replay visibility and production candle-state semantics."""
     for (symbol, timeframe), df in store.candles.items():
-        delta = INTERVAL_DELTAS[timeframe]
-        visible = df[df["timestamp"] + delta <= store.end]
-        if not visible.empty and (visible["timestamp"] + delta > store.end).any():
+        visible = df[df["timestamp"] <= store.end]
+        if not visible.empty and (visible["timestamp"] > store.end).any():
             raise AssertionError(
                 f"future_visible_candle:{symbol}:{timeframe}:{store.end.isoformat()}"
             )
+
+        # The latest visible row may be the forming candle whose open time
+        # equals end. The preceding row must be exactly one interval earlier.
+        # This is the state expected by production iloc[-1]/iloc[-2] logic.
+        if len(visible) >= 2:
+            visible = visible.sort_values("timestamp").reset_index(drop=True)
+            latest = visible.iloc[-1]["timestamp"]
+            previous = visible.iloc[-2]["timestamp"]
+            delta = INTERVAL_DELTAS[timeframe]
+            if latest == store.end and previous + delta != latest:
+                raise AssertionError(
+                    f"noncontiguous_replay_candles:{symbol}:{timeframe}:"
+                    f"{previous.isoformat()}->{latest.isoformat()}"
+                )
 
     for symbol, df in store.funding.items():
         visible = df[df["timestamp"] <= store.end]
@@ -489,9 +512,9 @@ def run():
     print(f"Historical replay: {start} -> {end}")
     store = load_store(start, end)
 
-    # Use timestamps for completed 1H candles only. The first 120 hours are
-    # reserved for indicator warmup, so no early NaNs are treated as strategy
-    # failures.
+    # Use timestamps for completed 1H candles only. Replay warmup is sized from
+    # the production indicator minimum for the slowest RRCE timeframe (4H),
+    # with an additional 48-hour alignment/data margin.
     timeline = store.candles[(SYMBOLS[0], "1h")]
     timeline = timeline[(timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start) & (timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)]
     if timeline.empty:
@@ -574,6 +597,7 @@ def run():
                 "rr": sig.get("rr"),
                 "rrce_status": sig.get("rrce_status", "NOT_RUN"),
                 "rrce_failed_stage": sig.get("rrce_failed_stage", ""),
+                "rrce_failure_reason": sig.get("rrce_failure_reason", ""),
                 "rrce_choch_confirmed": bool(sig.get("rrce_choch_confirmed")),
                 "rrce_risk_contract": sig.get("rrce_risk_contract", "ATR_FALLBACK"),
                 "entry": sig.get("entry"),
