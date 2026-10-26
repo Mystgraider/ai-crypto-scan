@@ -40,6 +40,11 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in os.sys.path:
     os.sys.path.insert(0, str(ROOT))
+
+from indicators.indicators import Indicators
+from config import CONFIG
+
+
 RESULTS = ROOT / "backtest_results.json"
 SYMBOLS = [
     "ETH/USDT:USDT",
@@ -59,8 +64,66 @@ DATA_SYMBOLS = list(dict.fromkeys(SYMBOLS + ["BTC/USDT:USDT"]))
 INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
 DAYS = int(os.getenv("BACKTEST_DAYS", "7"))
-WARMUP_HOURS = 120
+WARMUP_HOURS = CONFIG["ohlcv_4h_limit"] * 4 + 48
 BINANCE = "https://fapi.binance.com/fapi/v1"
+
+from ai.signal_ranker import AISignalRanker
+
+
+class ReplayTelemetryRanker(AISignalRanker):
+    """Observation-only wrapper around the production AISignalRanker."""
+
+    TELEMETRY_FIELDS = (
+        "trend_score",
+        "quality_score",
+        "rs_score",
+        "funding_pct_raw",
+        "stoch_k",
+        "macd_hist",
+        "bb_pct_b",
+        "mtf_4h",
+        "mtf_15m",
+    )
+
+    def __init__(self, telemetry_sink=None):
+        self.telemetry_sink = telemetry_sink if telemetry_sink is not None else {}
+
+    def rank(self, candidates):
+        ranked = super().rank(candidates)
+        for candidate in ranked:
+            key = (candidate.get("symbol"), candidate.get("direction"))
+            snapshot = {
+                field: candidate.get(field)
+                for field in self.TELEMETRY_FIELDS
+            }
+            snapshot["__composite"] = candidate.get("composite")
+            self.telemetry_sink.setdefault(key, []).append(snapshot)
+        return ranked
+
+
+def merge_replay_telemetry(sig: dict, telemetry_sink: dict) -> None:
+    """Merge captured in-memory fields without overriding saved fields."""
+    key = (sig.get("symbol"), sig.get("direction"))
+    snapshots = telemetry_sink.get(key, [])
+    if not snapshots:
+        return
+
+    snapshot = snapshots.pop(0)
+    saved_score = sig.get("score", sig.get("composite"))
+    candidate_score = snapshot.get("__composite")
+    if (
+        saved_score is not None
+        and candidate_score is not None
+        and abs(float(saved_score) - float(candidate_score)) > 1e-9
+    ):
+        raise AssertionError(
+            f"replay_telemetry_score_mismatch:{key}:"
+            f"{saved_score}!={candidate_score}"
+        )
+
+    for field, value in snapshot.items():
+        if field != "__composite":
+            sig.setdefault(field, value)
 BINANCE_DATA = "https://fapi.binance.com/futures/data"
 
 
@@ -169,12 +232,41 @@ def fetch_klines(symbol: str, interval: str, start_ms: int, end_ms: int) -> pd.D
     return df.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
 
 
+def _month_range(start_ms: int, end_ms: int) -> list[pd.Timestamp]:
+    """Return UTC month starts covering the requested inclusive time window."""
+    start = pd.Timestamp(start_ms, unit="ms", tz="UTC").normalize().replace(day=1)
+    end = pd.Timestamp(end_ms, unit="ms", tz="UTC").normalize().replace(day=1)
+    return list(pd.date_range(start=start, end=end, freq="MS"))
+
+
+def _funding_archive_timestamps(values: pd.Series) -> pd.Series:
+    """Parse Binance funding archive timestamps in either epoch or datetime form."""
+    numeric = pd.to_numeric(values, errors="coerce")
+    parsed = pd.Series(pd.NaT, index=values.index, dtype="datetime64[ns, UTC]")
+    numeric_mask = numeric.notna()
+    if numeric_mask.any():
+        magnitude = numeric.loc[numeric_mask].abs().median()
+        unit = "ns" if magnitude > 1e17 else ("us" if magnitude > 1e14 else "ms")
+        parsed.loc[numeric_mask] = pd.to_datetime(
+            numeric.loc[numeric_mask], unit=unit, utc=True, errors="coerce"
+        )
+    text_mask = ~numeric_mask
+    if text_mask.any():
+        parsed.loc[text_mask] = pd.to_datetime(
+            values.loc[text_mask], utc=True, errors="coerce"
+        )
+    return parsed
+
+
 def fetch_funding(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
+    """Load monthly funding archives and retain only observations in the requested window."""
     frames = []
-    for day in _day_range(start_ms, end_ms):
+    start = pd.to_datetime(start_ms, unit="ms", utc=True)
+    end = pd.to_datetime(end_ms, unit="ms", utc=True)
+    for month in _month_range(start_ms, end_ms):
         url = (
-            f"{BINANCE_VISION}/daily/fundingRate/{symbol}/"
-            f"{symbol}-fundingRate-{day.strftime('%Y-%m-%d')}.zip"
+            f"{BINANCE_VISION}/monthly/fundingRate/{symbol}/"
+            f"{symbol}-fundingRate-{month.strftime('%Y-%m')}.zip"
         )
         df = _download_archive_csv(url)
         if df is None or df.empty:
@@ -184,15 +276,19 @@ def fetch_funding(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
         if not time_col or not rate_col:
             continue
         out = df[[time_col, rate_col]].copy()
-        out.columns = ["timestamp", "fundingRate"]
-        out["timestamp"] = pd.to_numeric(out["timestamp"], errors="coerce")
-        out["timestamp"] = pd.to_datetime(out["timestamp"], unit="ms", utc=True, errors="coerce")
+        out.columns = ["timestamp_raw", "fundingRate"]
+        out["timestamp"] = _funding_archive_timestamps(out["timestamp_raw"])
         out["fundingRate"] = pd.to_numeric(out["fundingRate"], errors="coerce")
-        frames.append(out.dropna())
+        out = out.dropna(subset=["timestamp", "fundingRate"])
+        # Archives can include records outside a partial first/last month.
+        # Keep the replay's exact requested window; ReplayExchange separately
+        # enforces timestamp <= each evaluation time to prevent look-ahead.
+        out = out[(out["timestamp"] >= start) & (out["timestamp"] <= end)]
+        frames.append(out[["timestamp", "fundingRate"]])
     if not frames:
         return pd.DataFrame(columns=["timestamp", "fundingRate"])
-    df = pd.concat(frames, ignore_index=True)
-    return df.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
+    result = pd.concat(frames, ignore_index=True)
+    return result.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
 
 
 def fetch_oi(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
@@ -294,12 +390,81 @@ class ReplayMarketLoader:
         self.store = store
         self.exchange = ReplayExchange(store)
 
+    def _forming_row(self, symbol: str, timeframe: str):
+        """Reconstruct the forming candle using only information available at T.
+
+        Binance Vision archive rows are complete candles. Therefore the archived
+        row for an unfinished candle cannot be exposed directly: its high/low/
+        close/volume contain information from after the replay cutoff.
+        """
+        end = self.store.end
+        delta = INTERVAL_DELTAS[timeframe]
+        start = end.floor(delta)
+        raw = self.store.candles[(symbol, timeframe)]
+        archived = raw[raw["timestamp"] == start]
+
+        # At the exact candle open, only the open is known.
+        if start == end:
+            if archived.empty:
+                return None
+            o = float(archived.iloc[0]["open"])
+            return {"timestamp": start, "open": o, "high": o, "low": o,
+                    "close": o, "volume": 0.0}
+
+        # Historical replay cutoffs are hourly, hence 5m-aligned.
+        five = INTERVAL_DELTAS["5m"]
+        if end != end.floor(five):
+            raise AssertionError(f"replay_cutoff_not_5m_aligned:{end.isoformat()}")
+
+        # A 4H candle can already be forming before T. Rebuild it from only
+        # fully closed 5m candles; never use the archived final 4H H/L/C/V.
+        m5 = self.store.candles.get((symbol, "5m"))
+        if m5 is None:
+            raise RuntimeError(f"cannot_reconstruct_forming_candle_no_5m:{symbol}:{timeframe}")
+        seg = m5[(m5["timestamp"] >= start) & (m5["timestamp"] + five <= end)]
+
+        if not archived.empty:
+            o = float(archived.iloc[0]["open"])
+        elif not seg.empty:
+            o = float(seg.iloc[0]["open"])
+        else:
+            return None
+
+        if seg.empty:
+            return {"timestamp": start, "open": o, "high": o, "low": o,
+                    "close": o, "volume": 0.0}
+
+        return {
+            "timestamp": start,
+            "open": o,
+            "high": max(o, float(seg["high"].max())),
+            "low": min(o, float(seg["low"].min())),
+            "close": float(seg.iloc[-1]["close"]),
+            "volume": float(seg["volume"].sum()),
+        }
+
     def _frame(self, symbol: str, timeframe: str, limit: int | None):
-        df = self.store.candles[(symbol, timeframe)]
-        df = df[df["timestamp"] + INTERVAL_DELTAS[timeframe] <= self.store.end]
-        if limit is not None:
-            df = df.tail(int(limit))
-        return df.copy(deep=True).reset_index(drop=True)
+        """Return the production-visible, strictly causal candle state at T."""
+        raw = self.store.candles[(symbol, timeframe)]
+        delta = INTERVAL_DELTAS[timeframe]
+
+        # Match MarketDataLoader defaults: every production timeframe is
+        # fetched with a 100-candle window unless a caller explicitly asks
+        # for a smaller window.
+        default_limit = (
+            CONFIG["ohlcv_4h_limit"]
+            if timeframe == "4h"
+            else CONFIG["ohlcv_limit"]
+        )
+        effective_limit = default_limit if limit is None else min(int(limit), default_limit)
+
+        completed = raw[raw["timestamp"] + delta <= self.store.end]
+        forming = self._forming_row(symbol, timeframe)
+        if forming is not None:
+            row = pd.DataFrame([forming], columns=list(raw.columns))
+            completed = pd.concat([completed, row], ignore_index=True)
+
+        return completed.tail(effective_limit).copy(deep=True).reset_index(drop=True)
 
     def get_ohlcv(self, symbol: str, timeframe: str = None, limit: int = None):
         return self._frame(symbol, timeframe or "1h", limit)
@@ -326,20 +491,46 @@ class ReplayTopSymbols:
 
 
 def assert_replay_boundary(store: HistoricalStore) -> None:
-    """Verify the replay-visible views contain no unfinished/future data.
+    """Verify every replay-visible candle is causal and production-shaped."""
+    loader = ReplayMarketLoader(store)
+    end = store.end
 
-    HistoricalStore intentionally contains the full downloaded window, including
-    future candles needed later for outcome evaluation. The assertion therefore
-    validates the exact visibility predicates used by ReplayMarketLoader and
-    ReplayExchange rather than rejecting the raw store for containing future data.
-    """
-    for (symbol, timeframe), df in store.candles.items():
+    for (symbol, timeframe) in store.candles:
         delta = INTERVAL_DELTAS[timeframe]
-        visible = df[df["timestamp"] + delta <= store.end]
-        if not visible.empty and (visible["timestamp"] + delta > store.end).any():
-            raise AssertionError(
-                f"future_visible_candle:{symbol}:{timeframe}:{store.end.isoformat()}"
-            )
+        frame = loader._frame(symbol, timeframe, None)
+        if frame.empty:
+            continue
+
+        ts = frame["timestamp"]
+        if (ts > end).any():
+            raise AssertionError(f"future_visible_candle:{symbol}:{timeframe}:{end.isoformat()}")
+        if not ts.is_monotonic_increasing or ts.duplicated().any():
+            raise AssertionError(f"unordered_replay_candles:{symbol}:{timeframe}")
+
+        unfinished = frame[ts + delta > end]
+        if len(unfinished) > 1:
+            raise AssertionError(f"multiple_unfinished_candles:{symbol}:{timeframe}")
+        if len(unfinished) == 1:
+            row = unfinished.iloc[0]
+            if row["timestamp"] != end.floor(delta) or row["timestamp"] != ts.iloc[-1]:
+                raise AssertionError(f"misplaced_forming_candle:{symbol}:{timeframe}")
+            if row["timestamp"] == end and not (
+                row["high"] == row["open"] == row["low"] == row["close"]
+                and row["volume"] == 0
+            ):
+                raise AssertionError(
+                    f"forming_candle_exposes_future_ohlcv:{symbol}:{timeframe}:{end.isoformat()}"
+                )
+            if not (row["low"] <= min(row["open"], row["close"])
+                    and row["high"] >= max(row["open"], row["close"])):
+                raise AssertionError(f"inconsistent_forming_candle:{symbol}:{timeframe}")
+
+        if len(frame) >= 2 and len(unfinished) == 1:
+            if ts.iloc[-2] + delta != ts.iloc[-1]:
+                raise AssertionError(
+                    f"noncontiguous_replay_candles:{symbol}:{timeframe}:"
+                    f"{ts.iloc[-2].isoformat()}->{ts.iloc[-1].isoformat()}"
+                )
 
     for symbol, df in store.funding.items():
         visible = df[df["timestamp"] <= store.end]
@@ -355,6 +546,37 @@ def assert_replay_boundary(store: HistoricalStore) -> None:
                 f"future_visible_oi:{symbol}:{store.end.isoformat()}"
             )
 
+
+
+class ReplayCooldown:
+    """Simulate the production symbol cooldown using replay time, not wall-clock time."""
+
+    def __init__(self, hours: float):
+        self.cooldown = pd.Timedelta(hours=float(hours))
+        self.now: pd.Timestamp | None = None
+        self.expires: dict[str, pd.Timestamp] = {}
+
+    def advance(self, now: pd.Timestamp) -> None:
+        self.now = pd.Timestamp(now)
+
+    def is_on_cooldown(self, symbol: str) -> bool:
+        expiry = self.expires.get(symbol)
+        return self.now is not None and expiry is not None and self.now < expiry
+
+    def set_cooldown(self, symbol: str) -> None:
+        if self.now is not None:
+            self.expires[symbol] = self.now + self.cooldown
+
+
+def _stop_outcome(milestones: list[str], event_time: str) -> dict:
+    """Distinguish a full stop from a stop at entry after TP milestones."""
+    if "TP2" in milestones:
+        status = "BREAKEVEN_AFTER_TP2"
+    elif "TP1" in milestones:
+        status = "BREAKEVEN_AFTER_TP1"
+    else:
+        status = "SL_HIT"
+    return {"status": status, "event_time": event_time, "milestones": list(milestones)}
 
 
 def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int = 72) -> dict:
@@ -383,7 +605,7 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
 
         if direction == "LONG":
             if low <= current_sl:
-                return {"status": "SL_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                return _stop_outcome(milestones, candle["timestamp"].isoformat())
             if status == "OPEN":
                 if high >= tp3:
                     return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
@@ -407,7 +629,7 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
                 return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
         else:
             if high >= current_sl:
-                return {"status": "SL_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                return _stop_outcome(milestones, candle["timestamp"].isoformat())
             if status == "OPEN":
                 if low <= tp3:
                     return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
@@ -454,26 +676,45 @@ def load_store(start: pd.Timestamp, end: pd.Timestamp) -> HistoricalStore:
 
 
 def summarize(rows: list[dict]) -> dict:
-    resolved = [r for r in rows if r["outcome"] in {"TP1_HIT", "TP2_HIT", "TP3_HIT", "SL_HIT"}]
+    resolved_statuses = {
+        "TP1_HIT", "TP2_HIT", "TP3_HIT", "SL_HIT",
+        "BREAKEVEN_AFTER_TP1", "BREAKEVEN_AFTER_TP2",
+    }
+    resolved = [r for r in rows if r["outcome"] in resolved_statuses]
     tp = [r for r in resolved if r["outcome"].startswith("TP")]
     sl = [r for r in resolved if r["outcome"] == "SL_HIT"]
+    be1 = [r for r in resolved if r["outcome"] == "BREAKEVEN_AFTER_TP1"]
+    be2 = [r for r in resolved if r["outcome"] == "BREAKEVEN_AFTER_TP2"]
     by_rrce = {}
     for r in rows:
         bucket = r["rrce_status"]
-        by_rrce.setdefault(bucket, {"signals": 0, "tp": 0, "sl": 0, "resolved": 0})
-        by_rrce[bucket]["signals"] += 1
-        if r["outcome"] in {"TP1_HIT", "TP2_HIT", "TP3_HIT"}:
-            by_rrce[bucket]["tp"] += 1
-            by_rrce[bucket]["resolved"] += 1
-        elif r["outcome"] == "SL_HIT":
-            by_rrce[bucket]["sl"] += 1
-            by_rrce[bucket]["resolved"] += 1
+        by_rrce.setdefault(bucket, {
+            "signals": 0, "tp": 0, "sl": 0,
+            "breakeven_after_tp1": 0, "breakeven_after_tp2": 0,
+            "resolved": 0,
+        })
+        stats = by_rrce[bucket]
+        stats["signals"] += 1
+        outcome = r["outcome"]
+        if outcome in resolved_statuses:
+            stats["resolved"] += 1
+        if outcome.startswith("TP"):
+            stats["tp"] += 1
+        elif outcome == "SL_HIT":
+            stats["sl"] += 1
+        elif outcome == "BREAKEVEN_AFTER_TP1":
+            stats["breakeven_after_tp1"] += 1
+        elif outcome == "BREAKEVEN_AFTER_TP2":
+            stats["breakeven_after_tp2"] += 1
 
     return {
         "signals": len(rows),
         "resolved": len(resolved),
         "tp": len(tp),
         "sl": len(sl),
+        "breakeven_after_tp1": len(be1),
+        "breakeven_after_tp2": len(be2),
+        "breakeven_exits": len(be1) + len(be2),
         "tp_vs_sl_pct": round(100 * len(tp) / (len(tp) + len(sl)), 2) if tp or sl else None,
         "by_rrce_status": by_rrce,
     }
@@ -489,9 +730,9 @@ def run():
     print(f"Historical replay: {start} -> {end}")
     store = load_store(start, end)
 
-    # Use timestamps for completed 1H candles only. The first 120 hours are
-    # reserved for indicator warmup, so no early NaNs are treated as strategy
-    # failures.
+    # Use timestamps for completed 1H candles only. Replay warmup is sized from
+    # the production indicator minimum for the slowest RRCE timeframe (4H),
+    # with an additional 48-hour alignment/data margin.
     timeline = store.candles[(SYMBOLS[0], "1h")]
     timeline = timeline[(timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start) & (timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)]
     if timeline.empty:
@@ -510,6 +751,7 @@ def run():
     }
 
     captured = []
+    replay_telemetry = {}
 
     class ReplayAnalytics:
         def compute(self):
@@ -527,8 +769,9 @@ def run():
             return None
 
     try:
-        scanner.is_on_cooldown = lambda symbol: False
-        scanner.set_cooldown = lambda symbol: None
+        replay_cooldown = ReplayCooldown(CONFIG["signal_cooldown_hours"])
+        scanner.is_on_cooldown = replay_cooldown.is_on_cooldown
+        scanner.set_cooldown = replay_cooldown.set_cooldown
         scanner.send_telegram_alert = lambda message: None
         scanner.circuit_check = lambda: {
             "is_tripped": False,
@@ -537,17 +780,24 @@ def run():
         }
         scanner.SignalTracker = ReplayTracker
         scanner.AnalyticsEngine = ReplayAnalytics
+        scanner.AISignalRanker = lambda: ReplayTelemetryRanker(replay_telemetry)
 
         for i, row in enumerate(timeline.itertuples(index=False), start=1):
             replay_time = pd.Timestamp(row.timestamp) + INTERVAL_DELTAS["1h"]
+            replay_cooldown.advance(replay_time)
             store.end = replay_time
             assert_replay_boundary(store)
 
             scanner.MarketDataLoader = lambda store=store: ReplayMarketLoader(store)
             scanner.TopSymbolsLoader = lambda: ReplayTopSymbols(SYMBOLS)
 
+            # Snapshots are valid for this cycle only: a candidate ranked but rejected
+            # afterwards must not leak into a later cycle's signal for the same key.
+            replay_telemetry.clear()
+
             def capture(**sig):
                 sig["_replay_time"] = replay_time.isoformat()
+                merge_replay_telemetry(sig, replay_telemetry)
                 captured.append(sig)
 
             scanner.save_signal = capture
@@ -574,8 +824,31 @@ def run():
                 "rr": sig.get("rr"),
                 "rrce_status": sig.get("rrce_status", "NOT_RUN"),
                 "rrce_failed_stage": sig.get("rrce_failed_stage", ""),
+                "rrce_failure_reason": sig.get("rrce_failure_reason", ""),
                 "rrce_choch_confirmed": bool(sig.get("rrce_choch_confirmed")),
                 "rrce_risk_contract": sig.get("rrce_risk_contract", "ATR_FALLBACK"),
+                # Forensic feature telemetry only. These values are already
+                # produced by scanner_v5 for each candidate; exporting them
+                # here does not alter candidate generation, gating, ranking,
+                # risk, or outcome scoring.
+                "trend_score": sig.get("trend_score"),
+                "quality_score": sig.get("quality_score"),
+                "rs_score": sig.get("rs_score"),
+                "rs_label": sig.get("rs_label"),
+                "rsi": sig.get("rsi"),
+                "adx": sig.get("adx"),
+                "rel_volume": sig.get("rel_volume"),
+                "stoch_k": sig.get("stoch_k"),
+                "macd_hist": sig.get("macd_hist"),
+                "bb_pct_b": sig.get("bb_pct_b"),
+                "mtf_status": sig.get("mtf_status"),
+                "mtf_4h": sig.get("mtf_4h"),
+                "mtf_15m": sig.get("mtf_15m"),
+                "btc_regime": sig.get("btc_regime"),
+                "funding_pct_raw": sig.get("funding_pct_raw"),
+                "oi_signal": sig.get("oi_signal"),
+                "beta_label": sig.get("beta_label"),
+                "rrce_engine_mode": sig.get("rrce_engine_mode", ""),
                 "entry": sig.get("entry"),
                 "sl": sig.get("sl"),
                 "tp1": sig.get("tp1"),
@@ -598,6 +871,8 @@ def run():
             "lookahead_policy": "future candles begin strictly after replay timestamp",
             "same_candle_conflict_policy": "SL first, matching SignalTracker",
             "production_code_modified": False,
+            "cooldown_policy": "production symbol cooldown simulated on replay timestamps",
+            "cooldown_hours": CONFIG["signal_cooldown_hours"],
             "harness_mode": "scanner_v5.main historical injection",
         },
         "summary": summarize(results),
