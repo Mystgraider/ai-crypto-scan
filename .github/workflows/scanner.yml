@@ -28,6 +28,7 @@ jobs:
 
     env:
       PYTHONUNBUFFERED: "1"
+      LONG_SIGNALS_ENABLED: "false"
       BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
       CHAT_ID: ${{ secrets.CHAT_ID }}
 
