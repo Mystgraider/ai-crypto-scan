@@ -31,19 +31,27 @@ jobs:
       LONG_SIGNALS_ENABLED: "false"
       BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
       CHAT_ID: ${{ secrets.CHAT_ID }}
+      SCAN_REF: ${{ inputs.scan_ref || github.ref }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.scan_ref || github.ref }}
+          ref: ${{ env.SCAN_REF }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Show scan ref
         run: |
           echo "Workflow ref: $GITHUB_REF"
           echo "Workflow SHA: $GITHUB_SHA"
-          echo "Requested scan ref: ${{ inputs.scan_ref || github.ref }}"
+          echo "Requested scan ref: $SCAN_REF"
+
+      - name: Enforce trusted production ref
+        run: |
+          if [ "$SCAN_REF" != "main" ]; then
+            echo "::error::Production scanner dispatch is restricted to the main ref."
+            exit 1
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -89,6 +97,10 @@ jobs:
     if: github.event_name == 'schedule' && github.event.schedule == '0 0 * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Serialize signal-status commits with scanner state commits to prevent lost updates.
+    concurrency:
+      group: elite-scanner
+      cancel-in-progress: false
 
     permissions:
       contents: write
