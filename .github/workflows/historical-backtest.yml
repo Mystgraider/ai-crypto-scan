@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "tools/historical_replay.py"
+      - "tools/candidate_c5_analysis.py"
       - "scanner_v5.py"
       - "config.py"
       - "engines/**"
@@ -33,6 +34,10 @@ jobs:
           BACKTEST_DAYS: "30"
         run: |
           python tools/historical_replay.py
+
+      - name: Add research-only Candidate C5 comparison
+        run: |
+          python tools/candidate_c5_analysis.py
 
       - name: Upload backtest result
         uses: actions/upload-artifact@v4
