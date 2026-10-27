@@ -29,9 +29,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run 30-day historical replay
+      - name: Run 30-day earlier-period replay (45-day offset)
         env:
           BACKTEST_DAYS: "30"
+          BACKTEST_OFFSET_DAYS: "45"
         run: |
           python tools/historical_replay.py
 
