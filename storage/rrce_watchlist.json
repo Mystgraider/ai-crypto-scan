@@ -1,38 +1,50 @@
 {
-  "ASTR/USDT:USDT|SHORT": {
+  "BCH/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-10-27T13:38:43.069913+00:00",
-    "last_seen": "2026-10-27T13:38:43.069913+00:00",
+    "first_seen": "2026-10-27T18:56:19.613773+00:00",
+    "last_seen": "2026-10-27T18:56:19.613773+00:00",
     "observations": 1,
-    "pool_level": 0.006164,
-    "range_high": 0.006276,
-    "range_low": 0.005834,
+    "pool_level": 284.48,
+    "range_high": 290.52,
+    "range_low": 267.71,
     "regime": "RANGE",
-    "sweep_extreme": 0.006186,
-    "symbol": "ASTR/USDT:USDT"
+    "sweep_extreme": 285.99,
+    "symbol": "BCH/USDT:USDT"
+  },
+  "DASH/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-27T18:56:46.761703+00:00",
+    "last_seen": "2026-10-27T18:56:46.761703+00:00",
+    "observations": 1,
+    "pool_level": 54.13,
+    "range_high": 55.97,
+    "range_low": 48.82,
+    "regime": "RANGE",
+    "sweep_extreme": 54.77,
+    "symbol": "DASH/USDT:USDT"
   },
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-10-27T13:38:51.913686+00:00",
-    "last_seen": "2026-10-27T13:38:51.913686+00:00",
+    "first_seen": "2026-10-27T18:58:11.861741+00:00",
+    "last_seen": "2026-10-27T18:58:11.861741+00:00",
     "observations": 1,
-    "pool_level": 1.0008,
+    "pool_level": 1.0006,
     "range_high": 1.0008,
     "range_low": 0.9998,
     "regime": "RANGE",
-    "sweep_extreme": 1.0009,
+    "sweep_extreme": 1.0008,
     "symbol": "USDC/USDT:USDT"
   },
   "XRP/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-10-27T13:37:12.260381+00:00",
-    "last_seen": "2026-10-27T13:37:12.260381+00:00",
+    "first_seen": "2026-10-27T18:56:15.981078+00:00",
+    "last_seen": "2026-10-27T18:56:15.981078+00:00",
     "observations": 1,
     "pool_level": 1.3152,
     "range_high": 1.3987,
     "range_low": 1.2538,
     "regime": "RANGE",
-    "sweep_extreme": 1.3215,
+    "sweep_extreme": 1.3179,
     "symbol": "XRP/USDT:USDT"
   }
 }
