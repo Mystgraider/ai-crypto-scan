@@ -59,6 +59,7 @@ DATA_SYMBOLS = list(dict.fromkeys(SYMBOLS + ["BTC/USDT:USDT"]))
 INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
 DAYS = int(os.getenv("BACKTEST_DAYS", "7"))
+OFFSET_DAYS = int(os.getenv("BACKTEST_OFFSET_DAYS", "0"))
 WARMUP_HOURS = 120
 BINANCE = "https://fapi.binance.com/fapi/v1"
 BINANCE_DATA = "https://fapi.binance.com/futures/data"
@@ -550,7 +551,7 @@ def run():
     import scanner_v5 as scanner
 
     now = pd.Timestamp.now(tz="UTC")
-    end = now.floor("h") - pd.Timedelta(hours=1)
+    end = now.floor("h") - pd.Timedelta(days=OFFSET_DAYS, hours=1)
     start = end - pd.Timedelta(days=DAYS)
 
     print(f"Historical replay: {start} -> {end}")
@@ -667,6 +668,7 @@ def run():
             "start": start.isoformat(),
             "end": end.isoformat(),
             "days": DAYS,
+            "offset_days": OFFSET_DAYS,
             "symbols": SYMBOLS,
             "timeframes": list(INTERVALS),
             "lookahead_policy": "future candles begin strictly after replay timestamp",
