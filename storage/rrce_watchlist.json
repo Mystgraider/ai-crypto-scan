@@ -1,27 +1,27 @@
 {
+  "BCH/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-27T02:08:43.065420+00:00",
+    "last_seen": "2026-10-27T02:08:43.065420+00:00",
+    "observations": 1,
+    "pool_level": 278.57,
+    "range_high": 290.52,
+    "range_low": 267.71,
+    "regime": "BEAR",
+    "sweep_extreme": 279.95,
+    "symbol": "BCH/USDT:USDT"
+  },
   "DASH/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-10-26T23:18:12.229903+00:00",
-    "last_seen": "2026-10-26T23:18:12.229903+00:00",
-    "observations": 1,
-    "pool_level": 52.96,
+    "last_seen": "2026-10-27T02:09:09.716600+00:00",
+    "observations": 2,
+    "pool_level": 54.13,
     "range_high": 55.97,
     "range_low": 48.82,
     "regime": "BEAR",
-    "sweep_extreme": 53.13,
+    "sweep_extreme": 54.39,
     "symbol": "DASH/USDT:USDT"
-  },
-  "TRX/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-10-26T19:34:56.020345+00:00",
-    "last_seen": "2026-10-26T19:34:56.020345+00:00",
-    "observations": 1,
-    "pool_level": 0.33037,
-    "range_high": 0.33322,
-    "range_low": 0.32736,
-    "regime": "BEAR",
-    "sweep_extreme": 0.33059,
-    "symbol": "TRX/USDT:USDT"
   },
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
