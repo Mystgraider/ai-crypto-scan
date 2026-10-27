@@ -1,4 +1,16 @@
 {
+  "ALICE/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-27T22:48:53.539559+00:00",
+    "last_seen": "2026-10-27T22:48:53.539559+00:00",
+    "observations": 1,
+    "pool_level": 0.138,
+    "range_high": 0.15,
+    "range_low": 0.1307,
+    "regime": "BULL",
+    "sweep_extreme": 0.1382,
+    "symbol": "ALICE/USDT:USDT"
+  },
   "BCH/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-10-27T18:56:19.613773+00:00",
@@ -10,6 +22,18 @@
     "regime": "RANGE",
     "sweep_extreme": 285.99,
     "symbol": "BCH/USDT:USDT"
+  },
+  "BNB/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-27T22:48:25.817723+00:00",
+    "last_seen": "2026-10-27T22:48:25.817723+00:00",
+    "observations": 1,
+    "pool_level": 746.93,
+    "range_high": 751.28,
+    "range_low": 717.3,
+    "regime": "BULL",
+    "sweep_extreme": 749.51,
+    "symbol": "BNB/USDT:USDT"
   },
   "DASH/USDT:USDT|SHORT": {
     "direction": "SHORT",
@@ -23,15 +47,39 @@
     "sweep_extreme": 54.77,
     "symbol": "DASH/USDT:USDT"
   },
+  "LUNA/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-27T22:49:22.862368+00:00",
+    "last_seen": "2026-10-27T22:49:22.862368+00:00",
+    "observations": 1,
+    "pool_level": 0.04233,
+    "range_high": 0.04527,
+    "range_low": 0.04063,
+    "regime": "BULL",
+    "sweep_extreme": 0.04239,
+    "symbol": "LUNA/USDT:USDT"
+  },
+  "TRX/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-27T22:48:22.260325+00:00",
+    "last_seen": "2026-10-27T22:48:22.260325+00:00",
+    "observations": 1,
+    "pool_level": 0.33142,
+    "range_high": 0.33322,
+    "range_low": 0.32736,
+    "regime": "BULL",
+    "sweep_extreme": 0.33166,
+    "symbol": "TRX/USDT:USDT"
+  },
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-10-27T18:58:11.861741+00:00",
-    "last_seen": "2026-10-27T18:58:11.861741+00:00",
-    "observations": 1,
+    "last_seen": "2026-10-27T22:49:52.650935+00:00",
+    "observations": 2,
     "pool_level": 1.0006,
     "range_high": 1.0008,
     "range_low": 0.9998,
-    "regime": "RANGE",
+    "regime": "BULL",
     "sweep_extreme": 1.0008,
     "symbol": "USDC/USDT:USDT"
   },
