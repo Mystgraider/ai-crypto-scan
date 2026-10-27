@@ -576,6 +576,20 @@ def run():
                 "rrce_failed_stage": sig.get("rrce_failed_stage", ""),
                 "rrce_choch_confirmed": bool(sig.get("rrce_choch_confirmed")),
                 "rrce_risk_contract": sig.get("rrce_risk_contract", "ATR_FALLBACK"),
+                # Research-only feature snapshot captured at signal generation.
+                # These fields enable candidate-filter evaluation without
+                # changing production gates or reconstructing indicators later.
+                "rsi": sig.get("rsi"),
+                "adx": sig.get("adx"),
+                "rel_volume": sig.get("rel_volume"),
+                "spike_tier": sig.get("spike_tier"),
+                "mtf_status": sig.get("mtf_status"),
+                "mtf_4h": sig.get("mtf_4h"),
+                "mtf_15m": sig.get("mtf_15m"),
+                "btc_regime": sig.get("btc_regime"),
+                "macd_hist": sig.get("macd_hist"),
+                "stoch_k": sig.get("stoch_k"),
+                "bb_pct_b": sig.get("bb_pct_b"),
                 "entry": sig.get("entry"),
                 "sl": sig.get("sl"),
                 "tp1": sig.get("tp1"),
