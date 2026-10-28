@@ -21,14 +21,14 @@ on:
       offset_days:
         description: "End date offset from run date in days"
         required: true
-        default: "17"
+        default: "3"
         type: string
 
 jobs:
   replay:
     runs-on: ubuntu-latest
-    # The previous 30-day replay was cancelled at the 120-minute job limit.
-    # This research-only replay has a longer timeout and configurable date window.
+    # Research-only replay; offset leaves recent candles time to finalize.
+    # Production scanner and strategy are not modified by this workflow.
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +46,7 @@ jobs:
       - name: Run configurable historical replay
         env:
           BACKTEST_DAYS: ${{ inputs.days || '14' }}
-          BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '17' }}
+          BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '3' }}
         run: |
           python tools/historical_replay.py
 
