@@ -15,7 +15,9 @@ on:
 jobs:
   replay:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # The 30-day replay was cancelled at the previous 120-minute job limit.
+    # Allow the research-only historical replay to finish within GitHub's hosted-job limit.
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
 
