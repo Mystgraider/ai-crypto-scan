@@ -14,8 +14,8 @@
   "BCH/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-10-28T19:41:10.157931+00:00",
-    "last_seen": "2026-10-28T19:41:10.157931+00:00",
-    "observations": 1,
+    "last_seen": "2026-10-28T23:32:35.065480+00:00",
+    "observations": 2,
     "pool_level": 284.48,
     "range_high": 290.52,
     "range_low": 267.71,
@@ -35,6 +35,18 @@
     "sweep_extreme": 0.08061,
     "symbol": "CELO/USDT:USDT"
   },
+  "ID/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-28T23:34:13.137621+00:00",
+    "last_seen": "2026-10-28T23:34:13.137621+00:00",
+    "observations": 1,
+    "pool_level": 0.03132,
+    "range_high": 0.03132,
+    "range_low": 0.02978,
+    "regime": "BULL",
+    "sweep_extreme": 0.03138,
+    "symbol": "ID/USDT:USDT"
+  },
   "LTC/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-10-28T19:41:12.685455+00:00",
@@ -50,13 +62,13 @@
   "LUNA/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-10-28T19:42:34.275158+00:00",
-    "last_seen": "2026-10-28T19:42:34.275158+00:00",
-    "observations": 1,
-    "pool_level": 0.04288,
+    "last_seen": "2026-10-28T23:33:31.603717+00:00",
+    "observations": 2,
+    "pool_level": 0.04311,
     "range_high": 0.04527,
     "range_low": 0.04063,
     "regime": "BULL",
-    "sweep_extreme": 0.04289,
+    "sweep_extreme": 0.04342,
     "symbol": "LUNA/USDT:USDT"
   },
   "LUNC/USDT:USDT|SHORT": {
@@ -70,6 +82,18 @@
     "regime": "BULL",
     "sweep_extreme": 4.519e-05,
     "symbol": "LUNC/USDT:USDT"
+  },
+  "TLM/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-28T23:34:18.924984+00:00",
+    "last_seen": "2026-10-28T23:34:18.924984+00:00",
+    "observations": 1,
+    "pool_level": 0.001228,
+    "range_high": 0.001317,
+    "range_low": 0.001129,
+    "regime": "BULL",
+    "sweep_extreme": 0.001238,
+    "symbol": "TLM/USDT:USDT"
   },
   "XRP/USDT:USDT|SHORT": {
     "direction": "SHORT",
