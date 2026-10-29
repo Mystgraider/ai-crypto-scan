@@ -405,12 +405,16 @@ def main():
             # Stage-2; no second 1H fetch is required.
             df_rrce_15m = None
             df_4h = None
+            _rrce_4h_raw_rows = None
+            _rrce_4h_fetch_error = None
             _rrce_data_start = _time.perf_counter()
             try:
                 df_rrce_4h_raw = market_loader.get_4h(symbol)
+                _rrce_4h_raw_rows = len(df_rrce_4h_raw) if df_rrce_4h_raw is not None else None
                 df_4h = Indicators.apply(df_rrce_4h_raw)
-            except Exception:
+            except Exception as _rrce_4h_e:
                 df_4h = None
+                _rrce_4h_fetch_error = f"{type(_rrce_4h_e).__name__}: {str(_rrce_4h_e)[:200]}"
             try:
                 df_rrce_15m = Indicators.apply(market_loader.get_15m(symbol))
             except Exception:
@@ -868,6 +872,8 @@ def main():
                         "frames": _frame_report,
                         "too_short_timeframes": _too_short,
                         "exception_type": _rrce_eval_error,
+                        "4h_raw_rows_before_indicators": _rrce_4h_raw_rows,
+                        "4h_fetch_or_indicator_error": _rrce_4h_fetch_error,
                     }, default=str, sort_keys=True))
 
                 if rrce_result:
