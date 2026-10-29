@@ -405,12 +405,16 @@ def main():
             # Stage-2; no second 1H fetch is required.
             df_rrce_15m = None
             df_4h = None
+            _rrce_4h_raw_rows = None
+            _rrce_4h_fetch_error = None
             _rrce_data_start = _time.perf_counter()
             try:
                 df_rrce_4h_raw = market_loader.get_4h(symbol)
+                _rrce_4h_raw_rows = len(df_rrce_4h_raw) if df_rrce_4h_raw is not None else None
                 df_4h = Indicators.apply(df_rrce_4h_raw)
-            except Exception:
+            except Exception as _rrce_4h_e:
                 df_4h = None
+                _rrce_4h_fetch_error = f"{type(_rrce_4h_e).__name__}: {str(_rrce_4h_e)[:200]}"
             try:
                 df_rrce_15m = Indicators.apply(market_loader.get_15m(symbol))
             except Exception:
@@ -608,6 +612,7 @@ def main():
                 rrce_result = None
                 rrce_risk = None
                 legacy_rrce = None
+                _rrce_eval_error = None
                 try:
                     _df_rrce_15m = df_rrce_15m
                     _df_rrce_5m = df_rrce_5m
@@ -837,8 +842,39 @@ def main():
                         except Exception as _legacy_e:
                             print(f"      ⚠️  {symbol} V6.7.2 replay failed: {_legacy_e}")
                 except Exception as _rrce_e:
+                    _rrce_eval_error = type(_rrce_e).__name__
                     print(f"      ⚠️  {symbol} RRCE multi-TF fetch/eval failed: {_rrce_e}")
 
+                # Research-only diagnostic: explain why the modern RRCE result is absent.
+                if rrce_result is None:
+                    _frames = {
+                        "4h": df_4h, "1h": df_1h,
+                        "15m": _df_rrce_15m, "5m": _df_rrce_5m,
+                    }
+                    _frame_report = {
+                        _tf: {"available": _df is not None,
+                              "rows": len(_df) if _df is not None else None}
+                        for _tf, _df in _frames.items()
+                    }
+                    _too_short = [tf for tf, info in _frame_report.items()
+                                  if info["rows"] is not None and info["rows"] < 20]
+                    if _rrce_eval_error:
+                        _rrce_missing_reason = "evaluation_exception"
+                    elif any(not info["available"] for info in _frame_report.values()):
+                        _rrce_missing_reason = "timeframe_data_unavailable"
+                    elif _too_short:
+                        _rrce_missing_reason = "insufficient_candles"
+                    else:
+                        _rrce_missing_reason = "result_not_returned_without_exception"
+                    print("RRCE_NOT_RUN_DIAGNOSTIC " + _json.dumps({
+                        "symbol": symbol, "direction": direction,
+                        "reason": _rrce_missing_reason,
+                        "frames": _frame_report,
+                        "too_short_timeframes": _too_short,
+                        "exception_type": _rrce_eval_error,
+                        "4h_raw_rows_before_indicators": _rrce_4h_raw_rows,
+                        "4h_fetch_or_indicator_error": _rrce_4h_fetch_error,
+                    }, default=str, sort_keys=True))
 
                 if rrce_result:
                     s1_data = rrce_result.get("stage1")

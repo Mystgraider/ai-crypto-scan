@@ -4,16 +4,31 @@ on:
   pull_request:
     paths:
       - "tools/historical_replay.py"
+      - "tools/candidate_c5_analysis.py"
+      - "tools/short_candidate_analysis.py"
       - "scanner_v5.py"
       - "config.py"
       - "engines/**"
       - "indicators/**"
+      - ".github/workflows/historical-backtest.yml"
   workflow_dispatch:
+    inputs:
+      days:
+        description: "Historical replay length in days"
+        required: true
+        default: "30"
+        type: string
+      offset_days:
+        description: "End date offset from run date in days"
+        required: true
+        default: "33"
+        type: string
 
 jobs:
   replay:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Research-only earlier-period validation; no production scanner/strategy changes.
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
 
@@ -27,11 +42,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run 7-day historical replay
+      - name: Run configurable historical replay
         env:
-          BACKTEST_DAYS: "7"
+          BACKTEST_DAYS: ${{ inputs.days || '30' }}
+          BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '33' }}
         run: |
           python tools/historical_replay.py
+
+      - name: Add research-only Candidate C5 comparison
+        run: |
+          python tools/candidate_c5_analysis.py
+
+      - name: Add research-only SHORT RSI/ADX comparison
+        run: |
+          python tools/short_candidate_analysis.py
 
       - name: Upload backtest result
         uses: actions/upload-artifact@v4
