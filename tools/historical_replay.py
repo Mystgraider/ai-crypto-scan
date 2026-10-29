@@ -60,7 +60,8 @@ INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
 DAYS = int(os.getenv("BACKTEST_DAYS", "7"))
 OFFSET_DAYS = int(os.getenv("BACKTEST_OFFSET_DAYS", "0"))
-WARMUP_HOURS = 120
+# 4H indicator calculation requires >=60 candles; 300h provides 75 completed 4H candles at replay start.
+WARMUP_HOURS = 300
 BINANCE = "https://fapi.binance.com/fapi/v1"
 BINANCE_DATA = "https://fapi.binance.com/futures/data"
 
