@@ -19,7 +19,7 @@ on:
       offset_days:
         description: "End date offset from run date in days"
         required: true
-        default: "60"
+        default: "30"
         type: string
 
 jobs:
