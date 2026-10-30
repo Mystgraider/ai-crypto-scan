@@ -1,1 +1,26 @@
-{}
+{
+  "ALICE/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-30T18:13:11.652005+00:00",
+    "last_seen": "2026-10-30T18:13:11.652005+00:00",
+    "observations": 1,
+    "pool_level": 0.1388,
+    "range_high": 0.1407,
+    "range_low": 0.1307,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.139,
+    "symbol": "ALICE/USDT:USDT"
+  },
+  "WOO/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-30T18:13:46.435890+00:00",
+    "last_seen": "2026-10-30T18:13:46.435890+00:00",
+    "observations": 1,
+    "pool_level": 0.01072,
+    "range_high": 0.01263,
+    "range_low": 0.00931,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.01087,
+    "symbol": "WOO/USDT:USDT"
+  }
+}
