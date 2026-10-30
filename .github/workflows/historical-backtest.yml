@@ -46,6 +46,10 @@ jobs:
         run: |
           python tools/historical_replay.py
 
+      - name: Add research-only SHORT RSI/ADX analysis
+        run: |
+          python tools/short_candidate_analysis.py
+
       - name: Upload backtest result
         uses: actions/upload-artifact@v4
         with:
