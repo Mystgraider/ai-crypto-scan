@@ -91,6 +91,33 @@ for label, lo, hi in [
 ]:
     analysis["rsi_bands"][label] = counts(selected(rsi_min=lo, rsi_max=hi))
 
+# EMA200 counterfactual for the strongest RSI/ADX discovery bucket.
+# This is descriptive research only; it does not filter production signals.
+ema_base = [
+    row for row in shorts
+    if num(row.get("rsi")) is not None
+    and 60 <= num(row.get("rsi")) < 70
+    and num(row.get("adx")) is not None
+    and 20 <= num(row.get("adx")) < 25
+]
+ema_available = [row for row in ema_base if num(row.get("ema200_1h")) is not None
+                 and num(row.get("signal_close_1h")) is not None]
+ema_below = [
+    row for row in ema_available
+    if num(row["signal_close_1h"]) < num(row["ema200_1h"])
+]
+ema_above = [
+    row for row in ema_available
+    if num(row["signal_close_1h"]) >= num(row["ema200_1h"])
+]
+analysis["rsi_60_70_adx_20_25_ema200"] = {
+    "base_candidate": counts(ema_base),
+    "ema200_available": len(ema_available),
+    "ema200_missing": len(ema_base) - len(ema_available),
+    "price_below_ema200_1h": counts(ema_below),
+    "price_at_or_above_ema200_1h": counts(ema_above),
+    "definition": "EMA200 computed from completed 1H closes at signal time; below means signal-time 1H close < EMA200",
+}
 payload.setdefault("summary", {})["short_rsi_adx_research"] = analysis
 path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
 print(json.dumps(analysis, indent=2))
