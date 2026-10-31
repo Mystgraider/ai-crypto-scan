@@ -42,7 +42,7 @@ jobs:
       - name: Run configurable historical replay
         env:
           BACKTEST_DAYS: ${{ inputs.days || '30' }}
-          BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '60' }}
+          BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '30' }}
         run: |
           python tools/historical_replay.py
 
