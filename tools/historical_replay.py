@@ -58,8 +58,10 @@ DATA_SYMBOLS = list(dict.fromkeys(SYMBOLS + ["BTC/USDT:USDT"]))
 
 INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
-DAYS = int(os.getenv("BACKTEST_DAYS", "7"))
-WARMUP_HOURS = 120
+DAYS = int(os.getenv("BACKTEST_DAYS", "30"))
+OFFSET_DAYS = int(os.getenv("BACKTEST_OFFSET_DAYS", "60"))
+# 300h provides 75 completed 4H candles for indicator warmup.
+WARMUP_HOURS = 300
 BINANCE = "https://fapi.binance.com/fapi/v1"
 BINANCE_DATA = "https://fapi.binance.com/futures/data"
 
@@ -483,7 +485,7 @@ def run():
     import scanner_v5 as scanner
 
     now = pd.Timestamp.now(tz="UTC")
-    end = now.floor("h") - pd.Timedelta(hours=1)
+    end = now.floor("h") - pd.Timedelta(days=OFFSET_DAYS, hours=1)
     start = end - pd.Timedelta(days=DAYS)
 
     print(f"Historical replay: {start} -> {end}")
@@ -564,11 +566,42 @@ def run():
         symbol = sig["symbol"]
         future = store.candles[(symbol, "5m")]
         outcome = historical_outcome(sig, future)
+
+        # Research-only EMA200: calculate from completed 1H closes available
+        # at this signal timestamp. The 200-period EMA never sees future bars.
+        signal_time = pd.Timestamp(sig["_replay_time"])
+        one_hour = store.candles[(symbol, "1h")]
+        completed_1h = one_hour[
+            one_hour["timestamp"] + INTERVAL_DELTAS["1h"] <= signal_time
+        ]
+        close_series = completed_1h["close"].astype(float)
+        ema200_1h = (
+            float(close_series.ewm(span=200, adjust=False, min_periods=200).mean().iloc[-1])
+            if len(close_series) >= 200 else None
+        )
+        signal_close_1h = float(close_series.iloc[-1]) if not close_series.empty else None
+        ema200_distance_pct = (
+            round((signal_close_1h / ema200_1h - 1.0) * 100, 4)
+            if ema200_1h not in (None, 0) and signal_close_1h is not None else None
+        )
         results.append(
             {
                 "replay_time": sig["_replay_time"],
                 "symbol": symbol,
                 "direction": sig["direction"],
+                # Signal-time values from the same completed 1H indicator row
+                # used by production scanner candidate generation.
+                "rsi": sig.get("rsi"),
+                "adx": sig.get("adx"),
+                "ema200_1h": round(ema200_1h, 10) if ema200_1h is not None else None,
+                "signal_close_1h": round(signal_close_1h, 10) if signal_close_1h is not None else None,
+                "ema200_distance_pct": ema200_distance_pct,
+                "rel_volume": sig.get("rel_volume"),
+                "spike_tier": sig.get("spike_tier"),
+                "mtf_status": sig.get("mtf_status"),
+                "mtf_4h": sig.get("mtf_4h"),
+                "mtf_15m": sig.get("mtf_15m"),
+                "btc_regime": sig.get("btc_regime"),
                 "score": sig.get("score", sig.get("composite")),
                 "grade": sig.get("grade"),
                 "rr": sig.get("rr"),
@@ -593,6 +626,9 @@ def run():
             "start": start.isoformat(),
             "end": end.isoformat(),
             "days": DAYS,
+            "offset_days": OFFSET_DAYS,
+            "warmup_hours": WARMUP_HOURS,
+            "research_indicators": ["EMA200_1H_from_completed_closes"],
             "symbols": SYMBOLS,
             "timeframes": list(INTERVALS),
             "lookahead_policy": "future candles begin strictly after replay timestamp",
