@@ -2,13 +2,37 @@
   "ALICE/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-10-30T22:18:16.713213+00:00",
-    "last_seen": "2026-10-30T22:18:16.713213+00:00",
-    "observations": 1,
+    "last_seen": "2026-10-31T01:38:42.895024+00:00",
+    "observations": 2,
     "pool_level": 0.1388,
     "range_high": 0.1407,
     "range_low": 0.1307,
-    "regime": "BEAR_CAUTION",
+    "regime": "BEAR",
     "sweep_extreme": 0.139,
     "symbol": "ALICE/USDT:USDT"
+  },
+  "BLUR/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-31T01:39:17.392845+00:00",
+    "last_seen": "2026-10-31T01:39:17.392845+00:00",
+    "observations": 1,
+    "pool_level": 0.00891,
+    "range_high": 0.00891,
+    "range_low": 0.00717,
+    "regime": "BEAR",
+    "sweep_extreme": 0.00895,
+    "symbol": "BLUR/USDT:USDT"
+  },
+  "HOT/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-31T01:39:42.395063+00:00",
+    "last_seen": "2026-10-31T01:39:42.395063+00:00",
+    "observations": 1,
+    "pool_level": 0.0003608,
+    "range_high": 0.0003608,
+    "range_low": 0.0003372,
+    "regime": "BEAR",
+    "sweep_extreme": 0.0003701,
+    "symbol": "HOT/USDT:USDT"
   }
 }
