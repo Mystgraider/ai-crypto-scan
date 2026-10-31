@@ -566,6 +566,24 @@ def run():
         symbol = sig["symbol"]
         future = store.candles[(symbol, "5m")]
         outcome = historical_outcome(sig, future)
+
+        # Research-only EMA200: calculate from completed 1H closes available
+        # at this signal timestamp. The 200-period EMA never sees future bars.
+        signal_time = pd.Timestamp(sig["_replay_time"])
+        one_hour = store.candles[(symbol, "1h")]
+        completed_1h = one_hour[
+            one_hour["timestamp"] + INTERVAL_DELTAS["1h"] <= signal_time
+        ]
+        close_series = completed_1h["close"].astype(float)
+        ema200_1h = (
+            float(close_series.ewm(span=200, adjust=False, min_periods=200).mean().iloc[-1])
+            if len(close_series) >= 200 else None
+        )
+        signal_close_1h = float(close_series.iloc[-1]) if not close_series.empty else None
+        ema200_distance_pct = (
+            round((signal_close_1h / ema200_1h - 1.0) * 100, 4)
+            if ema200_1h not in (None, 0) and signal_close_1h is not None else None
+        )
         results.append(
             {
                 "replay_time": sig["_replay_time"],
@@ -575,6 +593,9 @@ def run():
                 # used by production scanner candidate generation.
                 "rsi": sig.get("rsi"),
                 "adx": sig.get("adx"),
+                "ema200_1h": round(ema200_1h, 10) if ema200_1h is not None else None,
+                "signal_close_1h": round(signal_close_1h, 10) if signal_close_1h is not None else None,
+                "ema200_distance_pct": ema200_distance_pct,
                 "rel_volume": sig.get("rel_volume"),
                 "spike_tier": sig.get("spike_tier"),
                 "mtf_status": sig.get("mtf_status"),
@@ -607,6 +628,7 @@ def run():
             "days": DAYS,
             "offset_days": OFFSET_DAYS,
             "warmup_hours": WARMUP_HOURS,
+            "research_indicators": ["EMA200_1H_from_completed_closes"],
             "symbols": SYMBOLS,
             "timeframes": list(INTERVALS),
             "lookahead_policy": "future candles begin strictly after replay timestamp",
