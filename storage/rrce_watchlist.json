@@ -1,38 +1,50 @@
 {
   "ALICE/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-10-30T22:18:16.713213+00:00",
-    "last_seen": "2026-10-31T01:38:42.895024+00:00",
-    "observations": 2,
+    "first_seen": "2026-10-31T07:29:29.890627+00:00",
+    "last_seen": "2026-10-31T07:29:29.890627+00:00",
+    "observations": 1,
     "pool_level": 0.1388,
     "range_high": 0.1407,
     "range_low": 0.1307,
-    "regime": "BEAR",
+    "regime": "RANGE",
     "sweep_extreme": 0.139,
     "symbol": "ALICE/USDT:USDT"
   },
   "BLUR/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-10-31T01:39:17.392845+00:00",
-    "last_seen": "2026-10-31T01:39:17.392845+00:00",
+    "first_seen": "2026-10-31T07:30:15.955224+00:00",
+    "last_seen": "2026-10-31T07:30:15.955224+00:00",
     "observations": 1,
-    "pool_level": 0.00891,
+    "pool_level": 0.0088,
     "range_high": 0.00891,
     "range_low": 0.00717,
-    "regime": "BEAR",
-    "sweep_extreme": 0.00895,
+    "regime": "RANGE",
+    "sweep_extreme": 0.00892,
     "symbol": "BLUR/USDT:USDT"
   },
-  "HOT/USDT:USDT|SHORT": {
+  "KAVA/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-10-31T01:39:42.395063+00:00",
-    "last_seen": "2026-10-31T01:39:42.395063+00:00",
+    "first_seen": "2026-10-31T07:29:45.860964+00:00",
+    "last_seen": "2026-10-31T07:29:45.860964+00:00",
     "observations": 1,
-    "pool_level": 0.0003608,
-    "range_high": 0.0003608,
-    "range_low": 0.0003372,
-    "regime": "BEAR",
-    "sweep_extreme": 0.0003701,
-    "symbol": "HOT/USDT:USDT"
+    "pool_level": 0.06966,
+    "range_high": 0.07114,
+    "range_low": 0.06792,
+    "regime": "RANGE",
+    "sweep_extreme": 0.06969,
+    "symbol": "KAVA/USDT:USDT"
+  },
+  "OP/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-10-31T07:29:52.134394+00:00",
+    "last_seen": "2026-10-31T07:29:52.134394+00:00",
+    "observations": 1,
+    "pool_level": 0.1148,
+    "range_high": 0.1159,
+    "range_low": 0.1085,
+    "regime": "RANGE",
+    "sweep_extreme": 0.1153,
+    "symbol": "OP/USDT:USDT"
   }
 }
