@@ -213,16 +213,19 @@ def fetch_klines(symbol: str, interval: str, start_ms: int, end_ms: int) -> pd.D
         candles = pd.DataFrame(columns=columns)
 
     start = pd.to_datetime(start_ms, unit="ms", utc=True)
-    end = pd.to_datetime(end_ms, unit="ms", utc=True)
+    # end_ms is the end boundary. Require only candles that have fully closed
+    # by that boundary, not a still-forming candle opened exactly at end_ms.
+    interval_ms = int(INTERVAL_DELTAS[interval].total_seconds() * 1000)
+    last_open_ms = ((int(end_ms) - interval_ms) // interval_ms) * interval_ms
+    end = pd.to_datetime(last_open_ms, unit="ms", utc=True)
     candles = candles[
         (candles["timestamp"] >= start) & (candles["timestamp"] <= end)
     ].drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
 
     # Archive downloads can silently omit a daily partition. Determine the
     # exact expected candle opens and recover only missing ranges via REST.
-    interval_ms = int(INTERVAL_DELTAS[interval].total_seconds() * 1000)
     first_open_ms = ((int(start_ms) + interval_ms - 1) // interval_ms) * interval_ms
-    expected_ms = range(first_open_ms, int(end_ms) + 1, interval_ms)
+    expected_ms = range(first_open_ms, last_open_ms + 1, interval_ms)
     observed_ms = set((candles["timestamp"].astype("int64") // 1_000_000).tolist())
     missing_ms = [stamp for stamp in expected_ms if stamp not in observed_ms]
 
@@ -257,7 +260,7 @@ def fetch_klines(symbol: str, interval: str, start_ms: int, end_ms: int) -> pd.D
 
     observed_ms = set((candles["timestamp"].astype("int64") // 1_000_000).tolist())
     remaining = [
-        stamp for stamp in range(first_open_ms, int(end_ms) + 1, interval_ms)
+        stamp for stamp in range(first_open_ms, last_open_ms + 1, interval_ms)
         if stamp not in observed_ms
     ]
     if remaining:
@@ -646,7 +649,9 @@ def run():
     import scanner_v5 as scanner
 
     now = pd.Timestamp.now(tz="UTC")
-    end = now.floor("h") - pd.Timedelta(days=OFFSET_DAYS, hours=1)
+    # Reserve a full 72h outcome window after the final replay timestamp.
+    # offset_days=0 therefore means the latest fully scoreable 30-day window.
+    end = now.floor("h") - pd.Timedelta(days=OFFSET_DAYS, hours=73)
     start = end - pd.Timedelta(days=DAYS)
 
     print(f"Historical replay: {start} -> {end}")
