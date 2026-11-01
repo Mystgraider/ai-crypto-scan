@@ -31,7 +31,11 @@ def counts(items):
         "tp3": tp3,
         "sl": sl,
         "expired": outcomes.get("EXPIRED", 0),
-        "open_or_other": len(items) - tp3 - sl - outcomes.get("EXPIRED", 0),
+        "incomplete_data": outcomes.get("INCOMPLETE_DATA", 0),
+        "open_or_other": outcomes.get("OPEN", 0) + sum(
+            count for outcome, count in outcomes.items()
+            if outcome not in {"TP3_HIT", "SL_HIT", "EXPIRED", "INCOMPLETE_DATA", "OPEN"}
+        ),
         "resolved_tp3_or_sl": resolved,
         "tp3_rate_pct": round(100 * tp3 / resolved, 2) if resolved else None,
     }
@@ -67,6 +71,7 @@ analysis = {
     "research_only": True,
     "production_strategy_changed": False,
     "warning": "Retrospective candidate comparisons are diagnostic only; candidate selection requires separate chronological validation.",
+    "incomplete_outcomes_excluded_from_tp3_rate": True,
     "short_baseline": counts(shorts),
     "short_rows_missing_rsi_or_adx": sum(
         1 for row in shorts if num(row.get("rsi")) is None or num(row.get("adx")) is None
