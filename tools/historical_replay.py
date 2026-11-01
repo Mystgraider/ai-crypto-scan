@@ -118,12 +118,37 @@ def _download_archive_csv(url: str) -> pd.DataFrame | None:
                 headers={"User-Agent": "ai-crypto-scan-backtest/1.0"},
             )
             with urllib.request.urlopen(req, timeout=30) as response:
-                pdef _normalize_kline_frame(df: pd.DataFrame) -> pd.DataFrame:
+                payload = response.read()
+            with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+                csv_names = [n for n in zf.namelist() if n.lower().endswith(".csv")]
+                if not csv_names:
+                    raise ValueError("archive_contains_no_csv")
+                with zf.open(csv_names[0]) as fh:
+                    return pd.read_csv(fh)
+        except Exception as exc:
+            last_error = exc
+            code = getattr(exc, "code", None)
+            if code == 404:
+                return None
+            if attempt < 2:
+                time.sleep(1.0 * (attempt + 1))
+    print(f"ARCHIVE_DOWNLOAD_FAILED url={url} error={last_error}")
+    return None
+
+
+def _day_range(start_ms: int, end_ms: int) -> list[pd.Timestamp]:
+    start = pd.to_datetime(start_ms, unit="ms", utc=True).floor("D")
+    end = pd.to_datetime(end_ms, unit="ms", utc=True).floor("D")
+    return list(pd.date_range(start, end, freq="D", tz="UTC"))
+
+
+def _normalize_kline_frame(df: pd.DataFrame) -> pd.DataFrame:
     """Normalize Binance Vision CSV and REST kline rows to one OHLCV schema."""
+    columns = ["timestamp", "open", "high", "low", "close", "volume"]
     if df is None or df.empty:
-        return pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume"])
+        return pd.DataFrame(columns=columns)
     if "open_time" in df.columns:
-        cols = {
+        mapping = {
             "open_time": "timestamp",
             "open": "open",
             "high": "high",
@@ -131,23 +156,23 @@ def _download_archive_csv(url: str) -> pd.DataFrame | None:
             "close": "close",
             "volume": "volume",
         }
-        if any(name not in df.columns for name in cols):
-            return pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume"])
-        out = df[list(cols)].rename(columns=cols).copy()
+        if any(name not in df.columns for name in mapping):
+            return pd.DataFrame(columns=columns)
+        out = df[list(mapping)].rename(columns=mapping).copy()
     elif len(df.columns) >= 6:
         out = df.iloc[:, :6].copy()
-        out.columns = ["timestamp", "open", "high", "low", "close", "volume"]
+        out.columns = columns
     else:
-        return pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume"])
+        return pd.DataFrame(columns=columns)
 
     out["timestamp"] = pd.to_numeric(out["timestamp"], errors="coerce")
     valid = out["timestamp"].dropna()
     if valid.empty:
-        return pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume"])
+        return pd.DataFrame(columns=columns)
     unit = "us" if valid.median() > 10**14 else "ms"
     out["timestamp"] = pd.to_datetime(out["timestamp"], unit=unit, utc=True, errors="coerce")
-    for col in ["open", "high", "low", "close", "volume"]:
-        out[col] = pd.to_numeric(out[col], errors="coerce")
+    for name in ["open", "high", "low", "close", "volume"]:
+        out[name] = pd.to_numeric(out[name], errors="coerce")
     return out.dropna(subset=["timestamp", "open", "high", "low", "close"])
 
 
@@ -155,6 +180,7 @@ def _fetch_klines_rest(
     symbol: str, interval: str, start_ms: int, end_ms: int
 ) -> pd.DataFrame:
     """Fetch a missing candle range from Binance Futures REST with pagination."""
+    columns = ["timestamp", "open", "high", "low", "close", "volume"]
     interval_ms = int(INTERVAL_DELTAS[interval].total_seconds() * 1000)
     cursor = int(start_ms)
     frames = []
@@ -171,11 +197,11 @@ def _fetch_klines_rest(
         )
         if not isinstance(rows, list) or not rows:
             break
-        frame = pd.DataFrame(
+        raw = pd.DataFrame(
             [row[:6] for row in rows],
-            columns=["timestamp", "open", "high", "low", "close", "volume"],
+            columns=columns,
         )
-        frames.append(_normalize_kline_frame(frame))
+        frames.append(_normalize_kline_frame(raw))
         last_open = int(rows[-1][0])
         next_cursor = last_open + interval_ms
         if next_cursor <= cursor:
@@ -188,7 +214,7 @@ def _fetch_klines_rest(
         time.sleep(0.08)
 
     if not frames:
-        return pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume"])
+        return pd.DataFrame(columns=columns)
     return (
         pd.concat(frames, ignore_index=True)
         .drop_duplicates("timestamp")
@@ -198,32 +224,27 @@ def _fetch_klines_rest(
 
 
 def fetch_klines(symbol: str, interval: str, start_ms: int, end_ms: int) -> pd.DataFrame:
+    columns = ["timestamp", "open", "high", "low", "close", "volume"]
     frames = []
     for day in _day_range(start_ms, end_ms):
         url = _archive_url("klines", symbol, interval, day)
-        raw = _download_archive_csv(url)
-        normalized = _normalize_kline_frame(raw)
+        normalized = _normalize_kline_frame(_download_archive_csv(url))
         if not normalized.empty:
             frames.append(normalized)
 
-    columns = ["timestamp", "open", "high", "low", "close", "volume"]
-    if frames:
-        candles = pd.concat(frames, ignore_index=True)
-    else:
-        candles = pd.DataFrame(columns=columns)
-
+    candles = (
+        pd.concat(frames, ignore_index=True)
+        if frames else pd.DataFrame(columns=columns)
+    )
     start = pd.to_datetime(start_ms, unit="ms", utc=True)
-    # end_ms is the end boundary. Require only candles that have fully closed
-    # by that boundary, not a still-forming candle opened exactly at end_ms.
     interval_ms = int(INTERVAL_DELTAS[interval].total_seconds() * 1000)
+    # end_ms is the end boundary. Only require candles fully closed by it.
     last_open_ms = ((int(end_ms) - interval_ms) // interval_ms) * interval_ms
     end = pd.to_datetime(last_open_ms, unit="ms", utc=True)
     candles = candles[
         (candles["timestamp"] >= start) & (candles["timestamp"] <= end)
     ].drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
 
-    # Archive downloads can silently omit a daily partition. Determine the
-    # exact expected candle opens and recover only missing ranges via REST.
     first_open_ms = ((int(start_ms) + interval_ms - 1) // interval_ms) * interval_ms
     expected_ms = range(first_open_ms, last_open_ms + 1, interval_ms)
     observed_ms = set((candles["timestamp"].astype("int64") // 1_000_000).tolist())
@@ -234,7 +255,6 @@ def fetch_klines(symbol: str, interval: str, start_ms: int, end_ms: int) -> pd.D
             f"KLINE_ARCHIVE_GAP symbol={symbol} interval={interval} "
             f"missing={len(missing_ms)}; requesting Binance REST fallback"
         )
-        # Coalesce consecutive missing opens so REST requests are bounded.
         ranges = []
         range_start = previous = missing_ms[0]
         for stamp in missing_ms[1:]:
@@ -244,11 +264,10 @@ def fetch_klines(symbol: str, interval: str, start_ms: int, end_ms: int) -> pd.D
             previous = stamp
         ranges.append((range_start, previous))
 
-        recovered = []
-        for gap_start, gap_end in ranges:
-            recovered.append(
-                _fetch_klines_rest(symbol, interval, gap_start, gap_end)
-            )
+        recovered = [
+            _fetch_klines_rest(symbol, interval, gap_start, gap_end)
+            for gap_start, gap_end in ranges
+        ]
         recovered = [frame for frame in recovered if not frame.empty]
         if recovered:
             candles = pd.concat([candles, *recovered], ignore_index=True)
@@ -270,25 +289,6 @@ def fetch_klines(symbol: str, interval: str, start_ms: int, end_ms: int) -> pd.D
             f"missing={len(remaining)}:first_missing={first_missing}"
         )
     return candles
-        out = df.iloc[:, :6].copy()
-            out.columns = ["timestamp", "open", "high", "low", "close", "volume"]
-
-        out["timestamp"] = pd.to_numeric(out["timestamp"], errors="coerce")
-        # Archive timestamps are currently milliseconds; keep a defensive
-        # microsecond conversion for any future archive format change.
-        unit = "us" if out["timestamp"].dropna().median() > 10**14 else "ms"
-        out["timestamp"] = pd.to_datetime(out["timestamp"], unit=unit, utc=True, errors="coerce")
-        for col in ["open", "high", "low", "close", "volume"]:
-            out[col] = pd.to_numeric(out[col], errors="coerce")
-        frames.append(out.dropna(subset=["timestamp", "open", "high", "low", "close"]))
-
-    if not frames:
-        raise RuntimeError(f"no_klines:{symbol}:{interval}")
-
-    df = pd.concat(frames, ignore_index=True)
-    df = df[(df["timestamp"] >= pd.to_datetime(start_ms, unit="ms", utc=True)) &
-            (df["timestamp"] <= pd.to_datetime(end_ms, unit="ms", utc=True))]
-    return df.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
 
 
 def fetch_funding(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
