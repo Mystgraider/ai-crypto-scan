@@ -17,9 +17,9 @@ on:
         default: "30"
         type: string
       offset_days:
-        description: "End date offset from run date in days"
+        description: "End date offset from run date in days (0 = latest)"
         required: true
-        default: "30"
+        default: "0"
         type: string
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
       - name: Run configurable historical replay
         env:
           BACKTEST_DAYS: ${{ inputs.days || '30' }}
-          BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '30' }}
+          BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '0' }}
         run: |
           python tools/historical_replay.py
 
