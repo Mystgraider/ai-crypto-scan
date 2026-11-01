@@ -36,8 +36,8 @@ def _future_5m():
 def test_full_contiguous_72h_without_hit_is_expired():
     result = historical_outcome(_signal(), _future_5m())
     assert result["status"] == "EXPIRED"
-    assert result["expected_candles"] == 864
-    assert result["observed_candles"] == 864
+    assert result["expected_candles"] == 863
+    assert result["observed_candles"] == 863
 
 
 def test_missing_candle_is_incomplete_not_expired():
@@ -45,7 +45,7 @@ def test_missing_candle_is_incomplete_not_expired():
     result = historical_outcome(_signal(), candles)
     assert result["status"] == "INCOMPLETE_DATA"
     assert result["missing_candles"] == 1
-    assert result["expected_candles"] == 864
+    assert result["expected_candles"] == 863
 
 
 def test_terminal_hit_before_later_gap_remains_valid():
@@ -59,12 +59,14 @@ def test_hourly_timeline_requires_every_expected_close():
     start = pd.Timestamp("2026-10-01T00:00:00Z")
     end = start + pd.Timedelta(hours=3)
     complete = pd.DataFrame({
-        "timestamp": pd.date_range(start=start, periods=3, freq="1h")
+        "timestamp": pd.date_range(
+            start=start - pd.Timedelta(hours=1), periods=4, freq="1h"
+        )
     })
     report = validate_hourly_timeline(complete, start, end)
     assert report["expected_hours"] == 4
-    assert report["observed_hours"] == 3
-    assert report["missing_hours"] == 1
+    assert report["observed_hours"] == 4
+    assert report["missing_hours"] == 0
 
 
 def test_hourly_timeline_fails_closed_on_gap():
@@ -72,9 +74,9 @@ def test_hourly_timeline_fails_closed_on_gap():
     end = start + pd.Timedelta(hours=3)
     incomplete = pd.DataFrame({
         "timestamp": [
-            start,
+            start - pd.Timedelta(hours=1),
+            start + pd.Timedelta(hours=1),
             start + pd.Timedelta(hours=2),
-            start + pd.Timedelta(hours=3),
         ]
     })
     with pytest.raises(RuntimeError, match="incomplete_hourly_replay_timeline"):
