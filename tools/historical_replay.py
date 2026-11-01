@@ -60,6 +60,11 @@ INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
 DAYS = int(os.getenv("BACKTEST_DAYS", "30"))
 OFFSET_DAYS = int(os.getenv("BACKTEST_OFFSET_DAYS", "60"))
+# Binance Vision daily futures archives can lag recent candles. REST fallback
+# may be geo-restricted in CI, so keep the replay window behind a fixed archive
+# publication buffer and fail closed if any remaining gaps cannot be recovered.
+ARCHIVE_LAG_HOURS = int(os.getenv("BACKTEST_ARCHIVE_LAG_HOURS", "72"))
+OUTCOME_LOOKAHEAD_HOURS = 72
 # 300h provides 75 completed 4H candles for indicator warmup.
 WARMUP_HOURS = 300
 BINANCE = "https://fapi.binance.com/fapi/v1"
@@ -649,9 +654,13 @@ def run():
     import scanner_v5 as scanner
 
     now = pd.Timestamp.now(tz="UTC")
-    # Reserve a full 72h outcome window after the final replay timestamp.
-    # offset_days=0 therefore means the latest fully scoreable 30-day window.
-    end = now.floor("h") - pd.Timedelta(days=OFFSET_DAYS, hours=73)
+    # Reserve the complete outcome horizon plus Binance Vision's archive
+    # publication lag. offset_days=0 means the latest fully archived,
+    # fully scoreable 30-day window, not a 60-day historical offset.
+    end = now.floor("h") - pd.Timedelta(
+        days=OFFSET_DAYS,
+        hours=OUTCOME_LOOKAHEAD_HOURS + ARCHIVE_LAG_HOURS + 1,
+    )
     start = end - pd.Timedelta(days=DAYS)
 
     print(f"Historical replay: {start} -> {end}")
@@ -820,7 +829,8 @@ def run():
             "production_code_modified": False,
             "harness_mode": "scanner_v5.main historical injection",
             "timeline_coverage": timeline_coverage,
-            "outcome_expiry_hours": 72,
+            "outcome_expiry_hours": OUTCOME_LOOKAHEAD_HOURS,
+            "archive_lag_buffer_hours": ARCHIVE_LAG_HOURS,
             "outcome_candle_interval": "5m",
             "incomplete_outcome_policy": "INCOMPLETE_DATA unless all 864 expected 5m candles are contiguous or TP/SL is reached before a gap",
         },
