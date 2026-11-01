@@ -63,7 +63,7 @@ OFFSET_DAYS = int(os.getenv("BACKTEST_OFFSET_DAYS", "60"))
 # Binance Vision daily futures archives can lag recent candles. REST fallback
 # may be geo-restricted in CI, so keep the replay window behind a fixed archive
 # publication buffer and fail closed if any remaining gaps cannot be recovered.
-ARCHIVE_LAG_HOURS = int(os.getenv("BACKTEST_ARCHIVE_LAG_HOURS", "72"))
+ARCHIVE_LAG_HOURS = int(os.getenv("BACKTEST_ARCHIVE_LAG_HOURS", "120"))
 OUTCOME_LOOKAHEAD_HOURS = 72
 # 300h provides 75 completed 4H candles for indicator warmup.
 WARMUP_HOURS = 300
@@ -258,7 +258,10 @@ def fetch_klines(symbol: str, interval: str, start_ms: int, end_ms: int) -> pd.D
     if missing_ms:
         print(
             f"KLINE_ARCHIVE_GAP symbol={symbol} interval={interval} "
-            f"missing={len(missing_ms)}; requesting Binance REST fallback"
+            f"missing={len(missing_ms)} "
+            f"first={pd.to_datetime(missing_ms[0], unit='ms', utc=True).isoformat()} "
+            f"last={pd.to_datetime(missing_ms[-1], unit='ms', utc=True).isoformat()}; "
+            f"requesting Binance REST fallback"
         )
         ranges = []
         range_start = previous = missing_ms[0]
