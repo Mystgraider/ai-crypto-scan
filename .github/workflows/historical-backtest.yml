@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "tools/historical_replay.py"
+      - "tools/short_candidate_analysis.py"
+      - "tests/test_historical_replay_data_integrity.py"
       - "scanner_v5.py"
       - "config.py"
       - "engines/**"
