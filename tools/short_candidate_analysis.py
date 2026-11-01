@@ -41,9 +41,9 @@ def counts(items):
     }
 
 
-def selected(rsi_min=None, rsi_max=None, adx_min=None, adx_max=None):
+def selected(source, rsi_min=None, rsi_max=None, adx_min=None, adx_max=None):
     result = []
-    for row in shorts:
+    for row in source:
         rsi, adx = num(row.get("rsi")), num(row.get("adx"))
         if rsi is None or adx is None:
             continue
@@ -59,6 +59,11 @@ def selected(rsi_min=None, rsi_max=None, adx_min=None, adx_max=None):
     return result
 
 
+indicator_complete_shorts = [
+    row for row in shorts
+    if num(row.get("rsi")) is not None and num(row.get("adx")) is not None
+]
+
 adx_bands = [
     ("ADX <20", None, 20),
     ("ADX 20-25", 20, 25),
@@ -72,21 +77,25 @@ analysis = {
     "production_strategy_changed": False,
     "warning": "Retrospective candidate comparisons are diagnostic only; candidate selection requires separate chronological validation.",
     "incomplete_outcomes_excluded_from_tp3_rate": True,
-    "short_baseline": counts(shorts),
-    "short_rows_missing_rsi_or_adx": sum(
-        1 for row in shorts if num(row.get("rsi")) is None or num(row.get("adx")) is None
+    "short_baseline_all_rows": counts(shorts),
+    "short_baseline_indicator_complete": counts(indicator_complete_shorts),
+    "short_rows_missing_rsi_or_adx": len(shorts) - len(indicator_complete_shorts),
+    "indicator_complete_coverage_pct": (
+        round(100 * len(indicator_complete_shorts) / len(shorts), 2) if shorts else None
     ),
-    "rsi_60_70": counts(selected(rsi_min=60, rsi_max=70)),
-    "rsi_70_plus": counts(selected(rsi_min=70)),
+    "rsi_60_70": counts(selected(indicator_complete_shorts, rsi_min=60, rsi_max=70)),
+    "rsi_70_plus": counts(selected(indicator_complete_shorts, rsi_min=70)),
     "rsi_60_70_by_adx_band": {},
-    "rsi_60_70_adx_20_25": counts(selected(rsi_min=60, rsi_max=70, adx_min=20, adx_max=25)),
-    "rsi_60_70_adx_below_30": counts(selected(rsi_min=60, rsi_max=70, adx_max=30)),
+    "rsi_60_70_adx_20_25": counts(selected(indicator_complete_shorts, rsi_min=60, rsi_max=70, adx_min=20, adx_max=25)),
+    "rsi_60_70_adx_below_30": counts(selected(indicator_complete_shorts, rsi_min=60, rsi_max=70, adx_max=30)),
     "rsi_bands": {},
     "adx_bands": {},
 }
 for label, lo, hi in adx_bands:
-    analysis["adx_bands"][label] = counts(selected(adx_min=lo, adx_max=hi))
-    analysis["rsi_60_70_by_adx_band"][label] = counts(selected(rsi_min=60, rsi_max=70, adx_min=lo, adx_max=hi))
+    analysis["adx_bands"][label] = counts(selected(indicator_complete_shorts, adx_min=lo, adx_max=hi))
+    analysis["rsi_60_70_by_adx_band"][label] = counts(
+        selected(indicator_complete_shorts, rsi_min=60, rsi_max=70, adx_min=lo, adx_max=hi)
+    )
 for label, lo, hi in [
     ("RSI <40", None, 40),
     ("RSI 40-50", 40, 50),
@@ -94,19 +103,15 @@ for label, lo, hi in [
     ("RSI 60-70", 60, 70),
     ("RSI >=70", 70, None),
 ]:
-    analysis["rsi_bands"][label] = counts(selected(rsi_min=lo, rsi_max=hi))
+    analysis["rsi_bands"][label] = counts(selected(indicator_complete_shorts, rsi_min=lo, rsi_max=hi))
 
-# EMA200 counterfactual for the strongest RSI/ADX discovery bucket.
-# This is descriptive research only; it does not filter production signals.
-ema_base = [
-    row for row in shorts
-    if num(row.get("rsi")) is not None
-    and 60 <= num(row.get("rsi")) < 70
-    and num(row.get("adx")) is not None
-    and 20 <= num(row.get("adx")) < 25
+# EMA200 counterfactual for the RSI/ADX discovery bucket.
+# It remains descriptive research only and never filters production signals.
+ema_base = selected(indicator_complete_shorts, rsi_min=60, rsi_max=70, adx_min=20, adx_max=25)
+ema_available = [
+    row for row in ema_base
+    if num(row.get("ema200_1h")) is not None and num(row.get("signal_close_1h")) is not None
 ]
-ema_available = [row for row in ema_base if num(row.get("ema200_1h")) is not None
-                 and num(row.get("signal_close_1h")) is not None]
 ema_below = [
     row for row in ema_available
     if num(row["signal_close_1h"]) < num(row["ema200_1h"])
