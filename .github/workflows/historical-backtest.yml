@@ -17,9 +17,9 @@ on:
         default: "30"
         type: string
       offset_days:
-        description: "End date offset from run date in days (0 = latest)"
+        description: "End date offset from run date in days (30 = 30 days before latest)"
         required: true
-        default: "0"
+        default: "30"
         type: string
 
 jobs:
