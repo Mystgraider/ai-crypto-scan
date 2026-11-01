@@ -58,8 +58,15 @@ DATA_SYMBOLS = list(dict.fromkeys(SYMBOLS + ["BTC/USDT:USDT"]))
 
 INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
-DAYS = int(os.getenv("BACKTEST_DAYS", "7"))
-WARMUP_HOURS = 120
+DAYS = int(os.getenv("BACKTEST_DAYS", "30"))
+OFFSET_DAYS = int(os.getenv("BACKTEST_OFFSET_DAYS", "60"))
+# Binance Vision daily futures archives can lag recent candles. REST fallback
+# may be geo-restricted in CI, so keep the replay window behind a fixed archive
+# publication buffer and fail closed if any remaining gaps cannot be recovered.
+ARCHIVE_LAG_HOURS = int(os.getenv("BACKTEST_ARCHIVE_LAG_HOURS", "120"))
+OUTCOME_LOOKAHEAD_HOURS = 72
+# 300h provides 75 completed 4H candles for indicator warmup.
+WARMUP_HOURS = 300
 BINANCE = "https://fapi.binance.com/fapi/v1"
 BINANCE_DATA = "https://fapi.binance.com/futures/data"
 
@@ -72,12 +79,25 @@ def symbol_to_binance(symbol: str) -> str:
 
 def http_json(url: str, params: dict) -> list | dict:
     query = urllib.parse.urlencode(params)
-    req = urllib.request.Request(
-        url + "?" + query,
-        headers={"User-Agent": "ai-crypto-scan-backtest/1.0"},
-    )
-    with urllib.request.urlopen(req, timeout=30) as response:
-        return json.loads(response.read().decode("utf-8"))
+    request_url = url + "?" + query
+    last_error = None
+    for attempt in range(4):
+        try:
+            req = urllib.request.Request(
+                request_url,
+                headers={"User-Agent": "ai-crypto-scan-backtest/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=30) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except Exception as exc:
+            last_error = exc
+            # Do not retry permanent client errors such as invalid parameters.
+            code = getattr(exc, "code", None)
+            if code is not None and 400 <= code < 500 and code != 429:
+                raise
+            if attempt < 3:
+                time.sleep(1.5 * (attempt + 1))
+    raise RuntimeError(f"binance_rest_request_failed:{url}:{last_error}") from last_error
 
 
 BINANCE_VISION = "https://data.binance.vision/data/futures/um"
@@ -92,28 +112,33 @@ def _archive_url(kind: str, symbol: str, interval: str, day: pd.Timestamp) -> st
 
 
 def _download_archive_csv(url: str) -> pd.DataFrame | None:
-    try:
-        req = urllib.request.Request(
-            url,
-            headers={"User-Agent": "ai-crypto-scan-backtest/1.0"},
-        )
-        with urllib.request.urlopen(req, timeout=30) as response:
-            payload = response.read()
-    except Exception:
-        return None
-
     import io
     import zipfile
 
-    try:
-        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
-            csv_names = [n for n in zf.namelist() if n.lower().endswith(".csv")]
-            if not csv_names:
+    last_error = None
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "ai-crypto-scan-backtest/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=30) as response:
+                payload = response.read()
+            with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+                csv_names = [n for n in zf.namelist() if n.lower().endswith(".csv")]
+                if not csv_names:
+                    raise ValueError("archive_contains_no_csv")
+                with zf.open(csv_names[0]) as fh:
+                    return pd.read_csv(fh)
+        except Exception as exc:
+            last_error = exc
+            code = getattr(exc, "code", None)
+            if code == 404:
                 return None
-            with zf.open(csv_names[0]) as fh:
-                return pd.read_csv(fh)
-    except Exception:
-        return None
+            if attempt < 2:
+                time.sleep(1.0 * (attempt + 1))
+    print(f"ARCHIVE_DOWNLOAD_FAILED url={url} error={last_error}")
+    return None
 
 
 def _day_range(start_ms: int, end_ms: int) -> list[pd.Timestamp]:
@@ -122,51 +147,156 @@ def _day_range(start_ms: int, end_ms: int) -> list[pd.Timestamp]:
     return list(pd.date_range(start, end, freq="D", tz="UTC"))
 
 
+def _normalize_kline_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize Binance Vision CSV and REST kline rows to one OHLCV schema."""
+    columns = ["timestamp", "open", "high", "low", "close", "volume"]
+    if df is None or df.empty:
+        return pd.DataFrame(columns=columns)
+    if "open_time" in df.columns:
+        mapping = {
+            "open_time": "timestamp",
+            "open": "open",
+            "high": "high",
+            "low": "low",
+            "close": "close",
+            "volume": "volume",
+        }
+        if any(name not in df.columns for name in mapping):
+            return pd.DataFrame(columns=columns)
+        out = df[list(mapping)].rename(columns=mapping).copy()
+    elif len(df.columns) >= 6:
+        out = df.iloc[:, :6].copy()
+        out.columns = columns
+    else:
+        return pd.DataFrame(columns=columns)
+
+    out["timestamp"] = pd.to_numeric(out["timestamp"], errors="coerce")
+    valid = out["timestamp"].dropna()
+    if valid.empty:
+        return pd.DataFrame(columns=columns)
+    unit = "us" if valid.median() > 10**14 else "ms"
+    out["timestamp"] = pd.to_datetime(out["timestamp"], unit=unit, utc=True, errors="coerce")
+    for name in ["open", "high", "low", "close", "volume"]:
+        out[name] = pd.to_numeric(out[name], errors="coerce")
+    return out.dropna(subset=["timestamp", "open", "high", "low", "close"])
+
+
+def _fetch_klines_rest(
+    symbol: str, interval: str, start_ms: int, end_ms: int
+) -> pd.DataFrame:
+    """Fetch a missing candle range from Binance Futures REST with pagination."""
+    columns = ["timestamp", "open", "high", "low", "close", "volume"]
+    interval_ms = int(INTERVAL_DELTAS[interval].total_seconds() * 1000)
+    cursor = int(start_ms)
+    frames = []
+    while cursor <= end_ms:
+        rows = http_json(
+            f"{BINANCE}/klines",
+            {
+                "symbol": symbol,
+                "interval": interval,
+                "startTime": cursor,
+                "endTime": int(end_ms),
+                "limit": 1500,
+            },
+        )
+        if not isinstance(rows, list) or not rows:
+            break
+        raw = pd.DataFrame(
+            [row[:6] for row in rows],
+            columns=columns,
+        )
+        frames.append(_normalize_kline_frame(raw))
+        last_open = int(rows[-1][0])
+        next_cursor = last_open + interval_ms
+        if next_cursor <= cursor:
+            raise RuntimeError(
+                f"binance_rest_pagination_stalled:{symbol}:{interval}:{cursor}"
+            )
+        cursor = next_cursor
+        if len(rows) < 1500:
+            break
+        time.sleep(0.08)
+
+    if not frames:
+        return pd.DataFrame(columns=columns)
+    return (
+        pd.concat(frames, ignore_index=True)
+        .drop_duplicates("timestamp")
+        .sort_values("timestamp")
+        .reset_index(drop=True)
+    )
+
+
 def fetch_klines(symbol: str, interval: str, start_ms: int, end_ms: int) -> pd.DataFrame:
+    columns = ["timestamp", "open", "high", "low", "close", "volume"]
     frames = []
     for day in _day_range(start_ms, end_ms):
         url = _archive_url("klines", symbol, interval, day)
-        df = _download_archive_csv(url)
-        if df is None or df.empty:
-            continue
+        normalized = _normalize_kline_frame(_download_archive_csv(url))
+        if not normalized.empty:
+            frames.append(normalized)
 
-        # Binance futures archive files may include a header. Normalize by
-        # position so the replay does not depend on archive header variants.
-        if "open_time" in df.columns:
-            cols = {
-                "open_time": "timestamp",
-                "open": "open",
-                "high": "high",
-                "low": "low",
-                "close": "close",
-                "volume": "volume",
-            }
-            missing = [k for k in cols if k not in df.columns]
-            if missing:
-                continue
-            out = df[list(cols)].rename(columns=cols)
-        else:
-            if len(df.columns) < 6:
-                continue
-            out = df.iloc[:, :6].copy()
-            out.columns = ["timestamp", "open", "high", "low", "close", "volume"]
+    candles = (
+        pd.concat(frames, ignore_index=True)
+        if frames else pd.DataFrame(columns=columns)
+    )
+    start = pd.to_datetime(start_ms, unit="ms", utc=True)
+    interval_ms = int(INTERVAL_DELTAS[interval].total_seconds() * 1000)
+    # end_ms is the end boundary. Only require candles fully closed by it.
+    last_open_ms = ((int(end_ms) - interval_ms) // interval_ms) * interval_ms
+    end = pd.to_datetime(last_open_ms, unit="ms", utc=True)
+    candles = candles[
+        (candles["timestamp"] >= start) & (candles["timestamp"] <= end)
+    ].drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
 
-        out["timestamp"] = pd.to_numeric(out["timestamp"], errors="coerce")
-        # Archive timestamps are currently milliseconds; keep a defensive
-        # microsecond conversion for any future archive format change.
-        unit = "us" if out["timestamp"].dropna().median() > 10**14 else "ms"
-        out["timestamp"] = pd.to_datetime(out["timestamp"], unit=unit, utc=True, errors="coerce")
-        for col in ["open", "high", "low", "close", "volume"]:
-            out[col] = pd.to_numeric(out[col], errors="coerce")
-        frames.append(out.dropna(subset=["timestamp", "open", "high", "low", "close"]))
+    first_open_ms = ((int(start_ms) + interval_ms - 1) // interval_ms) * interval_ms
+    expected_ms = range(first_open_ms, last_open_ms + 1, interval_ms)
+    observed_ms = set((candles["timestamp"].astype("int64") // 1_000_000).tolist())
+    missing_ms = [stamp for stamp in expected_ms if stamp not in observed_ms]
 
-    if not frames:
-        raise RuntimeError(f"no_klines:{symbol}:{interval}")
+    if missing_ms:
+        print(
+            f"KLINE_ARCHIVE_GAP symbol={symbol} interval={interval} "
+            f"missing={len(missing_ms)} "
+            f"first={pd.to_datetime(missing_ms[0], unit='ms', utc=True).isoformat()} "
+            f"last={pd.to_datetime(missing_ms[-1], unit='ms', utc=True).isoformat()}; "
+            f"requesting Binance REST fallback"
+        )
+        ranges = []
+        range_start = previous = missing_ms[0]
+        for stamp in missing_ms[1:]:
+            if stamp != previous + interval_ms:
+                ranges.append((range_start, previous))
+                range_start = stamp
+            previous = stamp
+        ranges.append((range_start, previous))
 
-    df = pd.concat(frames, ignore_index=True)
-    df = df[(df["timestamp"] >= pd.to_datetime(start_ms, unit="ms", utc=True)) &
-            (df["timestamp"] <= pd.to_datetime(end_ms, unit="ms", utc=True))]
-    return df.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
+        recovered = [
+            _fetch_klines_rest(symbol, interval, gap_start, gap_end)
+            for gap_start, gap_end in ranges
+        ]
+        recovered = [frame for frame in recovered if not frame.empty]
+        if recovered:
+            candles = pd.concat([candles, *recovered], ignore_index=True)
+            candles = (
+                candles.drop_duplicates("timestamp")
+                .sort_values("timestamp")
+                .reset_index(drop=True)
+            )
+
+    observed_ms = set((candles["timestamp"].astype("int64") // 1_000_000).tolist())
+    remaining = [
+        stamp for stamp in range(first_open_ms, last_open_ms + 1, interval_ms)
+        if stamp not in observed_ms
+    ]
+    if remaining:
+        first_missing = pd.to_datetime(remaining[0], unit="ms", utc=True).isoformat()
+        raise RuntimeError(
+            f"incomplete_kline_coverage:{symbol}:{interval}:"
+            f"missing={len(remaining)}:first_missing={first_missing}"
+        )
+    return candles
 
 
 def fetch_funding(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
@@ -357,7 +487,36 @@ def assert_replay_boundary(store: HistoricalStore) -> None:
 
 
 
+def validate_hourly_timeline(timeline: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> dict:
+    """Fail closed unless every expected hourly evaluation timestamp exists."""
+    expected = pd.date_range(start=start, end=end, freq="1h", tz="UTC")
+    observed = pd.DatetimeIndex(
+        pd.to_datetime(timeline["timestamp"], utc=True) + INTERVAL_DELTAS["1h"]
+    ).drop_duplicates().sort_values()
+    missing = expected.difference(observed)
+    unexpected = observed.difference(expected)
+    report = {
+        "expected_hours": int(len(expected)),
+        "observed_hours": int(len(observed)),
+        "missing_hours": int(len(missing)),
+        "unexpected_hours": int(len(unexpected)),
+        "first_missing": missing[0].isoformat() if len(missing) else None,
+        "missing_examples": [value.isoformat() for value in missing[:10]],
+    }
+    if len(missing) or len(unexpected):
+        raise RuntimeError(
+            "incomplete_hourly_replay_timeline:"
+            + json.dumps(report, sort_keys=True)
+        )
+    return report
+
+
 def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int = 72) -> dict:
+    """Score only contiguous, fully observed 5m candles in the full expiry window.
+
+    A TP/SL reached before a later data gap is valid. If a gap occurs before
+    any terminal event, the outcome is INCOMPLETE_DATA, never EXPIRED.
+    """
     direction = signal["direction"]
     entry = float(signal["entry"])
     sl = float(signal["sl"])
@@ -370,68 +529,83 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
     status = "OPEN"
     current_sl = sl
     milestones = []
-    # Only fully completed 5m candles inside the expiry window are
-    # observable at evaluation time. A candle opening exactly at expiry is
-    # still unfinished and must not affect the historical outcome.
-    future_window = future_5m[
+    delta = INTERVAL_DELTAS["5m"]
+    expected_opens = pd.date_range(
+        start=start + delta,
+        end=end - delta,
+        freq=delta,
+        tz="UTC",
+    )
+    window = future_5m[
         (future_5m["timestamp"] > start)
-        & (future_5m["timestamp"] + INTERVAL_DELTAS["5m"] <= end)
-    ]
-    for _, candle in future_window.iterrows():
+        & (future_5m["timestamp"] + delta <= end)
+    ].drop_duplicates("timestamp").set_index("timestamp")
+    missing = [timestamp for timestamp in expected_opens if timestamp not in window.index]
+
+    for timestamp in expected_opens:
+        if timestamp not in window.index:
+            return {
+                "status": "INCOMPLETE_DATA",
+                "missing_candles": len(missing),
+                "expected_candles": len(expected_opens),
+                "first_missing": timestamp.isoformat(),
+                "milestones": milestones,
+            }
+        candle = window.loc[timestamp]
         low = float(candle["low"])
         high = float(candle["high"])
 
         if direction == "LONG":
             if low <= current_sl:
-                return {"status": "SL_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                return {"status": "SL_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
             if status == "OPEN":
                 if high >= tp3:
-                    return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                    return {"status": "TP3_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
                 if high >= tp2:
-                    status = "OPEN_TP2"
-                    current_sl = entry
+                    status, current_sl = "OPEN_TP2", entry
                     milestones.append("TP2")
                     continue
                 if high >= tp1:
-                    status = "OPEN_TP1"
-                    current_sl = entry
+                    status, current_sl = "OPEN_TP1", entry
                     milestones.append("TP1")
                     continue
             elif status == "OPEN_TP1":
                 if high >= tp3:
-                    return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                    return {"status": "TP3_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
                 if high >= tp2:
                     status = "OPEN_TP2"
                     milestones.append("TP2")
             elif status == "OPEN_TP2" and high >= tp3:
-                return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                return {"status": "TP3_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
         else:
             if high >= current_sl:
-                return {"status": "SL_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                return {"status": "SL_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
             if status == "OPEN":
                 if low <= tp3:
-                    return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                    return {"status": "TP3_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
                 if low <= tp2:
-                    status = "OPEN_TP2"
-                    current_sl = entry
+                    status, current_sl = "OPEN_TP2", entry
                     milestones.append("TP2")
                     continue
                 if low <= tp1:
-                    status = "OPEN_TP1"
-                    current_sl = entry
+                    status, current_sl = "OPEN_TP1", entry
                     milestones.append("TP1")
                     continue
             elif status == "OPEN_TP1":
                 if low <= tp3:
-                    return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                    return {"status": "TP3_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
                 if low <= tp2:
                     status = "OPEN_TP2"
                     milestones.append("TP2")
             elif status == "OPEN_TP2" and low <= tp3:
-                return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                return {"status": "TP3_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
 
-    return {"status": "EXPIRED" if not future_window.empty else "OPEN"}
-
+    return {
+        "status": "EXPIRED",
+        "expected_candles": len(expected_opens),
+        "observed_candles": len(expected_opens),
+        "milestones": milestones,
+    }
 
 def load_store(start: pd.Timestamp, end: pd.Timestamp) -> HistoricalStore:
     fetch_start = start - pd.Timedelta(hours=WARMUP_HOURS)
@@ -483,7 +657,13 @@ def run():
     import scanner_v5 as scanner
 
     now = pd.Timestamp.now(tz="UTC")
-    end = now.floor("h") - pd.Timedelta(hours=1)
+    # Reserve the complete outcome horizon plus Binance Vision's archive
+    # publication lag. offset_days=0 means the latest fully archived,
+    # fully scoreable 30-day window, not a 60-day historical offset.
+    end = now.floor("h") - pd.Timedelta(
+        days=OFFSET_DAYS,
+        hours=OUTCOME_LOOKAHEAD_HOURS + ARCHIVE_LAG_HOURS + 1,
+    )
     start = end - pd.Timedelta(days=DAYS)
 
     print(f"Historical replay: {start} -> {end}")
@@ -493,9 +673,27 @@ def run():
     # reserved for indicator warmup, so no early NaNs are treated as strategy
     # failures.
     timeline = store.candles[(SYMBOLS[0], "1h")]
-    timeline = timeline[(timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start) & (timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)]
+    timeline = timeline[
+        (timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start)
+        & (timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)
+    ].copy()
     if timeline.empty:
         raise RuntimeError("empty_replay_timeline")
+
+    # The evaluation schedule is independent of whichever market-data symbol
+    # happens to be first in the candidate universe. Validate every expected
+    # hourly close before running scanner.main(); never silently skip a gap.
+    timeline_coverage = validate_hourly_timeline(timeline, start, end)
+    for symbol in SYMBOLS:
+        symbol_timeline = store.candles[(symbol, "1h")]
+        symbol_timeline = symbol_timeline[
+            (symbol_timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start)
+            & (symbol_timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)
+        ]
+        try:
+            validate_hourly_timeline(symbol_timeline, start, end)
+        except RuntimeError as exc:
+            raise RuntimeError(f"symbol_hourly_coverage_failed:{symbol}:{exc}") from exc
 
     original = {
         "MarketDataLoader": scanner.MarketDataLoader,
@@ -564,11 +762,42 @@ def run():
         symbol = sig["symbol"]
         future = store.candles[(symbol, "5m")]
         outcome = historical_outcome(sig, future)
+
+        # Research-only EMA200: calculate from completed 1H closes available
+        # at this signal timestamp. The 200-period EMA never sees future bars.
+        signal_time = pd.Timestamp(sig["_replay_time"])
+        one_hour = store.candles[(symbol, "1h")]
+        completed_1h = one_hour[
+            one_hour["timestamp"] + INTERVAL_DELTAS["1h"] <= signal_time
+        ]
+        close_series = completed_1h["close"].astype(float)
+        ema200_1h = (
+            float(close_series.ewm(span=200, adjust=False, min_periods=200).mean().iloc[-1])
+            if len(close_series) >= 200 else None
+        )
+        signal_close_1h = float(close_series.iloc[-1]) if not close_series.empty else None
+        ema200_distance_pct = (
+            round((signal_close_1h / ema200_1h - 1.0) * 100, 4)
+            if ema200_1h not in (None, 0) and signal_close_1h is not None else None
+        )
         results.append(
             {
                 "replay_time": sig["_replay_time"],
                 "symbol": symbol,
                 "direction": sig["direction"],
+                # Signal-time values from the same completed 1H indicator row
+                # used by production scanner candidate generation.
+                "rsi": sig.get("rsi"),
+                "adx": sig.get("adx"),
+                "ema200_1h": round(ema200_1h, 10) if ema200_1h is not None else None,
+                "signal_close_1h": round(signal_close_1h, 10) if signal_close_1h is not None else None,
+                "ema200_distance_pct": ema200_distance_pct,
+                "rel_volume": sig.get("rel_volume"),
+                "spike_tier": sig.get("spike_tier"),
+                "mtf_status": sig.get("mtf_status"),
+                "mtf_4h": sig.get("mtf_4h"),
+                "mtf_15m": sig.get("mtf_15m"),
+                "btc_regime": sig.get("btc_regime"),
                 "score": sig.get("score", sig.get("composite")),
                 "grade": sig.get("grade"),
                 "rr": sig.get("rr"),
@@ -593,12 +822,20 @@ def run():
             "start": start.isoformat(),
             "end": end.isoformat(),
             "days": DAYS,
+            "offset_days": OFFSET_DAYS,
+            "warmup_hours": WARMUP_HOURS,
+            "research_indicators": ["EMA200_1H_from_completed_closes"],
             "symbols": SYMBOLS,
             "timeframes": list(INTERVALS),
             "lookahead_policy": "future candles begin strictly after replay timestamp",
             "same_candle_conflict_policy": "SL first, matching SignalTracker",
             "production_code_modified": False,
             "harness_mode": "scanner_v5.main historical injection",
+            "timeline_coverage": timeline_coverage,
+            "outcome_expiry_hours": OUTCOME_LOOKAHEAD_HOURS,
+            "archive_lag_buffer_hours": ARCHIVE_LAG_HOURS,
+            "outcome_candle_interval": "5m",
+            "incomplete_outcome_policy": "INCOMPLETE_DATA unless all 864 expected 5m candles are contiguous or TP/SL is reached before a gap",
         },
         "summary": summarize(results),
         "results": results,
