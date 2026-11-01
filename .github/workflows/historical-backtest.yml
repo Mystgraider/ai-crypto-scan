@@ -17,7 +17,7 @@ on:
         default: "30"
         type: string
       offset_days:
-        description: "End date offset from run date in days (30 = 30 days before latest)"
+        description: "End date offset from latest fully scoreable data window"
         required: true
         default: "30"
         type: string
@@ -27,7 +27,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
+      - name: Require the research branch for manual runs
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${GITHUB_REF_NAME}" != "research/enable-30d-offset60-workflow" ]; then
+            echo "::error::This research replay must run from research/enable-30d-offset60-workflow, not ${GITHUB_REF_NAME}."
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Verify offset and candidate-analysis code are present
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          test -f tools/short_candidate_analysis.py
+          grep -q 'OFFSET_DAYS = int(os.getenv("BACKTEST_OFFSET_DAYS"' tools/historical_replay.py
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -42,7 +58,7 @@ jobs:
       - name: Run configurable historical replay
         env:
           BACKTEST_DAYS: ${{ inputs.days || '30' }}
-          BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '0' }}
+          BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '30' }}
         run: |
           python tools/historical_replay.py
 
