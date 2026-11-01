@@ -359,7 +359,36 @@ def assert_replay_boundary(store: HistoricalStore) -> None:
 
 
 
+def validate_hourly_timeline(timeline: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> dict:
+    """Fail closed unless every expected hourly evaluation timestamp exists."""
+    expected = pd.date_range(start=start, end=end, freq="1h", tz="UTC")
+    observed = pd.DatetimeIndex(
+        pd.to_datetime(timeline["timestamp"], utc=True) + INTERVAL_DELTAS["1h"]
+    ).drop_duplicates().sort_values()
+    missing = expected.difference(observed)
+    unexpected = observed.difference(expected)
+    report = {
+        "expected_hours": int(len(expected)),
+        "observed_hours": int(len(observed)),
+        "missing_hours": int(len(missing)),
+        "unexpected_hours": int(len(unexpected)),
+        "first_missing": missing[0].isoformat() if len(missing) else None,
+        "missing_examples": [value.isoformat() for value in missing[:10]],
+    }
+    if len(missing) or len(unexpected):
+        raise RuntimeError(
+            "incomplete_hourly_replay_timeline:"
+            + json.dumps(report, sort_keys=True)
+        )
+    return report
+
+
 def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int = 72) -> dict:
+    """Score only contiguous, fully observed 5m candles in the full expiry window.
+
+    A TP/SL reached before a later data gap is valid. If a gap occurs before
+    any terminal event, the outcome is INCOMPLETE_DATA, never EXPIRED.
+    """
     direction = signal["direction"]
     entry = float(signal["entry"])
     sl = float(signal["sl"])
@@ -372,68 +401,83 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
     status = "OPEN"
     current_sl = sl
     milestones = []
-    # Only fully completed 5m candles inside the expiry window are
-    # observable at evaluation time. A candle opening exactly at expiry is
-    # still unfinished and must not affect the historical outcome.
-    future_window = future_5m[
+    delta = INTERVAL_DELTAS["5m"]
+    expected_opens = pd.date_range(
+        start=start + delta,
+        end=end - delta,
+        freq=delta,
+        tz="UTC",
+    )
+    window = future_5m[
         (future_5m["timestamp"] > start)
-        & (future_5m["timestamp"] + INTERVAL_DELTAS["5m"] <= end)
-    ]
-    for _, candle in future_window.iterrows():
+        & (future_5m["timestamp"] + delta <= end)
+    ].drop_duplicates("timestamp").set_index("timestamp")
+    missing = [timestamp for timestamp in expected_opens if timestamp not in window.index]
+
+    for timestamp in expected_opens:
+        if timestamp not in window.index:
+            return {
+                "status": "INCOMPLETE_DATA",
+                "missing_candles": len(missing),
+                "expected_candles": len(expected_opens),
+                "first_missing": timestamp.isoformat(),
+                "milestones": milestones,
+            }
+        candle = window.loc[timestamp]
         low = float(candle["low"])
         high = float(candle["high"])
 
         if direction == "LONG":
             if low <= current_sl:
-                return {"status": "SL_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                return {"status": "SL_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
             if status == "OPEN":
                 if high >= tp3:
-                    return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                    return {"status": "TP3_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
                 if high >= tp2:
-                    status = "OPEN_TP2"
-                    current_sl = entry
+                    status, current_sl = "OPEN_TP2", entry
                     milestones.append("TP2")
                     continue
                 if high >= tp1:
-                    status = "OPEN_TP1"
-                    current_sl = entry
+                    status, current_sl = "OPEN_TP1", entry
                     milestones.append("TP1")
                     continue
             elif status == "OPEN_TP1":
                 if high >= tp3:
-                    return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                    return {"status": "TP3_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
                 if high >= tp2:
                     status = "OPEN_TP2"
                     milestones.append("TP2")
             elif status == "OPEN_TP2" and high >= tp3:
-                return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                return {"status": "TP3_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
         else:
             if high >= current_sl:
-                return {"status": "SL_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                return {"status": "SL_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
             if status == "OPEN":
                 if low <= tp3:
-                    return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                    return {"status": "TP3_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
                 if low <= tp2:
-                    status = "OPEN_TP2"
-                    current_sl = entry
+                    status, current_sl = "OPEN_TP2", entry
                     milestones.append("TP2")
                     continue
                 if low <= tp1:
-                    status = "OPEN_TP1"
-                    current_sl = entry
+                    status, current_sl = "OPEN_TP1", entry
                     milestones.append("TP1")
                     continue
             elif status == "OPEN_TP1":
                 if low <= tp3:
-                    return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                    return {"status": "TP3_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
                 if low <= tp2:
                     status = "OPEN_TP2"
                     milestones.append("TP2")
             elif status == "OPEN_TP2" and low <= tp3:
-                return {"status": "TP3_HIT", "event_time": candle["timestamp"].isoformat(), "milestones": milestones}
+                return {"status": "TP3_HIT", "event_time": timestamp.isoformat(), "milestones": milestones}
 
-    return {"status": "EXPIRED" if not future_window.empty else "OPEN"}
-
+    return {
+        "status": "EXPIRED",
+        "expected_candles": len(expected_opens),
+        "observed_candles": len(expected_opens),
+        "milestones": milestones,
+    }
 
 def load_store(start: pd.Timestamp, end: pd.Timestamp) -> HistoricalStore:
     fetch_start = start - pd.Timedelta(hours=WARMUP_HOURS)
@@ -495,9 +539,27 @@ def run():
     # reserved for indicator warmup, so no early NaNs are treated as strategy
     # failures.
     timeline = store.candles[(SYMBOLS[0], "1h")]
-    timeline = timeline[(timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start) & (timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)]
+    timeline = timeline[
+        (timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start)
+        & (timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)
+    ].copy()
     if timeline.empty:
         raise RuntimeError("empty_replay_timeline")
+
+    # The evaluation schedule is independent of whichever market-data symbol
+    # happens to be first in the candidate universe. Validate every expected
+    # hourly close before running scanner.main(); never silently skip a gap.
+    timeline_coverage = validate_hourly_timeline(timeline, start, end)
+    for symbol in SYMBOLS:
+        symbol_timeline = store.candles[(symbol, "1h")]
+        symbol_timeline = symbol_timeline[
+            (symbol_timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start)
+            & (symbol_timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)
+        ]
+        try:
+            validate_hourly_timeline(symbol_timeline, start, end)
+        except RuntimeError as exc:
+            raise RuntimeError(f"symbol_hourly_coverage_failed:{symbol}:{exc}") from exc
 
     original = {
         "MarketDataLoader": scanner.MarketDataLoader,
@@ -635,6 +697,10 @@ def run():
             "same_candle_conflict_policy": "SL first, matching SignalTracker",
             "production_code_modified": False,
             "harness_mode": "scanner_v5.main historical injection",
+            "timeline_coverage": timeline_coverage,
+            "outcome_expiry_hours": 72,
+            "outcome_candle_interval": "5m",
+            "incomplete_outcome_policy": "INCOMPLETE_DATA unless all 864 expected 5m candles are contiguous or TP/SL is reached before a gap",
         },
         "summary": summarize(results),
         "results": results,
