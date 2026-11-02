@@ -174,6 +174,140 @@ analysis["rsi_60_70_adx_20_25_ema200"] = {
     "price_at_or_above_ema200_1h": counts(ema_above),
     "definition": "EMA200 computed from completed 1H closes at signal time; below means signal-time 1H close < EMA200",
 }
+
+# Additional SHORT candidate diagnostics: entry trend alignment, stop geometry,
+# per-symbol concentration, and chronological thirds. These are research-only.
+def subset(predicate, source=shorts):
+    return [row for row in source if predicate(row)]
+
+
+def pct_distance(row, field):
+    entry, level = num(row.get("entry")), num(row.get(field))
+    if entry is None or level is None or entry <= 0:
+        return None
+    return abs(level - entry) / entry * 100
+
+
+def geometry(items):
+    sl_dist = [pct_distance(row, "sl") for row in items]
+    tp3_dist = [pct_distance(row, "tp3") for row in items]
+    sl_dist = sorted(value for value in sl_dist if value is not None)
+    tp3_dist = sorted(value for value in tp3_dist if value is not None)
+
+    def median(values):
+        if not values:
+            return None
+        middle = len(values) // 2
+        return round(values[middle] if len(values) % 2 else (values[middle - 1] + values[middle]) / 2, 4)
+
+    return {
+        "sl_distance_pct_median": median(sl_dist),
+        "tp3_distance_pct_median": median(tp3_dist),
+        "sl_distance_observations": len(sl_dist),
+        "tp3_distance_observations": len(tp3_dist),
+    }
+
+
+# Candidate combinations selected from the Run #132 discovery readout.
+# No thresholds are applied to scanner_v5.py; these are counterfactual counts.
+candidate_predicates = {
+    "baseline": lambda row: True,
+    "rsi_50_70_and_adx_below_20": lambda row: (
+        num(row.get("rsi")) is not None and 50 <= num(row["rsi"]) < 70
+        and num(row.get("adx")) is not None and num(row["adx"]) < 20
+    ),
+    "rsi_50_70_adx_below_20_price_at_or_above_ema20": lambda row: (
+        num(row.get("rsi")) is not None and 50 <= num(row["rsi"]) < 70
+        and num(row.get("adx")) is not None and num(row["adx"]) < 20
+        and num(row.get("price_to_ema20_pct")) is not None
+        and num(row["price_to_ema20_pct"]) >= 0
+    ),
+    "rsi_50_70_adx_below_20_di_not_bearish": lambda row: (
+        num(row.get("rsi")) is not None and 50 <= num(row["rsi"]) < 70
+        and num(row.get("adx")) is not None and num(row["adx"]) < 20
+        and num(row.get("plus_di")) is not None and num(row.get("minus_di")) is not None
+        and num(row["minus_di"]) <= num(row["plus_di"])
+    ),
+    "rsi_50_70_adx_below_20_price_at_or_above_ema20_di_not_bearish": lambda row: (
+        num(row.get("rsi")) is not None and 50 <= num(row["rsi"]) < 70
+        and num(row.get("adx")) is not None and num(row["adx"]) < 20
+        and num(row.get("price_to_ema20_pct")) is not None
+        and num(row["price_to_ema20_pct"]) >= 0
+        and num(row.get("plus_di")) is not None and num(row.get("minus_di")) is not None
+        and num(row["minus_di"]) <= num(row["plus_di"])
+    ),
+}
+analysis["short_candidate_combinations"] = {}
+for name, predicate in candidate_predicates.items():
+    chosen = subset(predicate)
+    analysis["short_candidate_combinations"][name] = {
+        **counts(chosen),
+        **geometry(chosen),
+        "signal_retention_pct": round(100 * len(chosen) / len(shorts), 2) if shorts else None,
+        "tp3_retention_pct": round(
+            100 * sum(row.get("outcome") == "TP3_HIT" for row in chosen)
+            / sum(row.get("outcome") == "TP3_HIT" for row in shorts), 2
+        ) if any(row.get("outcome") == "TP3_HIT" for row in shorts) else None,
+        "sl_reduction_pct": round(
+            100 * (1 - sum(row.get("outcome") == "SL_HIT" for row in chosen)
+                  / sum(row.get("outcome") == "SL_HIT" for row in shorts)), 2
+        ) if any(row.get("outcome") == "SL_HIT" for row in shorts) else None,
+    }
+
+# EMA20/EMA50 spread buckets: the gap's sign and magnitude may help separate
+# early trend alignment from extended moves. Buckets are fixed, not optimized.
+ema_gap_bands = [
+    ("gap_below_minus_1pct", None, -1.0),
+    ("gap_minus_1_to_minus_0_25pct", -1.0, -0.25),
+    ("gap_minus_0_25_to_0pct", -0.25, 0.0),
+    ("gap_0_to_0_25pct", 0.0, 0.25),
+    ("gap_0_25_to_1pct", 0.25, 1.0),
+    ("gap_1pct_or_more", 1.0, None),
+]
+analysis["ema20_ema50_gap_bands"] = {}
+for label, low, high in ema_gap_bands:
+    chosen = [
+        row for row in shorts
+        if num(row.get("ema20_ema50_gap_pct")) is not None
+        and (low is None or num(row["ema20_ema50_gap_pct"]) >= low)
+        and (high is None or num(row["ema20_ema50_gap_pct"]) < high)
+    ]
+    analysis["ema20_ema50_gap_bands"][label] = {**counts(chosen), **geometry(chosen)}
+
+# Per-symbol candidate breakdown catches a result driven by one market only.
+analysis["candidate_by_symbol"] = {}
+primary = candidate_predicates["rsi_50_70_and_adx_below_20"]
+for symbol in sorted({row.get("symbol") for row in shorts if row.get("symbol")}):
+    symbol_rows = [row for row in shorts if row.get("symbol") == symbol]
+    chosen = [row for row in symbol_rows if primary(row)]
+    analysis["candidate_by_symbol"][symbol] = {
+        "baseline": counts(symbol_rows),
+        "candidate_rsi_50_70_adx_below_20": counts(chosen),
+    }
+
+# Split the replay into chronological thirds to reveal time concentration.
+dated = []
+for row in shorts:
+    try:
+        stamp = row.get("replay_time")
+        if stamp:
+            dated.append((stamp, row))
+    except Exception:
+        pass
+dated.sort(key=lambda item: item[0])
+third = max(1, (len(dated) + 2) // 3)
+analysis["chronological_thirds"] = {}
+for index, label in enumerate(("first_third", "middle_third", "last_third")):
+    chunk = dated[index * third:(index + 1) * third]
+    chunk_rows = [row for _, row in chunk]
+    chosen = [row for row in chunk_rows if primary(row)]
+    analysis["chronological_thirds"][label] = {
+        "start": chunk[0][0] if chunk else None,
+        "end": chunk[-1][0] if chunk else None,
+        "baseline": counts(chunk_rows),
+        "candidate_rsi_50_70_adx_below_20": counts(chosen),
+    }
+
 payload.setdefault("summary", {})["short_rsi_adx_research"] = analysis
 path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
 print(json.dumps(analysis, indent=2))
