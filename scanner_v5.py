@@ -333,7 +333,7 @@ def main():
             live = df_1h.iloc[-1]
             prev = df_1h.iloc[-2]
 
-            req = ["close","ema_20","ema_50","atr","adx","plus_di","minus_di","rsi","roc","rel_volume",
+            req = ["close","ema_20","ema_50","atr","adx","plus_di_research","minus_di_research","rsi","roc","rel_volume",
                    "macd","macd_sig","macd_hist","bb_pct_b","stoch_k","stoch_d"]
             if prev[req].isnull().any():
                 skip["errors"] += 1
@@ -1176,9 +1176,9 @@ def main():
                     "rrce_engine_mode": _rrce_engine_mode_final,
                     "rsi":             round(rsi, 2),
                     "adx":             round(adx, 2),
-                    "plus_di":         round(float(prev["plus_di"]), 4),
-                    "minus_di":        round(float(prev["minus_di"]), 4),
-                    "di_spread":       round(float(prev["minus_di"] - prev["plus_di"]), 4),
+                    "plus_di":         round(float(prev["plus_di_research"]), 4),
+                    "minus_di":        round(float(prev["minus_di_research"]), 4),
+                    "di_spread":       round(float(prev["minus_di_research"] - prev["plus_di_research"]), 4),
                     "ema20_ema50_gap_pct": round((ema20 / ema50 - 1.0) * 100, 4) if ema50 else None,
                     "price_to_ema20_pct": round((price / ema20 - 1.0) * 100, 4) if ema20 else None,
                     "support_distance_pct": (
