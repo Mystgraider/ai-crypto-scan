@@ -254,6 +254,60 @@ for name, predicate in candidate_predicates.items():
         ) if any(row.get("outcome") == "SL_HIT" for row in shorts) else None,
     }
 
+# Broad feature audit across the 1H signal row and completed 4H/15m context.
+# Quartile cut points are descriptive discovery thresholds only; they must not
+# be copied into production without confirmation on a separate time offset.
+feature_fields = [
+    "rsi", "adx", "plus_di", "minus_di", "di_spread",
+    "ema20_ema50_gap_pct", "price_to_ema20_pct", "support_distance_pct",
+    "rel_volume", "macd_hist", "stoch_k", "stoch_d", "bb_pct_b",
+    "roc", "atr_pct", "ema200_distance_pct",
+    "rsi_4h", "adx_4h", "macd_hist_4h", "stoch_k_4h", "bb_pct_b_4h",
+    "rsi_15m", "adx_15m", "macd_hist_15m", "stoch_k_15m", "bb_pct_b_15m",
+]
+
+
+def quantile(sorted_values, fraction):
+    if not sorted_values:
+        return None
+    position = (len(sorted_values) - 1) * fraction
+    lower = int(math.floor(position))
+    upper = int(math.ceil(position))
+    if lower == upper:
+        return sorted_values[lower]
+    weight = position - lower
+    return sorted_values[lower] * (1 - weight) + sorted_values[upper] * weight
+
+
+analysis["feature_distribution_audit"] = {}
+for field in feature_fields:
+    available = [(num(row.get(field)), row) for row in shorts]
+    available = [(value, row) for value, row in available if value is not None]
+    values = sorted(value for value, _ in available)
+    if not values:
+        analysis["feature_distribution_audit"][field] = {
+            "available": 0, "missing": len(shorts), "quartile_cut_points": [],
+            "q1": counts([]), "q2": counts([]), "q3": counts([]), "q4": counts([]),
+        }
+        continue
+    cuts = [quantile(values, fraction) for fraction in (0.25, 0.50, 0.75)]
+    buckets = {"q1": [], "q2": [], "q3": [], "q4": []}
+    for value, row in available:
+        if value <= cuts[0]:
+            buckets["q1"].append(row)
+        elif value <= cuts[1]:
+            buckets["q2"].append(row)
+        elif value <= cuts[2]:
+            buckets["q3"].append(row)
+        else:
+            buckets["q4"].append(row)
+    analysis["feature_distribution_audit"][field] = {
+        "available": len(available),
+        "missing": len(shorts) - len(available),
+        "quartile_cut_points": [round(value, 8) for value in cuts],
+        **{name: {**counts(items), **geometry(items)} for name, items in buckets.items()},
+    }
+
 # EMA20/EMA50 spread buckets: the gap's sign and magnitude may help separate
 # early trend alignment from extended moves. Buckets are fixed, not optimized.
 ema_gap_bands = [
