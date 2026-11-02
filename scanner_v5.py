@@ -333,7 +333,7 @@ def main():
             live = df_1h.iloc[-1]
             prev = df_1h.iloc[-2]
 
-            req = ["close","ema_20","ema_50","atr","adx","rsi","roc","rel_volume",
+            req = ["close","ema_20","ema_50","atr","adx","plus_di","minus_di","rsi","roc","rel_volume",
                    "macd","macd_sig","macd_hist","bb_pct_b","stoch_k","stoch_d"]
             if prev[req].isnull().any():
                 skip["errors"] += 1
