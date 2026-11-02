@@ -98,10 +98,10 @@ def test_directional_movement_tie_does_not_create_false_minus_di():
     frame.loc[30, "low"] = 97.0
 
     result = Indicators.apply(frame)
-    assert "plus_di" in result.columns
-    assert "minus_di" in result.columns
-    assert result.loc[30, "plus_di"] == pytest.approx(0.0)
-    assert result.loc[30, "minus_di"] == pytest.approx(0.0)
+    assert "plus_di_research" in result.columns
+    assert "minus_di_research" in result.columns
+    assert result.loc[30, "plus_di_research"] == pytest.approx(0.0)
+    assert result.loc[30, "minus_di_research"] == pytest.approx(0.0)
 
 
 def test_directional_indicators_identify_downward_pressure():
@@ -114,5 +114,5 @@ def test_directional_indicators_identify_downward_pressure():
     })
 
     result = Indicators.apply(frame)
-    assert result.loc[64, "minus_di"] > result.loc[64, "plus_di"]
+    assert result.loc[64, "minus_di_research"] > result.loc[64, "plus_di_research"]
     assert result.loc[64, "adx"] > 0
