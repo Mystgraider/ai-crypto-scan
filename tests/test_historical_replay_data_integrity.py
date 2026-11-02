@@ -5,6 +5,7 @@ from tools.historical_replay import (
     historical_outcome,
     validate_hourly_timeline,
 )
+from indicators.indicators import Indicators
 
 
 def _signal():
@@ -81,3 +82,37 @@ def test_hourly_timeline_fails_closed_on_gap():
     })
     with pytest.raises(RuntimeError, match="incomplete_hourly_replay_timeline"):
         validate_hourly_timeline(incomplete, start, end)
+
+
+
+def test_directional_movement_tie_does_not_create_false_minus_di():
+    frame = pd.DataFrame({
+        "close": [100.0] * 65,
+        "high": [101.0] * 65,
+        "low": [99.0] * 65,
+        "volume": [1000.0] * 65,
+    })
+    # Equal +DM and -DM on this candle must cancel to zero by Wilder's
+    # directional-movement definition; it must not be counted as -DM.
+    frame.loc[30, "high"] = 103.0
+    frame.loc[30, "low"] = 97.0
+
+    result = Indicators.apply(frame)
+    assert "plus_di" in result.columns
+    assert "minus_di" in result.columns
+    assert result.loc[30, "plus_di"] == pytest.approx(0.0)
+    assert result.loc[30, "minus_di"] == pytest.approx(0.0)
+
+
+def test_directional_indicators_identify_downward_pressure():
+    close = [120.0 - index * 0.5 for index in range(65)]
+    frame = pd.DataFrame({
+        "close": close,
+        "high": [value + 0.25 for value in close],
+        "low": [value - 0.75 for value in close],
+        "volume": [1000.0] * len(close),
+    })
+
+    result = Indicators.apply(frame)
+    assert result.loc[64, "minus_di"] > result.loc[64, "plus_di"]
+    assert result.loc[64, "adx"] > 0
