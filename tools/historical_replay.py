@@ -789,6 +789,12 @@ def run():
                 # used by production scanner candidate generation.
                 "rsi": sig.get("rsi"),
                 "adx": sig.get("adx"),
+                "plus_di": sig.get("plus_di"),
+                "minus_di": sig.get("minus_di"),
+                "di_spread": sig.get("di_spread"),
+                "ema20_ema50_gap_pct": sig.get("ema20_ema50_gap_pct"),
+                "price_to_ema20_pct": sig.get("price_to_ema20_pct"),
+                "support_distance_pct": sig.get("support_distance_pct"),
                 "ema200_1h": round(ema200_1h, 10) if ema200_1h is not None else None,
                 "signal_close_1h": round(signal_close_1h, 10) if signal_close_1h is not None else None,
                 "ema200_distance_pct": ema200_distance_pct,
