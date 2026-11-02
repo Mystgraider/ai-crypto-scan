@@ -75,14 +75,19 @@ class Indicators:
         df["atr_pct"] = (df["atr"] / c) * 100
 
         # ── ADX ────────────────────────────────────────────────────────
-        plus_dm  = h.diff().clip(lower=0)
-        minus_dm = (-l.diff()).clip(lower=0)
-        plus_dm  = plus_dm.where(plus_dm > minus_dm, 0)
-        minus_dm = minus_dm.where(minus_dm > plus_dm, 0)
+        # Directional movement must compare the ORIGINAL up/down moves.
+        # Mutating +DM before calculating -DM can incorrectly retain both sides
+        # on the same candle and distort DI/ADX.
+        up_move   = h.diff()
+        down_move = -l.diff()
+        plus_dm   = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
+        minus_dm  = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
 
         atr14    = tr.ewm(com=13, adjust=False).mean()
-        plus_di  = 100 * plus_dm.ewm(com=13,  adjust=False).mean() / atr14.replace(0, 1e-10)
+        plus_di  = 100 * plus_dm.ewm(com=13, adjust=False).mean() / atr14.replace(0, 1e-10)
         minus_di = 100 * minus_dm.ewm(com=13, adjust=False).mean() / atr14.replace(0, 1e-10)
+        df["plus_di"] = plus_di
+        df["minus_di"] = minus_di
         dx       = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, 1e-10)
         df["adx"] = dx.ewm(com=13, adjust=False).mean()
 
