@@ -1176,6 +1176,16 @@ def main():
                     "rrce_engine_mode": _rrce_engine_mode_final,
                     "rsi":             round(rsi, 2),
                     "adx":             round(adx, 2),
+                    "plus_di":         round(float(prev["plus_di"]), 4),
+                    "minus_di":        round(float(prev["minus_di"]), 4),
+                    "di_spread":       round(float(prev["minus_di"] - prev["plus_di"]), 4),
+                    "ema20_ema50_gap_pct": round((ema20 / ema50 - 1.0) * 100, 4) if ema50 else None,
+                    "price_to_ema20_pct": round((price / ema20 - 1.0) * 100, 4) if ema20 else None,
+                    "support_distance_pct": (
+                        round((price - float(sr_levels["nearest_support"])) / price * 100, 4)
+                        if sr_levels.get("nearest_support") not in (None, 0) and price > float(sr_levels["nearest_support"])
+                        else None
+                    ),
                     "rel_volume":      round(rel_volume, 2),
                     "spike_tier":      spike["tier"],
                     "macd_hist":       round(macd_hist, 6),
@@ -1443,6 +1453,11 @@ def main():
             tp1=sig["tp1"],              tp2=sig["tp2"],        tp3=sig["tp3"],
             score=sig["composite"],      grade=sig["grade"],    rr=sig["rr"],
             adx=sig["adx"],              rsi=sig["rsi"],
+            plus_di=sig.get("plus_di"), minus_di=sig.get("minus_di"),
+            di_spread=sig.get("di_spread"),
+            ema20_ema50_gap_pct=sig.get("ema20_ema50_gap_pct"),
+            price_to_ema20_pct=sig.get("price_to_ema20_pct"),
+            support_distance_pct=sig.get("support_distance_pct"),
             rel_volume=sig["rel_volume"], spike_tier=sig["spike_tier"],
             mtf_status=sig["mtf_status"], btc_regime=sig["btc_regime"],
             rs_label=sig["rs_label"],
