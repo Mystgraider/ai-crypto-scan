@@ -120,6 +120,52 @@ ema_above = [
     row for row in ema_available
     if num(row["signal_close_1h"]) >= num(row["ema200_1h"])
 ]
+# Directional confirmation: compare -DI dominance with +DI dominance.
+di_available = [
+    row for row in shorts
+    if num(row.get("plus_di")) is not None and num(row.get("minus_di")) is not None
+]
+di_bearish = [
+    row for row in di_available
+    if num(row["minus_di"]) > num(row["plus_di"])
+]
+di_not_bearish = [
+    row for row in di_available
+    if num(row["minus_di"]) <= num(row["plus_di"])
+]
+analysis["di_directional_comparison"] = {
+    "available": len(di_available),
+    "missing": len(shorts) - len(di_available),
+    "minus_di_greater_than_plus_di": counts(di_bearish),
+    "minus_di_not_greater_than_plus_di": counts(di_not_bearish),
+    "definition": "Bearish DI confirmation means -DI > +DI at signal time; diagnostic only, not a production gate.",
+}
+
+# Entry-location diagnostics. Distances are measured at signal time and
+# deliberately reported as buckets rather than optimized thresholds.
+support_available = [
+    row for row in shorts if num(row.get("support_distance_pct")) is not None
+]
+analysis["support_distance_bands"] = {
+    "available": len(support_available),
+    "missing": len(shorts) - len(support_available),
+    "below_1pct": counts([row for row in support_available if num(row["support_distance_pct"]) < 1]),
+    "1_to_2pct": counts([row for row in support_available if 1 <= num(row["support_distance_pct"]) < 2]),
+    "2_to_4pct": counts([row for row in support_available if 2 <= num(row["support_distance_pct"]) < 4]),
+    "4pct_or_more": counts([row for row in support_available if num(row["support_distance_pct"]) >= 4]),
+    "definition": "Distance from signal-time price to nearest support below price; closer support may constrain SHORT downside.",
+}
+ema_entry_available = [
+    row for row in shorts if num(row.get("price_to_ema20_pct")) is not None
+]
+analysis["price_to_ema20_comparison"] = {
+    "available": len(ema_entry_available),
+    "missing": len(shorts) - len(ema_entry_available),
+    "below_ema20": counts([row for row in ema_entry_available if num(row["price_to_ema20_pct"]) < 0]),
+    "at_or_above_ema20": counts([row for row in ema_entry_available if num(row["price_to_ema20_pct"]) >= 0]),
+    "definition": "Signal-time price relative to completed-candle EMA20; descriptive only.",
+}
+
 analysis["rsi_60_70_adx_20_25_ema200"] = {
     "base_candidate": counts(ema_base),
     "ema200_available": len(ema_available),
