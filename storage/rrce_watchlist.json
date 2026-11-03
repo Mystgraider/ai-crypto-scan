@@ -1,37 +1,25 @@
 {
-  "ANKR/USDT:USDT|SHORT": {
+  "WOO/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-03T03:40:36.946899+00:00",
-    "last_seen": "2026-11-03T03:40:36.946899+00:00",
+    "first_seen": "2026-11-03T11:20:35.226514+00:00",
+    "last_seen": "2026-11-03T11:20:35.226514+00:00",
     "observations": 1,
-    "pool_level": 0.003919,
-    "range_high": 0.004143,
-    "range_low": 0.00325,
-    "regime": "BEAR_CAUTION",
-    "sweep_extreme": 0.003972,
-    "symbol": "ANKR/USDT:USDT"
-  },
-  "COTI/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-11-03T03:40:50.390334+00:00",
-    "last_seen": "2026-11-03T03:40:50.390334+00:00",
-    "observations": 1,
-    "pool_level": 0.00987,
-    "range_high": 0.01076,
-    "range_low": 0.00861,
-    "regime": "BEAR_CAUTION",
-    "sweep_extreme": 0.00992,
-    "symbol": "COTI/USDT:USDT"
+    "pool_level": 0.01176,
+    "range_high": 0.01225,
+    "range_low": 0.00938,
+    "regime": "RANGE",
+    "sweep_extreme": 0.01177,
+    "symbol": "WOO/USDT:USDT"
   },
   "XMR/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-03T03:39:53.447973+00:00",
-    "last_seen": "2026-11-03T03:39:53.447973+00:00",
+    "first_seen": "2026-11-03T11:20:13.739628+00:00",
+    "last_seen": "2026-11-03T11:20:13.739628+00:00",
     "observations": 1,
     "pool_level": 611.28,
     "range_high": 651.99,
     "range_low": 574.63,
-    "regime": "BEAR_CAUTION",
+    "regime": "RANGE",
     "sweep_extreme": 611.3,
     "symbol": "XMR/USDT:USDT"
   }
