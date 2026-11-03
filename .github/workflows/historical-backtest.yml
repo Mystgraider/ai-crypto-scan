@@ -1,6 +1,18 @@
 name: Historical Backtest
 
 on:
+  push:
+    branches:
+      - research/enable-30d-offset60-workflow
+    paths:
+      - "tools/historical_replay.py"
+      - "tools/short_candidate_analysis.py"
+      - "tests/test_historical_replay_data_integrity.py"
+      - "scanner_v5.py"
+      - "config.py"
+      - "engines/**"
+      - "indicators/**"
+      - ".github/workflows/historical-backtest.yml"
   pull_request:
     paths:
       - "tools/historical_replay.py"
@@ -21,7 +33,7 @@ on:
       offset_days:
         description: "End date offset from latest fully scoreable data window"
         required: true
-        default: "30"
+        default: "90"
         type: string
 
 jobs:
@@ -64,11 +76,11 @@ jobs:
       - name: Run configurable historical replay
         env:
           BACKTEST_DAYS: ${{ inputs.days || '30' }}
-          BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '30' }}
+          BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '90' }}
         run: |
           python tools/historical_replay.py
 
-      - name: Add research-only SHORT RSI/ADX analysis
+      - name: Add full multi-timeframe SHORT indicator analysis
         run: |
           python tools/short_candidate_analysis.py
 
