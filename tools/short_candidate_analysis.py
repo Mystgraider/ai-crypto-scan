@@ -365,3 +365,151 @@ for index, label in enumerate(("first_third", "middle_third", "last_third")):
 payload.setdefault("summary", {})["short_rsi_adx_research"] = analysis
 path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
 print(json.dumps(analysis, indent=2))
+
+
+# ---------------------------------------------------------------------------
+# Multi-feature SHORT candidate discovery (research-only).
+# Uses the first two chronological thirds for candidate ranking and reports
+# the final third as a holdout. It never changes scanner production behavior.
+# Candidate thresholds below are fixed research buckets, not optimized cutoffs.
+# ---------------------------------------------------------------------------
+from itertools import combinations
+
+dated_rows = sorted(
+    (row for row in shorts if row.get("replay_time")),
+    key=lambda row: row["replay_time"],
+)
+split_index = max(1, min(len(dated_rows) - 1, (len(dated_rows) * 2) // 3))
+discovery_rows = dated_rows[:split_index]
+holdout_rows = dated_rows[split_index:]
+
+# Broad, interpretable ranges spanning entry momentum, trend strength,
+# directional pressure, volatility, location, and higher/lower timeframe context.
+multi_feature_bands = {
+    "rsi": [(0, 40), (40, 50), (50, 60), (60, 70), (70, 101)],
+    "adx": [(0, 15), (15, 20), (20, 25), (25, 30), (30, 101)],
+    "di_spread": [(-100, -10), (-10, 0), (0, 10), (10, 100)],
+    "ema20_ema50_gap_pct": [(-100, -1), (-1, -0.25), (-0.25, 0), (0, 0.25), (0.25, 1), (1, 100)],
+    "price_to_ema20_pct": [(-100, -2), (-2, -1), (-1, 0), (0, 1), (1, 2), (2, 100)],
+    "support_distance_pct": [(0, 0.25), (0.25, 0.5), (0.5, 1), (1, 2), (2, 4), (4, 100)],
+    "rel_volume": [(0, 0.5), (0.5, 0.8), (0.8, 1), (1, 1.5), (1.5, 3), (3, 100)],
+    "macd_hist": [(-1e9, -0.01), (-0.01, -0.001), (-0.001, 0), (0, 0.001), (0.001, 0.01), (0.01, 1e9)],
+    "stoch_k": [(0, 20), (20, 40), (40, 60), (60, 80), (80, 100)],
+    "stoch_d": [(0, 20), (20, 40), (40, 60), (60, 80), (80, 100)],
+    "bb_pct_b": [(-10, 0), (0, 0.2), (0.2, 0.4), (0.4, 0.6), (0.6, 0.8), (0.8, 1), (1, 10)],
+    "roc": [(-100, -3), (-3, -1), (-1, 0), (0, 1), (1, 3), (3, 100)],
+    "atr_pct": [(0, 0.3), (0.3, 0.5), (0.5, 0.8), (0.8, 1.2), (1.2, 2), (2, 100)],
+    "ema200_distance_pct": [(-100, -4), (-4, -2), (-2, 0), (0, 2), (2, 4), (4, 100)],
+    "rsi_4h": [(0, 40), (40, 50), (50, 60), (60, 70), (70, 101)],
+    "adx_4h": [(0, 15), (15, 20), (20, 25), (25, 30), (30, 101)],
+    "macd_hist_4h": [(-1e9, -0.01), (-0.01, -0.001), (-0.001, 0), (0, 0.001), (0.001, 0.01), (0.01, 1e9)],
+    "stoch_k_4h": [(0, 20), (20, 40), (40, 60), (60, 80), (80, 100)],
+    "bb_pct_b_4h": [(-10, 0), (0, 0.2), (0.2, 0.4), (0.4, 0.6), (0.6, 0.8), (0.8, 1), (1, 10)],
+    "rsi_15m": [(0, 40), (40, 50), (50, 60), (60, 70), (70, 101)],
+    "adx_15m": [(0, 15), (15, 20), (20, 25), (25, 30), (30, 101)],
+    "macd_hist_15m": [(-1e9, -0.01), (-0.01, -0.001), (-0.001, 0), (0, 0.001), (0.001, 0.01), (0.01, 1e9)],
+    "stoch_k_15m": [(0, 20), (20, 40), (40, 60), (60, 80), (80, 100)],
+    "bb_pct_b_15m": [(-10, 0), (0, 0.2), (0.2, 0.4), (0.4, 0.6), (0.6, 0.8), (0.8, 1), (1, 10)],
+}
+
+def feature_match(row, condition):
+    field, low, high = condition
+    value = num(row.get(field))
+    return value is not None and low <= value < high
+
+def multi_stats(items):
+    result = counts(items)
+    baseline_tp = sum(row.get("outcome") == "TP3_HIT" for row in shorts)
+    baseline_sl = sum(row.get("outcome") == "SL_HIT" for row in shorts)
+    result["signal_retention_pct"] = round(100 * len(items) / len(shorts), 2) if shorts else None
+    result["tp3_retention_pct"] = round(
+        100 * result["tp3"] / baseline_tp, 2
+    ) if baseline_tp else None
+    result["sl_reduction_pct"] = round(
+        100 * (1 - result["sl"] / baseline_sl), 2
+    ) if baseline_sl else None
+    result["sl_distance_pct_median"] = geometry(items)["sl_distance_pct_median"]
+    result["tp3_distance_pct_median"] = geometry(items)["tp3_distance_pct_median"]
+    return result
+
+def condition_label(condition):
+    field, low, high = condition
+    return f"{field} in [{low}, {high})"
+
+baseline_discovery = multi_stats(discovery_rows)
+baseline_holdout = multi_stats(holdout_rows)
+conditions = []
+for field, ranges in multi_feature_bands.items():
+    for low, high in ranges:
+        selected_rows = [row for row in discovery_rows if feature_match(row, (field, low, high))]
+        # Require a real discovery sample; this prevents tiny buckets from
+        # entering the ranking solely because of one or two TP3 outcomes.
+        if len(selected_rows) >= max(35, int(len(discovery_rows) * 0.035)):
+            conditions.append((field, low, high))
+
+candidate_records = []
+for condition_a, condition_b in combinations(conditions, 2):
+    if condition_a[0] == condition_b[0]:
+        continue
+    discovery = [
+        row for row in discovery_rows
+        if feature_match(row, condition_a) and feature_match(row, condition_b)
+    ]
+    train_stats = multi_stats(discovery)
+    if train_stats["signals"] < max(45, int(len(discovery_rows) * 0.04)):
+        continue
+    if train_stats["tp3"] < 8:
+        continue
+    # Objective directly reflects the user's priority: preserve TP3 while
+    # reducing SL. Do not reward a tiny candidate that simply removes nearly
+    # every signal.
+    tp_keep = (train_stats["tp3_retention_pct"] or 0) / 100
+    sl_keep = 1 - (train_stats["sl_reduction_pct"] or 0) / 100
+    coverage = (train_stats["signal_retention_pct"] or 0) / 100
+    objective_score = (tp_keep - sl_keep) * min(1.0, coverage / 0.35)
+    candidate_records.append({
+        "conditions": [condition_label(condition_a), condition_label(condition_b)],
+        "discovery": train_stats,
+        "objective_score": round(objective_score, 5),
+        "_conditions": [condition_a, condition_b],
+    })
+
+candidate_records.sort(
+    key=lambda item: (
+        item["objective_score"],
+        item["discovery"]["tp3_retention_pct"] or 0,
+        item["discovery"]["sl_reduction_pct"] or 0,
+    ),
+    reverse=True,
+)
+top_candidates = []
+for item in candidate_records[:40]:
+    condition_a, condition_b = item["_conditions"]
+    holdout = [
+        row for row in holdout_rows
+        if feature_match(row, condition_a) and feature_match(row, condition_b)
+    ]
+    public_item = {key: value for key, value in item.items() if key != "_conditions"}
+    public_item["holdout"] = multi_stats(holdout)
+    public_item["holdout_sample_adequate"] = len(holdout) >= 20
+    top_candidates.append(public_item)
+
+analysis["multi_feature_candidate_discovery"] = {
+    "research_only": True,
+    "production_strategy_changed": False,
+    "split_method": "chronological first two thirds for candidate ranking; final third reported as holdout",
+    "split_timestamp": holdout_rows[0].get("replay_time") if holdout_rows else None,
+    "discovery_rows": len(discovery_rows),
+    "holdout_rows": len(holdout_rows),
+    "feature_fields_tested": list(multi_feature_bands),
+    "eligible_single_feature_bands": len(conditions),
+    "pairwise_candidates_evaluated": len(candidate_records),
+    "discovery_baseline": baseline_discovery,
+    "holdout_baseline": baseline_holdout,
+    "ranking_objective": "TP3 retention minus SL retention, scaled down when candidate retains less than 35% of signals; discovery-only ranking",
+    "top_candidates_ranked_on_discovery_only": top_candidates,
+    "acceptance_warning": "No candidate is approved by this report. Any promising setup must be frozen and tested on a separate offset/window not used for discovery; inspect per-symbol and stop-distance behavior before any production change.",
+}
+payload.setdefault("summary", {})["short_rsi_adx_research"] = analysis
+path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+print(json.dumps(analysis["multi_feature_candidate_discovery"], indent=2))
