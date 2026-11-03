@@ -33,7 +33,7 @@ on:
       offset_days:
         description: "End date offset from latest fully scoreable data window"
         required: true
-        default: "90"
+        default: "60"
         type: string
 
 jobs:
@@ -76,7 +76,7 @@ jobs:
       - name: Run configurable historical replay
         env:
           BACKTEST_DAYS: ${{ inputs.days || '30' }}
-          BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '90' }}
+          BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '60' }}
         run: |
           python tools/historical_replay.py
 
