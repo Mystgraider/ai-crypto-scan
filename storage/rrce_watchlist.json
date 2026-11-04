@@ -2,14 +2,26 @@
   "COTI/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-03T23:36:47.737204+00:00",
-    "last_seen": "2026-11-03T23:36:47.737204+00:00",
-    "observations": 1,
+    "last_seen": "2026-11-04T03:12:35.048226+00:00",
+    "observations": 2,
     "pool_level": 0.00987,
     "range_high": 0.0109,
     "range_low": 0.00861,
-    "regime": "BULL",
+    "regime": "BEAR_CAUTION",
     "sweep_extreme": 0.00988,
     "symbol": "COTI/USDT:USDT"
+  },
+  "EGLD/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-11-04T03:11:28.553362+00:00",
+    "last_seen": "2026-11-04T03:11:28.553362+00:00",
+    "observations": 1,
+    "pool_level": 3.412,
+    "range_high": 3.572,
+    "range_low": 3.045,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 3.429,
+    "symbol": "EGLD/USDT:USDT"
   },
   "ENJ/USDT:USDT|SHORT": {
     "direction": "SHORT",
@@ -38,13 +50,13 @@
   "IOTA/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-03T23:35:50.504911+00:00",
-    "last_seen": "2026-11-03T23:35:50.504911+00:00",
-    "observations": 1,
+    "last_seen": "2026-11-04T03:11:34.626936+00:00",
+    "observations": 2,
     "pool_level": 0.03998,
     "range_high": 0.04078,
     "range_low": 0.03596,
-    "regime": "BULL",
-    "sweep_extreme": 0.04002,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.04013,
     "symbol": "IOTA/USDT:USDT"
   },
   "KAVA/USDT:USDT|SHORT": {
@@ -82,5 +94,29 @@
     "regime": "BULL",
     "sweep_extreme": 1.0007,
     "symbol": "USDC/USDT:USDT"
+  },
+  "WOO/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-11-04T03:12:02.794199+00:00",
+    "last_seen": "2026-11-04T03:12:02.794199+00:00",
+    "observations": 1,
+    "pool_level": 0.01225,
+    "range_high": 0.01225,
+    "range_low": 0.00938,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.01236,
+    "symbol": "WOO/USDT:USDT"
+  },
+  "XMR/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-11-04T03:11:41.747765+00:00",
+    "last_seen": "2026-11-04T03:11:41.747765+00:00",
+    "observations": 1,
+    "pool_level": 633.07,
+    "range_high": 651.99,
+    "range_low": 574.63,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 636.86,
+    "symbol": "XMR/USDT:USDT"
   }
 }
