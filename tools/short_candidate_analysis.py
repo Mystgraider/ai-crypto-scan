@@ -417,11 +417,14 @@ def feature_match(row, condition):
     value = num(row.get(field))
     return value is not None and low <= value < high
 
-def multi_stats(items):
+def multi_stats(items, baseline_rows=shorts):
     result = counts(items)
-    baseline_tp = sum(row.get("outcome") == "TP3_HIT" for row in shorts)
-    baseline_sl = sum(row.get("outcome") == "SL_HIT" for row in shorts)
-    result["signal_retention_pct"] = round(100 * len(items) / len(shorts), 2) if shorts else None
+    baseline_tp = sum(row.get("outcome") == "TP3_HIT" for row in baseline_rows)
+    baseline_sl = sum(row.get("outcome") == "SL_HIT" for row in baseline_rows)
+    baseline_signals = len(baseline_rows)
+    result["signal_retention_pct"] = round(
+        100 * len(items) / baseline_signals, 2
+    ) if baseline_signals else None
     result["tp3_retention_pct"] = round(
         100 * result["tp3"] / baseline_tp, 2
     ) if baseline_tp else None
@@ -436,8 +439,8 @@ def condition_label(condition):
     field, low, high = condition
     return f"{field} in [{low}, {high})"
 
-baseline_discovery = multi_stats(discovery_rows)
-baseline_holdout = multi_stats(holdout_rows)
+baseline_discovery = multi_stats(discovery_rows, discovery_rows)
+baseline_holdout = multi_stats(holdout_rows, holdout_rows)
 conditions = []
 for field, ranges in multi_feature_bands.items():
     for low, high in ranges:
@@ -455,7 +458,7 @@ for condition_a, condition_b in combinations(conditions, 2):
         row for row in discovery_rows
         if feature_match(row, condition_a) and feature_match(row, condition_b)
     ]
-    train_stats = multi_stats(discovery)
+    train_stats = multi_stats(discovery, discovery_rows)
     if train_stats["signals"] < max(45, int(len(discovery_rows) * 0.04)):
         continue
     if train_stats["tp3"] < 8:
@@ -490,7 +493,7 @@ for item in candidate_records[:40]:
         if feature_match(row, condition_a) and feature_match(row, condition_b)
     ]
     public_item = {key: value for key, value in item.items() if key != "_conditions"}
-    public_item["holdout"] = multi_stats(holdout)
+    public_item["holdout"] = multi_stats(holdout, holdout_rows)
     public_item["holdout_sample_adequate"] = len(holdout) >= 20
     top_candidates.append(public_item)
 
@@ -506,9 +509,9 @@ analysis["multi_feature_candidate_discovery"] = {
     "pairwise_candidates_evaluated": len(candidate_records),
     "discovery_baseline": baseline_discovery,
     "holdout_baseline": baseline_holdout,
-    "ranking_objective": "TP3 retention minus SL retention, scaled down when candidate retains less than 35% of signals; discovery-only ranking",
+    "ranking_objective": "TP3 retention minus SL retention, with both retention values measured against the same chronological split baseline; score is scaled down when candidate retains less than 35% of split signals; discovery-only ranking",
     "top_candidates_ranked_on_discovery_only": top_candidates,
-    "acceptance_warning": "No candidate is approved by this report. Any promising setup must be frozen and tested on a separate offset/window not used for discovery; inspect per-symbol and stop-distance behavior before any production change.",
+    "acceptance_warning": "No candidate is approved by this report. Discovery and holdout retention are measured against their own split-local baselines. Any promising setup must be frozen and tested on a separate offset/window not used for discovery; inspect per-symbol, stop-distance, and TP3-distance behavior before any production change.",
 }
 payload.setdefault("summary", {})["short_rsi_adx_research"] = analysis
 path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
