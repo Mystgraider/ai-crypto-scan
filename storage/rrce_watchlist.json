@@ -1,1 +1,26 @@
-{}
+{
+  "KAVA/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-11-06T03:52:31.486690+00:00",
+    "last_seen": "2026-11-06T03:52:31.486690+00:00",
+    "observations": 1,
+    "pool_level": 0.06867,
+    "range_high": 0.06969,
+    "range_low": 0.0653,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.0688,
+    "symbol": "KAVA/USDT:USDT"
+  },
+  "RSR/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-11-06T03:52:40.626247+00:00",
+    "last_seen": "2026-11-06T03:52:40.626247+00:00",
+    "observations": 1,
+    "pool_level": 0.00146,
+    "range_high": 0.001746,
+    "range_low": 0.001207,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.001462,
+    "symbol": "RSR/USDT:USDT"
+  }
+}
