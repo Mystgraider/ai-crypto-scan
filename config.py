@@ -20,6 +20,10 @@ CONFIG = {
     "require_quality_engine": False,
     "scan_time_budget_sec": 480,
     "adx_min": 20,
+    # Research SHORT guard: reject late/oversold 1H entries. Validated
+    # retrospectively on Run #138; remains research-branch-only until a fresh
+    # independent offset confirms TP3 retention.
+    "short_rsi_floor": 35.0,
 
     # BTC is market context/safety, not the source of coin direction.
     "btc_symbol": "BTC/USDT:USDT",
