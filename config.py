@@ -24,6 +24,7 @@ CONFIG = {
     # retrospectively on Run #138; remains research-branch-only until a fresh
     # independent offset confirms TP3 retention.
     "short_rsi_floor": 35.0,
+    "short_require_15m_not_bearish": True,
 
     # BTC is market context/safety, not the source of coin direction.
     "btc_symbol": "BTC/USDT:USDT",
