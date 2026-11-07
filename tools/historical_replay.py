@@ -4,11 +4,13 @@ This harness reuses scanner_v5.main() and injects historical OHLCV/funding/OI
 snapshots. It does not modify production code or write to production signals.
 
 Replay semantics:
-- Each evaluation timestamp is the CLOSE of a completed 1H candle.
-- All timeframes are truncated at that timestamp.
-- scanner_v5 still uses its production indicator convention: current close +
+- Each evaluation timestamp is the OPEN boundary immediately after a completed 1H candle.
+- All timeframes expose the in-progress candle visible at that exact boundary.
+- scanner_v5 uses its production convention: forming-candle close/ticker price +
   previous completed-candle indicators.
-- Live ticker validation is replaced by the historical 1H close.
+- The forming candle is reconstructed only from completed 5m candles and the
+  next 5m candle OPEN; its future high/low/close/volume are never used.
+- Live ticker validation is replaced by that boundary 5m open price.
 - Funding/OI are historical observations at/before the replay timestamp.
 - Telegram, cooldown, circuit breaker, tracker, and persistent signal logging
   are disabled/captured.
@@ -375,17 +377,66 @@ class HistoricalStore:
     end: pd.Timestamp
 
 
+def replay_boundary_price(store: HistoricalStore, symbol: str) -> float:
+    """Return the first traded price at the replay boundary, without future OHLC."""
+    five_min = store.candles[(symbol, "5m")]
+    boundary = five_min[five_min["timestamp"] == store.end]
+    if boundary.empty:
+        raise RuntimeError(
+            f"missing_5m_boundary_price:{symbol}:{store.end.isoformat()}"
+        )
+    return float(boundary.iloc[0]["open"])
+
+
+def replay_forming_candle(
+    store: HistoricalStore, symbol: str, timeframe: str
+) -> dict:
+    """Build the in-progress exchange candle visible at the exact scan boundary.
+
+    Only fully closed 5m candles before the boundary and the next 5m candle's
+    OPEN are used. The next 5m candle's high/low/close/volume are never read.
+    """
+    if timeframe not in {"1h", "4h", "15m"}:
+        raise ValueError(f"unsupported_forming_timeframe:{timeframe}")
+
+    end = pd.Timestamp(store.end)
+    delta = INTERVAL_DELTAS[timeframe]
+    bucket_start = end.floor(timeframe)
+    five_min = store.candles[(symbol, "5m")]
+    completed = five_min[
+        (five_min["timestamp"] >= bucket_start)
+        & (five_min["timestamp"] < end)
+        & (five_min["timestamp"] + INTERVAL_DELTAS["5m"] <= end)
+    ].sort_values("timestamp")
+    boundary_price = replay_boundary_price(store, symbol)
+
+    if completed.empty:
+        opening = boundary_price
+        high = boundary_price
+        low = boundary_price
+        volume = 0.0
+    else:
+        opening = float(completed.iloc[0]["open"])
+        high = max(float(completed["high"].max()), boundary_price)
+        low = min(float(completed["low"].min()), boundary_price)
+        volume = float(completed["volume"].sum())
+
+    return {
+        "timestamp": bucket_start,
+        "open": opening,
+        "high": high,
+        "low": low,
+        "close": boundary_price,
+        "volume": volume,
+    }
+
+
 class ReplayExchange:
     def __init__(self, store: HistoricalStore):
         self.store = store
 
     def fetch_ticker(self, symbol: str) -> dict:
-        df = self.store.candles[(symbol, "1h")]
-        completed = df[df["timestamp"] + INTERVAL_DELTAS["1h"] <= self.store.end]
-        if completed.empty:
-            raise RuntimeError(f"no_completed_1h_ticker:{symbol}:{self.store.end.isoformat()}")
-        row = completed.iloc[-1]
-        return {"last": float(row["close"])}
+        return {"last": replay_boundary_price(self.store, symbol)}
 
     def fetch_funding_rate(self, symbol: str) -> dict:
         df = self.store.funding.get(symbol)
@@ -426,7 +477,18 @@ class ReplayMarketLoader:
 
     def _frame(self, symbol: str, timeframe: str, limit: int | None):
         df = self.store.candles[(symbol, timeframe)]
-        df = df[df["timestamp"] + INTERVAL_DELTAS[timeframe] <= self.store.end]
+        df = df[
+            df["timestamp"] + INTERVAL_DELTAS[timeframe] <= self.store.end
+        ].copy()
+
+        # CCXT/exchange OHLCV normally includes the currently forming candle.
+        # Recreate that exact-timeframe slot so scanner_v5's live=last / prev=
+        # previous contract uses the same completed indicator row as production.
+        if timeframe in {"1h", "4h", "15m"}:
+            forming = replay_forming_candle(self.store, symbol, timeframe)
+            df = pd.concat([df, pd.DataFrame([forming])], ignore_index=True)
+            df = df.drop_duplicates("timestamp", keep="last").sort_values("timestamp")
+
         if limit is not None:
             df = df.tail(int(limit))
         return df.copy(deep=True).reset_index(drop=True)
@@ -862,6 +924,7 @@ def run():
             "same_candle_conflict_policy": "SL first, matching SignalTracker",
             "production_code_modified": False,
             "harness_mode": "scanner_v5.main historical injection",
+            "forming_candle_policy": "reconstruct 1h/4h/15m in-progress candles from completed 5m bars before the boundary plus boundary 5m open only; no post-boundary OHLCV is exposed",
             "timeline_coverage": timeline_coverage,
             "outcome_expiry_hours": OUTCOME_LOOKAHEAD_HOURS,
             "archive_lag_buffer_hours": ARCHIVE_LAG_HOURS,
