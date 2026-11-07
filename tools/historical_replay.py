@@ -858,7 +858,7 @@ def run():
             "research_indicators": ["EMA200_1H_from_completed_closes"],
             "symbols": SYMBOLS,
             "timeframes": list(INTERVALS),
-            "lookahead_policy": "future candles begin strictly after replay timestamp",
+            "lookahead_policy": "outcome candles open at or after replay timestamp; no candle data before the signal timestamp is scored",
             "same_candle_conflict_policy": "SL first, matching SignalTracker",
             "production_code_modified": False,
             "harness_mode": "scanner_v5.main historical injection",
