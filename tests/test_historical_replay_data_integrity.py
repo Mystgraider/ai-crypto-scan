@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from tools.historical_replay import (
+    HistoricalStore,
     historical_outcome,
     validate_hourly_timeline,
 )
