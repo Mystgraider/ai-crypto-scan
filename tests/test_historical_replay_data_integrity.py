@@ -23,7 +23,7 @@ def _signal():
 def _future_5m():
     start = pd.Timestamp(_signal()["_replay_time"])
     timestamps = pd.date_range(
-        start=start + pd.Timedelta(minutes=5),
+        start=start,
         periods=72 * 12,
         freq="5min",
     )
@@ -37,8 +37,8 @@ def _future_5m():
 def test_full_contiguous_72h_without_hit_is_expired():
     result = historical_outcome(_signal(), _future_5m())
     assert result["status"] == "EXPIRED"
-    assert result["expected_candles"] == 863
-    assert result["observed_candles"] == 863
+    assert result["expected_candles"] == 864
+    assert result["observed_candles"] == 864
 
 
 def test_missing_candle_is_incomplete_not_expired():
@@ -46,7 +46,7 @@ def test_missing_candle_is_incomplete_not_expired():
     result = historical_outcome(_signal(), candles)
     assert result["status"] == "INCOMPLETE_DATA"
     assert result["missing_candles"] == 1
-    assert result["expected_candles"] == 863
+    assert result["expected_candles"] == 864
 
 
 def test_terminal_hit_before_later_gap_remains_valid():
@@ -116,3 +116,20 @@ def test_directional_indicators_identify_downward_pressure():
     result = Indicators.apply(frame)
     assert result.loc[64, "minus_di_research"] > result.loc[64, "plus_di_research"]
     assert result.loc[64, "adx"] > 0
+
+
+def test_first_candle_opening_at_signal_time_is_scored():
+    candles = _future_5m()
+    candles.loc[0, "high"] = 106.0
+    result = historical_outcome(_signal(), candles)
+    assert result["status"] == "SL_HIT"
+    assert result["event_time"] == _signal()["_replay_time"]
+
+
+def test_same_first_candle_sl_and_tp3_uses_conservative_sl_first():
+    candles = _future_5m()
+    candles.loc[0, "high"] = 106.0
+    candles.loc[0, "low"] = 93.0
+    result = historical_outcome(_signal(), candles)
+    assert result["status"] == "SL_HIT"
+    assert result["event_time"] == _signal()["_replay_time"]
