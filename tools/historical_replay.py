@@ -37,6 +37,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
+from config import CONFIG
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -476,19 +477,29 @@ class ReplayMarketLoader:
 
     def _frame(self, symbol: str, timeframe: str, limit: int | None):
         df = self.store.candles[(symbol, timeframe)]
+        effective_limit = (
+            CONFIG["ohlcv_4h_limit"]
+            if timeframe == "4h" and limit is None
+            else CONFIG["ohlcv_limit"]
+            if limit is None
+            else int(limit)
+        )
         cutoff = pd.Timestamp(self.store.end) - INTERVAL_DELTAS[timeframe]
         right = int(df["timestamp"].searchsorted(cutoff, side="right"))
-        start = max(0, right - int(limit)) if limit is not None else 0
-        visible = df.iloc[start:right].copy()
 
-        # Recreate only the single forming higher-timeframe candle. The previous
-        # implementation scanned and copied the entire historical dataframe at
-        # every 5m boundary, which made the 8,640-point replay exceed the 6-hour
-        # GitHub Actions timeout.
+        # Match MarketDataLoader's production contract: its default OHLCV limit
+        # is 100, and the exchange response contains the currently forming bar.
+        # Therefore reserve one slot for the replay-constructed forming candle.
         if timeframe in {"1h", "4h", "15m"}:
+            completed_limit = max(0, effective_limit - 1)
+            start = max(0, right - completed_limit)
+            visible = df.iloc[start:right].copy()
             forming = replay_forming_candle(self.store, symbol, timeframe)
             visible = pd.concat([visible, pd.DataFrame([forming])], ignore_index=True)
             visible = visible.drop_duplicates("timestamp", keep="last").sort_values("timestamp")
+        else:
+            start = max(0, right - effective_limit)
+            visible = df.iloc[start:right].copy()
 
         return visible.reset_index(drop=True)
 
