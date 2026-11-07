@@ -530,14 +530,16 @@ def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int 
     current_sl = sl
     milestones = []
     delta = INTERVAL_DELTAS["5m"]
+    # The first 5m candle opening exactly at the signal timestamp is the
+    # first tradable candle after an entry made at the 1H close. Include it.
     expected_opens = pd.date_range(
-        start=start + delta,
+        start=start,
         end=end - delta,
         freq=delta,
         tz="UTC",
     )
     window = future_5m[
-        (future_5m["timestamp"] > start)
+        (future_5m["timestamp"] >= start)
         & (future_5m["timestamp"] + delta <= end)
     ].drop_duplicates("timestamp").set_index("timestamp")
     missing = [timestamp for timestamp in expected_opens if timestamp not in window.index]
@@ -864,7 +866,7 @@ def run():
             "outcome_expiry_hours": OUTCOME_LOOKAHEAD_HOURS,
             "archive_lag_buffer_hours": ARCHIVE_LAG_HOURS,
             "outcome_candle_interval": "5m",
-            "incomplete_outcome_policy": "INCOMPLETE_DATA unless all 864 expected 5m candles are contiguous or TP/SL is reached before a gap",
+            "incomplete_outcome_policy": "INCOMPLETE_DATA unless all 864 expected 5m candles from the signal timestamp through the 72h expiry are contiguous or TP/SL is reached before a gap",
         },
         "summary": summarize(results),
         "results": results,
