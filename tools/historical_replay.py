@@ -378,17 +378,16 @@ class HistoricalStore:
 
 
 def replay_boundary_price(store: HistoricalStore, symbol: str) -> float:
-    """Return the first traded price at the replay boundary, without future OHLC."""
+    """Return the first traded price at the replay boundary without scanning the full 5m frame."""
     five_min = store.candles[(symbol, "5m")]
-    boundary = five_min[five_min["timestamp"] == store.end]
-    if boundary.empty:
+    timestamps = five_min["timestamp"]
+    position = int(timestamps.searchsorted(pd.Timestamp(store.end), side="left"))
+    if position >= len(five_min) or timestamps.iloc[position] != pd.Timestamp(store.end):
         raise RuntimeError(
             f"missing_5m_boundary_price:{symbol}:{store.end.isoformat()}"
         )
-    return float(boundary.iloc[0]["open"])
-
-
-def replay_forming_candle(
+    return float(five_min.iloc[position]["open"])
+(
     store: HistoricalStore, symbol: str, timeframe: str
 ) -> dict:
     """Build the in-progress exchange candle visible at the exact scan boundary.
@@ -400,14 +399,12 @@ def replay_forming_candle(
         raise ValueError(f"unsupported_forming_timeframe:{timeframe}")
 
     end = pd.Timestamp(store.end)
-    delta = INTERVAL_DELTAS[timeframe]
     bucket_start = end.floor(timeframe)
     five_min = store.candles[(symbol, "5m")]
-    completed = five_min[
-        (five_min["timestamp"] >= bucket_start)
-        & (five_min["timestamp"] < end)
-        & (five_min["timestamp"] + INTERVAL_DELTAS["5m"] <= end)
-    ].sort_values("timestamp")
+    timestamps = five_min["timestamp"]
+    left = int(timestamps.searchsorted(bucket_start, side="left"))
+    right = int(timestamps.searchsorted(end, side="left"))
+    completed = five_min.iloc[left:right]
     boundary_price = replay_boundary_price(store, symbol)
 
     if completed.empty:
@@ -442,25 +439,27 @@ class ReplayExchange:
         df = self.store.funding.get(symbol)
         if df is None or df.empty:
             return {"fundingRate": None}
-        past = df[df["timestamp"] <= self.store.end]
-        if past.empty:
+        position = int(df["timestamp"].searchsorted(pd.Timestamp(self.store.end), side="right")) - 1
+        if position < 0:
             return {"fundingRate": None}
-        return {"fundingRate": float(past.iloc[-1]["fundingRate"])}
+        return {"fundingRate": float(df.iloc[position]["fundingRate"])}
 
     def fetch_open_interest(self, symbol: str) -> dict:
         df = self.store.oi.get(symbol)
         if df is None or df.empty:
             return {}
-        past = df[df["timestamp"] <= self.store.end]
-        if past.empty:
+        position = int(df["timestamp"].searchsorted(pd.Timestamp(self.store.end), side="right")) - 1
+        if position < 0:
             return {}
-        return {"openInterestValue": float(past.iloc[-1]["sumOpenInterestValue"])}
+        return {"openInterestValue": float(df.iloc[position]["sumOpenInterestValue"])}
 
     def fetch_open_interest_history(self, symbol: str, timeframe: str = "1h", limit: int = 2):
         df = self.store.oi.get(symbol)
         if df is None or df.empty:
             return []
-        past = df[df["timestamp"] <= self.store.end].tail(limit)
+        right = int(df["timestamp"].searchsorted(pd.Timestamp(self.store.end), side="right"))
+        left = max(0, right - int(limit))
+        past = df.iloc[left:right]
         return [
             {
                 "openInterestValue": float(row["sumOpenInterestValue"]),
@@ -477,21 +476,21 @@ class ReplayMarketLoader:
 
     def _frame(self, symbol: str, timeframe: str, limit: int | None):
         df = self.store.candles[(symbol, timeframe)]
-        df = df[
-            df["timestamp"] + INTERVAL_DELTAS[timeframe] <= self.store.end
-        ].copy()
+        cutoff = pd.Timestamp(self.store.end) - INTERVAL_DELTAS[timeframe]
+        right = int(df["timestamp"].searchsorted(cutoff, side="right"))
+        start = max(0, right - int(limit)) if limit is not None else 0
+        visible = df.iloc[start:right].copy()
 
-        # CCXT/exchange OHLCV normally includes the currently forming candle.
-        # Recreate that exact-timeframe slot so scanner_v5's live=last / prev=
-        # previous contract uses the same completed indicator row as production.
+        # Recreate only the single forming higher-timeframe candle. The previous
+        # implementation scanned and copied the entire historical dataframe at
+        # every 5m boundary, which made the 8,640-point replay exceed the 6-hour
+        # GitHub Actions timeout.
         if timeframe in {"1h", "4h", "15m"}:
             forming = replay_forming_candle(self.store, symbol, timeframe)
-            df = pd.concat([df, pd.DataFrame([forming])], ignore_index=True)
-            df = df.drop_duplicates("timestamp", keep="last").sort_values("timestamp")
+            visible = pd.concat([visible, pd.DataFrame([forming])], ignore_index=True)
+            visible = visible.drop_duplicates("timestamp", keep="last").sort_values("timestamp")
 
-        if limit is not None:
-            df = df.tail(int(limit))
-        return df.copy(deep=True).reset_index(drop=True)
+        return visible.reset_index(drop=True)
 
     def get_ohlcv(self, symbol: str, timeframe: str = None, limit: int = None):
         return self._frame(symbol, timeframe or "1h", limit)
@@ -518,38 +517,26 @@ class ReplayTopSymbols:
 
 
 def assert_replay_boundary(store: HistoricalStore) -> None:
-    """Verify the replay-visible views contain no unfinished/future data.
+    """Perform a constant-work boundary check.
 
-    HistoricalStore intentionally contains the full downloaded window, including
-    future candles needed later for outcome evaluation. The assertion therefore
-    validates the exact visibility predicates used by ReplayMarketLoader and
-    ReplayExchange rather than rejecting the raw store for containing future data.
+    Full historical coverage is validated before replay starts. During the
+    8,640-point loop we only need to prove that the current production 5m
+    boundary exists for every candidate symbol.
     """
-    for (symbol, timeframe), df in store.candles.items():
-        delta = INTERVAL_DELTAS[timeframe]
-        visible = df[df["timestamp"] + delta <= store.end]
-        if not visible.empty and (visible["timestamp"] + delta > store.end).any():
+    end = pd.Timestamp(store.end)
+    for symbol in SYMBOLS:
+        five_min = store.candles.get((symbol, "5m"))
+        if five_min is None or five_min.empty:
+            raise AssertionError(f"missing_5m_store:{symbol}")
+        timestamps = five_min["timestamp"]
+        position = int(timestamps.searchsorted(end, side="left"))
+        if position >= len(five_min) or timestamps.iloc[position] != end:
             raise AssertionError(
-                f"future_visible_candle:{symbol}:{timeframe}:{store.end.isoformat()}"
-            )
-
-    for symbol, df in store.funding.items():
-        visible = df[df["timestamp"] <= store.end]
-        if not visible.empty and (visible["timestamp"] > store.end).any():
-            raise AssertionError(
-                f"future_visible_funding:{symbol}:{store.end.isoformat()}"
-            )
-
-    for symbol, df in store.oi.items():
-        visible = df[df["timestamp"] <= store.end]
-        if not visible.empty and (visible["timestamp"] > store.end).any():
-            raise AssertionError(
-                f"future_visible_oi:{symbol}:{store.end.isoformat()}"
+                f"missing_5m_boundary:{symbol}:{end.isoformat()}"
             )
 
 
-
-def validate_hourly_timeline(timeline: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> dict:
+(timeline: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> dict:
     """Fail closed unless every expected hourly evaluation timestamp exists."""
     expected = pd.date_range(start=start, end=end, freq="1h", tz="UTC")
     observed = pd.DatetimeIndex(
@@ -834,6 +821,10 @@ def run():
 
             scanner.MarketDataLoader = lambda store=store: ReplayMarketLoader(store)
             scanner.TopSymbolsLoader = lambda: ReplayTopSymbols(SYMBOLS)
+            # Diagnostic-only RRCE shadow replays are disabled for the long replay.
+            # They never change candidate gating or captured signals. Production
+            # defaults are untouched; this flag is scoped to this research run.
+            scanner.CONFIG["_historical_replay_fast_mode"] = True
 
             def capture(**sig):
                 sig["_replay_time"] = replay_time.isoformat()
@@ -847,6 +838,7 @@ def run():
     finally:
         for name, value in original.items():
             setattr(scanner, name, value)
+        scanner.CONFIG.pop("_historical_replay_fast_mode", None)
 
     results = []
     for sig in captured:
