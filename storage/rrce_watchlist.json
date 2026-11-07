@@ -1,38 +1,38 @@
 {
   "ANKR/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-07T09:24:03.109343+00:00",
-    "last_seen": "2026-11-07T09:24:03.109343+00:00",
+    "first_seen": "2026-11-07T15:48:24.984215+00:00",
+    "last_seen": "2026-11-07T15:48:24.984215+00:00",
     "observations": 1,
     "pool_level": 0.003983,
     "range_high": 0.004045,
     "range_low": 0.003663,
-    "regime": "RANGE",
-    "sweep_extreme": 0.003987,
+    "regime": "BEAR",
+    "sweep_extreme": 0.003996,
     "symbol": "ANKR/USDT:USDT"
   },
-  "ARB/USDT:USDT|SHORT": {
+  "JOE/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-07T09:24:12.287397+00:00",
-    "last_seen": "2026-11-07T09:24:12.287397+00:00",
+    "first_seen": "2026-11-07T15:48:43.721001+00:00",
+    "last_seen": "2026-11-07T15:48:43.721001+00:00",
     "observations": 1,
-    "pool_level": 0.16565,
-    "range_high": 0.17243,
-    "range_low": 0.14985,
-    "regime": "RANGE",
-    "sweep_extreme": 0.16686,
-    "symbol": "ARB/USDT:USDT"
+    "pool_level": 0.02777,
+    "range_high": 0.02935,
+    "range_low": 0.02594,
+    "regime": "BEAR",
+    "sweep_extreme": 0.0278,
+    "symbol": "JOE/USDT:USDT"
   },
-  "INJ/USDT:USDT|SHORT": {
+  "MASK/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-07T09:24:09.887158+00:00",
-    "last_seen": "2026-11-07T09:24:09.887158+00:00",
+    "first_seen": "2026-11-07T15:48:03.535894+00:00",
+    "last_seen": "2026-11-07T15:48:03.535894+00:00",
     "observations": 1,
-    "pool_level": 8.444,
-    "range_high": 8.587,
-    "range_low": 6.817,
-    "regime": "RANGE",
-    "sweep_extreme": 8.458,
-    "symbol": "INJ/USDT:USDT"
+    "pool_level": 0.3773,
+    "range_high": 0.3985,
+    "range_low": 0.352,
+    "regime": "BEAR",
+    "sweep_extreme": 0.3777,
+    "symbol": "MASK/USDT:USDT"
   }
 }
