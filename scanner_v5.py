@@ -556,6 +556,22 @@ def main():
             _direction_start = _time.perf_counter()
             for direction in allowed_directions:
 
+                # Research SHORT guard: avoid late/oversold entries that the
+                # disabled legacy trend/quality gates currently allow through.
+                # This is intentionally SHORT-only and branch-scoped; LONG is
+                # untouched. A fresh independent holdout is required before
+                # considering promotion to production.
+                if direction == "SHORT" and rsi < CONFIG.get("short_rsi_floor", 0.0):
+                    skip["short_rsi_floor"] = skip.get("short_rsi_floor", 0) + 1
+                    _trace(
+                        symbol,
+                        "short_rsi_floor_block",
+                        direction=direction,
+                        rsi=round(rsi, 2),
+                        floor=CONFIG.get("short_rsi_floor", 0.0),
+                    )
+                    continue
+
                 # Trend evidence is direction-specific. When the trend gate is disabled,
                 # do not copy the confirmed LONG/SHORT score onto the opposite candidate.
                 effective_trend_score = directional_trend_scores.get(direction, 0.0)
