@@ -59,7 +59,7 @@ DATA_SYMBOLS = list(dict.fromkeys(SYMBOLS + ["BTC/USDT:USDT"]))
 INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
 DAYS = int(os.getenv("BACKTEST_DAYS", "30"))
-OFFSET_DAYS = int(os.getenv("BACKTEST_OFFSET_DAYS", "60"))
+OFFSET_DAYS = int(os.getenv("BACKTEST_OFFSET_DAYS", "90"))
 # Binance Vision daily futures archives can lag recent candles. REST fallback
 # may be geo-restricted in CI, so keep the replay window behind a fixed archive
 # publication buffer and fail closed if any remaining gaps cannot be recovered.
