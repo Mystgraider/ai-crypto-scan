@@ -221,3 +221,22 @@ def test_replay_fails_closed_without_boundary_price():
     ].iloc[:-1]
     with pytest.raises(RuntimeError, match="missing_5m_boundary_price"):
         ReplayExchange(store).fetch_ticker("TEST/USDT:USDT")
+
+
+def test_forming_candle_is_invariant_to_future_5m_high_low_close_and_volume():
+    from tools.historical_replay import ReplayMarketLoader
+
+    store = _replay_store("2026-10-01T02:00:00Z")
+    loader = ReplayMarketLoader(store)
+    baseline = loader.get_4h("TEST/USDT:USDT").iloc[-1].to_dict()
+
+    five_min = store.candles[("TEST/USDT:USDT", "5m")].copy()
+    boundary_index = five_min.index[five_min["timestamp"] == store.end][0]
+    five_min.loc[boundary_index, ["high", "low", "close", "volume"]] = [
+        9999.0, 1.0, 5000.0, 1_000_000.0
+    ]
+    store.candles[("TEST/USDT:USDT", "5m")] = five_min
+
+    changed = ReplayMarketLoader(store).get_4h("TEST/USDT:USDT").iloc[-1].to_dict()
+    for field in ("open", "high", "low", "close", "volume"):
+        assert changed[field] == pytest.approx(baseline[field])
