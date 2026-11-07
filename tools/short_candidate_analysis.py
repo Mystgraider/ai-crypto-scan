@@ -495,6 +495,66 @@ for item in candidate_records[:40]:
     public_item = {key: value for key, value in item.items() if key != "_conditions"}
     public_item["holdout"] = multi_stats(holdout, holdout_rows)
     public_item["holdout_sample_adequate"] = len(holdout) >= 20
+
+    # Robustness diagnostics: a candidate that looks strong only because one
+    # symbol or one chronological slice supplied most of its TP3s is not a
+    # reliable indicator setup. This remains research-only and never gates
+    # production signals.
+    symbol_breakdown = {}
+    for symbol in sorted({row.get("symbol") for row in holdout_rows if row.get("symbol")}):
+        symbol_rows = [row for row in holdout if row.get("symbol") == symbol]
+        if not symbol_rows:
+            continue
+        symbol_tp3 = sum(row.get("outcome") == "TP3_HIT" for row in symbol_rows)
+        symbol_sl = sum(row.get("outcome") == "SL_HIT" for row in symbol_rows)
+        symbol_breakdown[symbol] = {
+            "signals": len(symbol_rows),
+            "tp3": symbol_tp3,
+            "sl": symbol_sl,
+            "expired": sum(row.get("outcome") == "EXPIRED" for row in symbol_rows),
+            "tp3_rate_pct": round(100 * symbol_tp3 / len(symbol_rows), 2),
+        }
+
+    holdout_dated = sorted(
+        (row for row in holdout if row.get("replay_time")),
+        key=lambda row: row["replay_time"],
+    )
+    thirds = {}
+    if holdout_dated:
+        third_size = max(1, (len(holdout_dated) + 2) // 3)
+        for index, label in enumerate(("first_third", "middle_third", "last_third")):
+            chunk = holdout_dated[index * third_size:(index + 1) * third_size]
+            if not chunk:
+                continue
+            chunk_tp3 = sum(row.get("outcome") == "TP3_HIT" for row in chunk)
+            chunk_sl = sum(row.get("outcome") == "SL_HIT" for row in chunk)
+            thirds[label] = {
+                "start": chunk[0]["replay_time"],
+                "end": chunk[-1]["replay_time"],
+                "signals": len(chunk),
+                "tp3": chunk_tp3,
+                "sl": chunk_sl,
+                "expired": sum(row.get("outcome") == "EXPIRED" for row in chunk),
+                "tp3_rate_pct": round(100 * chunk_tp3 / len(chunk), 2),
+            }
+
+    total_holdout_tp3 = public_item["holdout"]["tp3"]
+    ranked_symbol_tp3 = sorted(
+        (item["tp3"] for item in symbol_breakdown.values()),
+        reverse=True,
+    )
+    largest_symbol_tp3_share = (
+        round(100 * ranked_symbol_tp3[0] / total_holdout_tp3, 2)
+        if total_holdout_tp3 and ranked_symbol_tp3 else 0.0
+    )
+    public_item["holdout_by_symbol"] = symbol_breakdown
+    public_item["holdout_chronological_thirds"] = thirds
+    public_item["holdout_tp3_largest_symbol_share_pct"] = largest_symbol_tp3_share
+    public_item["stability_warning"] = (
+        "TP3 concentration: one symbol supplies >=60% of holdout TP3s"
+        if largest_symbol_tp3_share >= 60.0
+        else None
+    )
     top_candidates.append(public_item)
 
 analysis["multi_feature_candidate_discovery"] = {
