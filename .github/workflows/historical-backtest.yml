@@ -74,6 +74,7 @@ jobs:
           python -m pytest -q tests/test_historical_replay_data_integrity.py
 
       - name: Run configurable historical replay
+        if: github.event_name == 'workflow_dispatch'
         env:
           BACKTEST_DAYS: ${{ inputs.days || '30' }}
           BACKTEST_OFFSET_DAYS: ${{ inputs.offset_days || '90' }}
@@ -81,10 +82,12 @@ jobs:
           python tools/historical_replay.py
 
       - name: Add full multi-timeframe SHORT indicator analysis
+        if: github.event_name == 'workflow_dispatch'
         run: |
           python tools/short_candidate_analysis.py
 
       - name: Upload backtest result
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: historical-backtest-result
