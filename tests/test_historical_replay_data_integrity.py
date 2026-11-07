@@ -240,3 +240,33 @@ def test_forming_candle_is_invariant_to_future_5m_high_low_close_and_volume():
     changed = ReplayMarketLoader(store).get_4h("TEST/USDT:USDT").iloc[-1].to_dict()
     for field in ("open", "high", "low", "close", "volume"):
         assert changed[field] == pytest.approx(baseline[field])
+
+
+def test_five_minute_timeline_matches_production_scan_cadence():
+    from tools.historical_replay import validate_five_minute_timeline
+
+    start = pd.Timestamp("2026-10-01T00:00:00Z")
+    end = start + pd.Timedelta(hours=2)
+    complete = pd.DataFrame({
+        "timestamp": pd.date_range(
+            start=start, end=end - pd.Timedelta(minutes=5), freq="5min"
+        )
+    })
+    report = validate_five_minute_timeline(complete, start, end)
+    assert report["expected_scans"] == 24
+    assert report["observed_scans"] == 24
+    assert report["missing_scans"] == 0
+
+
+def test_five_minute_timeline_fails_closed_when_production_scan_slot_is_missing():
+    from tools.historical_replay import validate_five_minute_timeline
+
+    start = pd.Timestamp("2026-10-01T00:00:00Z")
+    end = start + pd.Timedelta(hours=1)
+    incomplete = pd.DataFrame({
+        "timestamp": pd.date_range(
+            start=start, end=end - pd.Timedelta(minutes=5), freq="5min"
+        ).delete(5)
+    })
+    with pytest.raises(RuntimeError, match="incomplete_five_minute_replay_timeline"):
+        validate_five_minute_timeline(incomplete, start, end)
