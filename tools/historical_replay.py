@@ -37,12 +37,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
-from config import CONFIG
 
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in os.sys.path:
     os.sys.path.insert(0, str(ROOT))
+
+from config import CONFIG
 RESULTS = ROOT / "backtest_results.json"
 SYMBOLS = [
     "ETH/USDT:USDT",
@@ -388,7 +389,7 @@ def replay_boundary_price(store: HistoricalStore, symbol: str) -> float:
             f"missing_5m_boundary_price:{symbol}:{store.end.isoformat()}"
         )
     return float(five_min.iloc[position]["open"])
-(
+def replay_forming_candle(
     store: HistoricalStore, symbol: str, timeframe: str
 ) -> dict:
     """Build the in-progress exchange candle visible at the exact scan boundary.
