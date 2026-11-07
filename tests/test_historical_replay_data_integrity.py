@@ -133,3 +133,91 @@ def test_same_first_candle_sl_and_tp3_uses_conservative_sl_first():
     result = historical_outcome(_signal(), candles)
     assert result["status"] == "SL_HIT"
     assert result["event_time"] == _signal()["_replay_time"]
+
+
+def _replay_store(end):
+    end = pd.Timestamp(end)
+    five_min_times = pd.date_range(
+        end - pd.Timedelta(minutes=60),
+        end,
+        freq="5min",
+    )
+    five_min = pd.DataFrame({
+        "timestamp": five_min_times,
+        "open": [100.0 + i for i in range(len(five_min_times))],
+        "high": [101.0 + i for i in range(len(five_min_times))],
+        "low": [99.0 + i for i in range(len(five_min_times))],
+        "close": [100.5 + i for i in range(len(five_min_times))],
+        "volume": [10.0] * len(five_min_times),
+    })
+    hourly = pd.DataFrame({
+        "timestamp": pd.date_range(
+            end - pd.Timedelta(hours=3), end - pd.Timedelta(hours=1), freq="1h"
+        ),
+        "open": [90.0, 91.0, 92.0],
+        "high": [91.0, 92.0, 93.0],
+        "low": [89.0, 90.0, 91.0],
+        "close": [90.5, 91.5, 92.5],
+        "volume": [100.0] * 3,
+    })
+    four_hour = pd.DataFrame({
+        "timestamp": [end.floor("4h") - pd.Timedelta(hours=4)],
+        "open": [80.0], "high": [85.0], "low": [79.0],
+        "close": [84.0], "volume": [400.0],
+    })
+    fifteen = pd.DataFrame({
+        "timestamp": [end.floor("15min") - pd.Timedelta(minutes=15)],
+        "open": [95.0], "high": [96.0], "low": [94.0],
+        "close": [95.5], "volume": [50.0],
+    })
+    return HistoricalStore(
+        candles={
+            ("TEST/USDT:USDT", "5m"): five_min,
+            ("TEST/USDT:USDT", "1h"): hourly,
+            ("TEST/USDT:USDT", "4h"): four_hour,
+            ("TEST/USDT:USDT", "15m"): fifteen,
+        },
+        funding={}, oi={}, end=end,
+    )
+
+
+def test_replay_exposes_forming_1h_candle_and_completed_previous_bar():
+    from tools.historical_replay import ReplayMarketLoader
+
+    store = _replay_store("2026-10-01T02:00:00Z")
+    frame = ReplayMarketLoader(store).get_1h("TEST/USDT:USDT")
+    assert frame.iloc[-1]["timestamp"] == store.end
+    assert frame.iloc[-1]["open"] == pytest.approx(112.0)
+    assert frame.iloc[-1]["close"] == pytest.approx(112.0)
+    assert frame.iloc[-2]["timestamp"] == store.end - pd.Timedelta(hours=1)
+
+
+def test_replay_forming_4h_uses_only_closed_5m_bars_and_boundary_open():
+    from tools.historical_replay import ReplayMarketLoader
+
+    store = _replay_store("2026-10-01T02:00:00Z")
+    frame = ReplayMarketLoader(store).get_4h("TEST/USDT:USDT")
+    forming = frame.iloc[-1]
+    assert forming["timestamp"] == pd.Timestamp("2026-10-01T00:00:00Z")
+    assert forming["close"] == pytest.approx(112.0)
+    assert forming["high"] == pytest.approx(112.0)
+    assert forming["low"] == pytest.approx(99.0)
+    assert forming["volume"] == pytest.approx(120.0)
+
+
+def test_replay_boundary_ticker_uses_next_candle_open_not_previous_close():
+    from tools.historical_replay import ReplayExchange
+
+    store = _replay_store("2026-10-01T02:00:00Z")
+    assert ReplayExchange(store).fetch_ticker("TEST/USDT:USDT")["last"] == pytest.approx(112.0)
+
+
+def test_replay_fails_closed_without_boundary_price():
+    from tools.historical_replay import ReplayExchange
+
+    store = _replay_store("2026-10-01T02:00:00Z")
+    store.candles[("TEST/USDT:USDT", "5m")] = store.candles[
+        ("TEST/USDT:USDT", "5m")
+    ].iloc[:-1]
+    with pytest.raises(RuntimeError, match="missing_5m_boundary_price"):
+        ReplayExchange(store).fetch_ticker("TEST/USDT:USDT")
