@@ -4,7 +4,7 @@ This harness reuses scanner_v5.main() and injects historical OHLCV/funding/OI
 snapshots. It does not modify production code or write to production signals.
 
 Replay semantics:
-- Each evaluation timestamp is the OPEN boundary immediately after a completed 1H candle.
+- Each evaluation timestamp is a 5-minute production scan boundary.
 - All timeframes expose the in-progress candle visible at that exact boundary.
 - scanner_v5 uses its production convention: forming-candle close/ticker price +
   previous completed-candle indicators.
@@ -573,6 +573,34 @@ def validate_hourly_timeline(timeline: pd.DataFrame, start: pd.Timestamp, end: p
     return report
 
 
+def validate_five_minute_timeline(
+    timeline: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp
+) -> dict:
+    """Fail closed unless every production 5-minute scan boundary exists."""
+    delta = INTERVAL_DELTAS["5m"]
+    expected = pd.date_range(start=start, end=end - delta, freq=delta, tz="UTC")
+    observed = pd.DatetimeIndex(
+        pd.to_datetime(timeline["timestamp"], utc=True)
+    ).drop_duplicates().sort_values()
+    missing = expected.difference(observed)
+    unexpected = observed.difference(expected)
+    report = {
+        "expected_scans": int(len(expected)),
+        "observed_scans": int(len(observed)),
+        "missing_scans": int(len(missing)),
+        "unexpected_scans": int(len(unexpected)),
+        "first_missing": missing[0].isoformat() if len(missing) else None,
+        "missing_examples": [value.isoformat() for value in missing[:10]],
+        "scan_interval": "5m",
+    }
+    if len(missing) or len(unexpected):
+        raise RuntimeError(
+            "incomplete_five_minute_replay_timeline:"
+            + json.dumps(report, sort_keys=True)
+        )
+    return report
+
+
 def historical_outcome(signal: dict, future_5m: pd.DataFrame, expiry_hours: int = 72) -> dict:
     """Score only contiguous, fully observed 5m candles in the full expiry window.
 
@@ -733,31 +761,30 @@ def run():
     print(f"Historical replay: {start} -> {end}")
     store = load_store(start, end)
 
-    # Use timestamps for completed 1H candles only. The first 120 hours are
-    # reserved for indicator warmup, so no early NaNs are treated as strategy
-    # failures.
-    timeline = store.candles[(SYMBOLS[0], "1h")]
+    # Production scanner.yml runs every five minutes. Replaying only hourly
+    # closes would omit 11 of every 12 production scan opportunities and can
+    # materially distort signal selection, indicator state, and outcome mix.
+    timeline = store.candles[(SYMBOLS[0], "5m")]
     timeline = timeline[
-        (timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start)
-        & (timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)
+        (timeline["timestamp"] >= start)
+        & (timeline["timestamp"] < end)
     ].copy()
     if timeline.empty:
         raise RuntimeError("empty_replay_timeline")
 
-    # The evaluation schedule is independent of whichever market-data symbol
-    # happens to be first in the candidate universe. Validate every expected
-    # hourly close before running scanner.main(); never silently skip a gap.
-    timeline_coverage = validate_hourly_timeline(timeline, start, end)
+    # Validate every production scan boundary for every replay symbol. A
+    # missing 5m candle must stop the replay rather than silently skip a scan.
+    timeline_coverage = validate_five_minute_timeline(timeline, start, end)
     for symbol in SYMBOLS:
-        symbol_timeline = store.candles[(symbol, "1h")]
+        symbol_timeline = store.candles[(symbol, "5m")]
         symbol_timeline = symbol_timeline[
-            (symbol_timeline["timestamp"] + INTERVAL_DELTAS["1h"] >= start)
-            & (symbol_timeline["timestamp"] + INTERVAL_DELTAS["1h"] <= end)
+            (symbol_timeline["timestamp"] >= start)
+            & (symbol_timeline["timestamp"] < end)
         ]
         try:
-            validate_hourly_timeline(symbol_timeline, start, end)
+            validate_five_minute_timeline(symbol_timeline, start, end)
         except RuntimeError as exc:
-            raise RuntimeError(f"symbol_hourly_coverage_failed:{symbol}:{exc}") from exc
+            raise RuntimeError(f"symbol_five_minute_coverage_failed:{symbol}:{exc}") from exc
 
     original = {
         "MarketDataLoader": scanner.MarketDataLoader,
@@ -801,7 +828,7 @@ def run():
         scanner.AnalyticsEngine = ReplayAnalytics
 
         for i, row in enumerate(timeline.itertuples(index=False), start=1):
-            replay_time = pd.Timestamp(row.timestamp) + INTERVAL_DELTAS["1h"]
+            replay_time = pd.Timestamp(row.timestamp)
             store.end = replay_time
             assert_replay_boundary(store)
 
@@ -924,6 +951,7 @@ def run():
             "same_candle_conflict_policy": "SL first, matching SignalTracker",
             "production_code_modified": False,
             "harness_mode": "scanner_v5.main historical injection",
+            "scan_cadence": "5m (matches .github/workflows/scanner.yml cron */5)",
             "forming_candle_policy": "reconstruct 1h/4h/15m in-progress candles from completed 5m bars before the boundary plus boundary 5m open only; no post-boundary OHLCV is exposed",
             "timeline_coverage": timeline_coverage,
             "outcome_expiry_hours": OUTCOME_LOOKAHEAD_HOURS,
