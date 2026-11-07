@@ -556,22 +556,6 @@ def main():
             _direction_start = _time.perf_counter()
             for direction in allowed_directions:
 
-                # Research SHORT guard: avoid late/oversold entries that the
-                # disabled legacy trend/quality gates currently allow through.
-                # This is intentionally SHORT-only and branch-scoped; LONG is
-                # untouched. A fresh independent holdout is required before
-                # considering promotion to production.
-                if direction == "SHORT" and rsi < CONFIG.get("short_rsi_floor", 0.0):
-                    skip["short_rsi_floor"] = skip.get("short_rsi_floor", 0) + 1
-                    _trace(
-                        symbol,
-                        "short_rsi_floor_block",
-                        direction=direction,
-                        rsi=round(rsi, 2),
-                        floor=CONFIG.get("short_rsi_floor", 0.0),
-                    )
-                    continue
-
                 # Trend evidence is direction-specific. When the trend gate is disabled,
                 # do not copy the confirmed LONG/SHORT score onto the opposite candidate.
                 effective_trend_score = directional_trend_scores.get(direction, 0.0)
@@ -1033,6 +1017,39 @@ def main():
                     if rrce_execution_stage4 is not None:
                         _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="mtf")
                     continue
+
+                # Research SHORT setup: avoid late/oversold shorts and avoid
+                # entering after the 15m trend has already turned bearish.
+                # Run #138 discovery -> holdout showed this combination retained
+                # 75% of holdout TP3 while removing about 48% of holdout SLs.
+                # Research branch only; LONG is untouched.
+                if direction == "SHORT":
+                    short_rsi_floor = float(CONFIG.get("short_rsi_floor", 0.0))
+                    short_require_15m_not_bearish = bool(
+                        CONFIG.get("short_require_15m_not_bearish", False)
+                    )
+                    if rsi < short_rsi_floor:
+                        skip["short_rsi_floor"] = skip.get("short_rsi_floor", 0) + 1
+                        _trace(
+                            symbol,
+                            "short_rsi_floor_block",
+                            direction=direction,
+                            rsi=round(rsi, 2),
+                            floor=short_rsi_floor,
+                        )
+                        continue
+                    if (
+                        short_require_15m_not_bearish
+                        and mtf_15m_dir == "BEARISH"
+                    ):
+                        skip["short_15m_bearish"] = skip.get("short_15m_bearish", 0) + 1
+                        _trace(
+                            symbol,
+                            "short_15m_bearish_block",
+                            direction=direction,
+                            mtf_15m=mtf_15m_dir,
+                        )
+                        continue
 
                 quality_score = quality_engine.score(
                     rel_volume=rel_volume, rsi=rsi, direction=direction,
