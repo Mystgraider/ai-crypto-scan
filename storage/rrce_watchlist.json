@@ -1,20 +1,20 @@
 {
   "BNB/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-08T15:39:30.927950+00:00",
-    "last_seen": "2026-11-08T15:39:30.927950+00:00",
+    "first_seen": "2026-11-08T19:57:08.618817+00:00",
+    "last_seen": "2026-11-08T19:57:08.618817+00:00",
     "observations": 1,
     "pool_level": 696.98,
     "range_high": 722.98,
     "range_low": 680.18,
     "regime": "RANGE",
-    "sweep_extreme": 699.9,
+    "sweep_extreme": 698.49,
     "symbol": "BNB/USDT:USDT"
   },
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-08T15:40:28.578136+00:00",
-    "last_seen": "2026-11-08T15:40:28.578136+00:00",
+    "first_seen": "2026-11-08T19:58:31.048029+00:00",
+    "last_seen": "2026-11-08T19:58:31.048029+00:00",
     "observations": 1,
     "pool_level": 1.0006,
     "range_high": 1.001,
