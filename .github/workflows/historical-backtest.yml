@@ -1,5 +1,6 @@
 name: Historical Backtest
 
+# Research-only trigger: a branch push runs the fixed 30-day, offset-90 chunked replay.
 on:
   push:
     branches:
@@ -41,7 +42,7 @@ on:
 jobs:
   replay:
     name: Replay chunk (end offset ${{ matrix.offset_days }}d)
-    if: ${{ github.event_name }} == 'workflow_dispatch' || ${{ github.event_name }} == 'push'
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -50,7 +51,7 @@ jobs:
     timeout-minutes: 360
     steps:
       - name: Require the research branch for manual runs
-        if: ${{ github.event_name }} == 'workflow_dispatch'
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
           REF_NAME: ${{ github.ref_name }}
           INPUT_DAYS: ${{ inputs.days }}
@@ -152,7 +153,7 @@ jobs:
 
   analyze:
     name: Merge 30-day replay and run SHORT analysis
-    if: ${{ github.event_name }} == 'workflow_dispatch' || ${{ github.event_name }} == 'push'
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
     needs: replay
     runs-on: ubuntu-latest
     timeout-minutes: 30
