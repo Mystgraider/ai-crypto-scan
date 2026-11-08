@@ -1022,37 +1022,43 @@ def main():
                         _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="mtf")
                     continue
 
-                # Research SHORT setup: avoid late/oversold shorts and avoid
-                # entering after the 15m trend has already turned bearish.
-                # Run #138 discovery -> holdout showed this combination retained
-                # 75% of holdout TP3 while removing about 48% of holdout SLs.
-                # Research branch only; LONG is untouched.
+                # Research SHORT setup gate.
+                #
+                # Run #168 discovery identified RSI 50-70 with ADX <20 as
+                # the strongest broad SHORT regime. This gate is direction-
+                # specific; LONG is untouched. It remains on this research
+                # branch until independent chronological validation confirms
+                # that the edge generalizes outside the discovery window.
                 if direction == "SHORT":
                     short_rsi_floor = float(CONFIG.get("short_rsi_floor", 0.0))
+                    short_rsi_ceiling = float(CONFIG.get("short_rsi_ceiling", 100.0))
+                    short_adx_max = float(CONFIG.get("short_adx_max", float("inf")))
                     short_require_15m_not_bearish = bool(
                         CONFIG.get("short_require_15m_not_bearish", False)
                     )
+
                     if rsi < short_rsi_floor:
                         skip["short_rsi_floor"] = skip.get("short_rsi_floor", 0) + 1
-                        _trace(
-                            symbol,
-                            "short_rsi_floor_block",
-                            direction=direction,
-                            rsi=round(rsi, 2),
-                            floor=short_rsi_floor,
-                        )
+                        _trace(symbol, "short_rsi_floor_block", direction=direction,
+                               rsi=round(rsi, 2), floor=short_rsi_floor)
                         continue
-                    if (
-                        short_require_15m_not_bearish
-                        and mtf_15m_dir == "BEARISH"
-                    ):
+
+                    if rsi > short_rsi_ceiling:
+                        skip["short_rsi_ceiling"] = skip.get("short_rsi_ceiling", 0) + 1
+                        _trace(symbol, "short_rsi_ceiling_block", direction=direction,
+                               rsi=round(rsi, 2), ceiling=short_rsi_ceiling)
+                        continue
+
+                    if adx >= short_adx_max:
+                        skip["short_adx_max"] = skip.get("short_adx_max", 0) + 1
+                        _trace(symbol, "short_adx_max_block", direction=direction,
+                               adx=round(adx, 2), max_adx=short_adx_max)
+                        continue
+
+                    if short_require_15m_not_bearish and mtf_15m_dir == "BEARISH":
                         skip["short_15m_bearish"] = skip.get("short_15m_bearish", 0) + 1
-                        _trace(
-                            symbol,
-                            "short_15m_bearish_block",
-                            direction=direction,
-                            mtf_15m=mtf_15m_dir,
-                        )
+                        _trace(symbol, "short_15m_bearish_block", direction=direction,
+                               mtf_15m=mtf_15m_dir)
                         continue
 
                 quality_score = quality_engine.score(
