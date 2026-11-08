@@ -11,16 +11,28 @@
     "sweep_extreme": 698.49,
     "symbol": "BNB/USDT:USDT"
   },
+  "IMX/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-11-08T23:24:56.625324+00:00",
+    "last_seen": "2026-11-08T23:24:56.625324+00:00",
+    "observations": 1,
+    "pool_level": 0.1202,
+    "range_high": 0.1265,
+    "range_low": 0.1119,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.1218,
+    "symbol": "IMX/USDT:USDT"
+  },
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-08T19:58:31.048029+00:00",
-    "last_seen": "2026-11-08T19:58:31.048029+00:00",
-    "observations": 1,
-    "pool_level": 1.0006,
+    "last_seen": "2026-11-08T23:25:26.330055+00:00",
+    "observations": 2,
+    "pool_level": 1.0007,
     "range_high": 1.001,
     "range_low": 0.9999,
-    "regime": "RANGE",
-    "sweep_extreme": 1.0007,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 1.0008,
     "symbol": "USDC/USDT:USDT"
   }
 }
