@@ -548,7 +548,9 @@ def assert_replay_boundary(store: HistoricalStore) -> None:
             )
 
 
-(timeline: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> dict:
+def validate_hourly_timeline(
+    timeline: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp
+) -> dict:
     """Fail closed unless every expected hourly evaluation timestamp exists."""
     expected = pd.date_range(start=start, end=end, freq="1h", tz="UTC")
     observed = pd.DatetimeIndex(
