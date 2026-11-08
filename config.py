@@ -23,7 +23,9 @@ CONFIG = {
     # Research SHORT guard: reject late/oversold 1H entries. Validated
     # retrospectively on Run #138; remains research-branch-only until a fresh
     # independent offset confirms TP3 retention.
-    "short_rsi_floor": 35.0,
+    "short_rsi_floor": 50.0,
+    "short_rsi_ceiling": 70.0,
+    "short_adx_max": 20.0,
     "short_require_15m_not_bearish": True,
 
     # BTC is market context/safety, not the source of coin direction.
