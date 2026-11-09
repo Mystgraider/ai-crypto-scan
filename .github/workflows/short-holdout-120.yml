@@ -15,6 +15,10 @@ on:
       - "engines/**"
       - "indicators/**"
 
+concurrency:
+  group: short-holdout-120-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
