@@ -25,6 +25,21 @@ class RRCEAlignedShortAnalysisTests(unittest.TestCase):
         self.assertEqual(discovery[-1]["replay_time"], "2026-01-04T00:00:00Z")
         self.assertEqual(holdout[0]["replay_time"], "2026-01-05T00:00:00Z")
 
+    def test_stage_cohorts_capture_full_rrce_sequence_and_premium_band(self):
+        row = {
+            "direction": "SHORT", "rrce_status": "QUALIFIED",
+            "rrce_failed_stage": None, "rrce_choch_confirmed": True,
+            "rrce_stage1_passed": True, "rrce_stage1_position_pct": 72.0,
+            "rrce_stage2_passed": True, "rrce_stage3_passed": True,
+            "rrce_stage4_valid": True, "rrce_stage4_entry_zone": "OB",
+            "outcome": "SL_HIT", "replay_time": "2026-01-01T00:00:00Z",
+            "symbol": "BTC", "entry": 100, "sl": 102, "tp3": 96,
+        }
+        report = build_report({"results": [row]})
+        self.assertEqual(report["full_rrce_sequence"]["signals"], 1)
+        self.assertEqual(report["rrce_4h_premium_position_bands"]["60_to_80pct"]["signals"], 1)
+        self.assertEqual(report["rrce_5m_entry_zone_cohorts"]["OB"]["signals"], 1)
+
     def test_rrce_qualified_cohort_is_separate_from_failed_stages(self):
         payload = {"results": [
             {"direction": "SHORT", "rrce_status": "QUALIFIED",
