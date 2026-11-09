@@ -213,23 +213,23 @@ def geometry(items):
 candidate_predicates = {
     "baseline": lambda row: True,
     "rsi_50_70_and_adx_below_20": lambda row: (
-        num(row.get("rsi")) is not None and 50 <= num(row["rsi"]) < 70
+        num(row.get("rsi")) is not None and 50 <= num(row["rsi"]) <= 70
         and num(row.get("adx")) is not None and num(row["adx"]) < 20
     ),
     "rsi_50_70_adx_below_20_price_at_or_above_ema20": lambda row: (
-        num(row.get("rsi")) is not None and 50 <= num(row["rsi"]) < 70
+        num(row.get("rsi")) is not None and 50 <= num(row["rsi"]) <= 70
         and num(row.get("adx")) is not None and num(row["adx"]) < 20
         and num(row.get("price_to_ema20_pct")) is not None
         and num(row["price_to_ema20_pct"]) >= 0
     ),
     "rsi_50_70_adx_below_20_di_not_bearish": lambda row: (
-        num(row.get("rsi")) is not None and 50 <= num(row["rsi"]) < 70
+        num(row.get("rsi")) is not None and 50 <= num(row["rsi"]) <= 70
         and num(row.get("adx")) is not None and num(row["adx"]) < 20
         and num(row.get("plus_di")) is not None and num(row.get("minus_di")) is not None
         and num(row["minus_di"]) <= num(row["plus_di"])
     ),
     "rsi_50_70_adx_below_20_price_at_or_above_ema20_di_not_bearish": lambda row: (
-        num(row.get("rsi")) is not None and 50 <= num(row["rsi"]) < 70
+        num(row.get("rsi")) is not None and 50 <= num(row["rsi"]) <= 70
         and num(row.get("adx")) is not None and num(row["adx"]) < 20
         and num(row.get("price_to_ema20_pct")) is not None
         and num(row["price_to_ema20_pct"]) >= 0
