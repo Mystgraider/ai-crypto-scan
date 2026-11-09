@@ -90,7 +90,15 @@ jobs:
               raise SystemExit(f"missing 5m scans: {coverage}")
           if not isinstance(data.get("results"), list):
               raise SystemExit("results must be a list")
+          if meta.get("long_signals_enabled") is not False:
+              raise SystemExit("replay must explicitly keep LONG signals disabled")
+          if meta.get("replay_direction_policy") != ["SHORT"]:
+              raise SystemExit(f"unexpected replay direction policy: {meta.get('replay_direction_policy')}")
+          if any(row.get("direction") == "LONG" for row in data["results"]):
+              raise SystemExit("LONG rows found in SHORT-only replay artifact")
           shorts = [row for row in data["results"] if row.get("direction") == "SHORT"]
+          if not shorts:
+              raise SystemExit("zero SHORT signals in validation artifact")
           missing_15m = [
               row for row in shorts
               if any(row.get(field) is None for field in ("rsi_15m", "adx_15m", "ema20_15m", "ema50_15m"))
