@@ -316,6 +316,8 @@ def test_short_research_setup_is_direction_specific():
     assert 'short_rsi_floor' in block
     assert 'short_rsi_ceiling' in block
     assert 'short_adx_max' in block
+    assert 'mtf_15m_dir == "UNKNOWN"' in block
+    assert 'short_15m_unavailable' in block
     assert 'mtf_15m_dir == "BEARISH"' in block
     assert 'direction == "LONG"' not in block
 
