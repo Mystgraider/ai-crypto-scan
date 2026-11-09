@@ -1185,7 +1185,13 @@ def main():
 
                 # Persist the final RRCE disposition with the candidate so the exact
                 # structural path can be joined to the eventual TP/SL outcome.
+                _rrce_stage1 = rrce_result.get("stage1") if isinstance(rrce_result, dict) else None
+                _rrce_stage2 = rrce_result.get("stage2") if isinstance(rrce_result, dict) else None
                 _rrce_stage3 = rrce_result.get("stage3") if isinstance(rrce_result, dict) else None
+                _rrce_stage4 = rrce_result.get("stage4") if isinstance(rrce_result, dict) else None
+                _rrce_stage3_fvg = _rrce_stage3.get("fvg") if isinstance(_rrce_stage3, dict) else None
+                _rrce_stage4_ob = _rrce_stage4.get("order_block") if isinstance(_rrce_stage4, dict) else None
+                _rrce_stage4_fvg = _rrce_stage4.get("fvg") if isinstance(_rrce_stage4, dict) else None
                 _rrce_failed_stage = rrce_result.get("failed_at") if isinstance(rrce_result, dict) else None
                 _rrce_failure_reason = None
                 if rrce_live_failure_reason:
@@ -1252,6 +1258,29 @@ def main():
                     "rrce_choch_confirmed": _rrce_choch_confirmed,
                     "rrce_risk_contract": _rrce_risk_contract,
                     "rrce_engine_mode": _rrce_engine_mode_final,
+                    # Research telemetry only: scalar snapshots of the exact
+                    # RRCE stages evaluated at this scan boundary. These fields
+                    # do not participate in scoring, gating, or risk geometry.
+                    "rrce_stage1_passed": bool(_rrce_stage1.get("passed")) if isinstance(_rrce_stage1, dict) else None,
+                    "rrce_stage1_position_pct": _rrce_stage1.get("position_pct") if isinstance(_rrce_stage1, dict) else None,
+                    "rrce_stage1_zone": _rrce_stage1.get("zone") if isinstance(_rrce_stage1, dict) else None,
+                    "rrce_stage1_range_width_pct": _rrce_stage1.get("range_width_pct") if isinstance(_rrce_stage1, dict) else None,
+                    "rrce_stage2_passed": bool(_rrce_stage2.get("passed")) if isinstance(_rrce_stage2, dict) else None,
+                    "rrce_stage2_pool_level": _rrce_stage2.get("pool_level") if isinstance(_rrce_stage2, dict) else None,
+                    "rrce_stage2_sweep_extreme": _rrce_stage2.get("sweep_extreme") if isinstance(_rrce_stage2, dict) else None,
+                    "rrce_stage2_sweep_time": str(_rrce_stage2.get("sweep_time")) if isinstance(_rrce_stage2, dict) and _rrce_stage2.get("sweep_time") is not None else None,
+                    "rrce_stage3_passed": bool(_rrce_stage3.get("passed")) if isinstance(_rrce_stage3, dict) else None,
+                    "rrce_stage3_choch_level": _rrce_stage3.get("choch_level") if isinstance(_rrce_stage3, dict) else None,
+                    "rrce_stage3_break_time": str(_rrce_stage3.get("break_time")) if isinstance(_rrce_stage3, dict) and _rrce_stage3.get("break_time") is not None else None,
+                    "rrce_stage3_fvg_top": _rrce_stage3_fvg.get("top") if isinstance(_rrce_stage3_fvg, dict) else None,
+                    "rrce_stage3_fvg_bottom": _rrce_stage3_fvg.get("bottom") if isinstance(_rrce_stage3_fvg, dict) else None,
+                    "rrce_stage4_valid": bool(_rrce_stage4.get("valid")) if isinstance(_rrce_stage4, dict) else None,
+                    "rrce_stage4_entry_zone": _rrce_stage4.get("entry_zone") if isinstance(_rrce_stage4, dict) else None,
+                    "rrce_stage4_rr": _rrce_stage4.get("rr") if isinstance(_rrce_stage4, dict) else None,
+                    "rrce_stage4_ob_top": _rrce_stage4_ob.get("top") if isinstance(_rrce_stage4_ob, dict) else None,
+                    "rrce_stage4_ob_bottom": _rrce_stage4_ob.get("bottom") if isinstance(_rrce_stage4_ob, dict) else None,
+                    "rrce_stage4_fvg_top": _rrce_stage4_fvg.get("top") if isinstance(_rrce_stage4_fvg, dict) else None,
+                    "rrce_stage4_fvg_bottom": _rrce_stage4_fvg.get("bottom") if isinstance(_rrce_stage4_fvg, dict) else None,
                     "rsi":             round(rsi, 2),
                     "adx":             round(adx, 2),
                     "plus_di":         round(float(prev["plus_di_research"]), 4),
