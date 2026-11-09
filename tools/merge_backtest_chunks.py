@@ -22,8 +22,15 @@ def load_chunk(root: Path, offset: int) -> dict:
         root / f"historical-backtest-chunk-{offset}" / "backtest_results.json",
         root / f"short-holdout-120-chunk-{offset}" / "backtest_results.json",
         root / f"short-holdout-chunk-{offset}" / "backtest_results.json",
+        root / f"short-holdout-90-chunk-{offset}" / "backtest_results.json",
     )
     path = next((candidate for candidate in candidates if candidate.is_file()), None)
+    if path is None:
+        # Artifact download directories are workflow-specific. Accept any
+        # unambiguous '*-chunk-{offset}' directory as a compatibility fallback.
+        discovered = sorted(root.glob(f"*-chunk-{offset}/backtest_results.json"))
+        if len(discovered) == 1:
+            path = discovered[0]
     if path is None:
         tried = ", ".join(str(candidate) for candidate in candidates)
         raise RuntimeError(f"missing_chunk_artifact:{offset}; searched: {tried}")
