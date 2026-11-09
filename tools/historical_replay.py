@@ -401,7 +401,8 @@ def replay_forming_candle(
         raise ValueError(f"unsupported_forming_timeframe:{timeframe}")
 
     end = pd.Timestamp(store.end)
-    bucket_start = end.floor(timeframe)
+    floor_frequency = {"1h": "1h", "4h": "4h", "15m": "15min"}[timeframe]
+    bucket_start = end.floor(floor_frequency)
     five_min = store.candles[(symbol, "5m")]
     timestamps = five_min["timestamp"]
     left = int(timestamps.searchsorted(bucket_start, side="left"))
