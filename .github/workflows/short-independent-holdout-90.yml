@@ -6,7 +6,7 @@ on:
       - research/enable-30d-offset60-workflow
       - research/short-gate-clean
     paths:
-      - ".github/workflows/short-holdout-90.yml"
+      - ".github/workflows/short-independent-holdout-90.yml"
       - "tools/historical_replay.py"
       - "tools/short_candidate_analysis.py"
       - "tools/merge_backtest_chunks.py"
@@ -113,6 +113,8 @@ jobs:
               if not (50.0 <= float(row.get("rsi", -1)) <= 70.0)
               or float(row.get("adx", 999)) >= 20.0
               or row.get("mtf_15m") in {"BEARISH", "UNKNOWN"}
+              or float(row.get("atr_pct", 999)) >= 0.8
+              or not (0.0 <= float(row.get("price_to_ema20_pct", -999)) <= 1.0)
           ]
           if missing_15m:
               raise SystemExit(f"SHORT 15m context unavailable for {len(missing_15m)}/{len(shorts)} rows")
