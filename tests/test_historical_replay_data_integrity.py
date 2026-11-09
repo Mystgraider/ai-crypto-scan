@@ -206,6 +206,21 @@ def test_replay_forming_4h_uses_only_closed_5m_bars_and_boundary_open():
     assert forming["volume"] == pytest.approx(120.0)
 
 
+def test_replay_forming_15m_uses_minute_frequency_and_only_closed_5m_bars():
+    from tools.historical_replay import ReplayMarketLoader
+
+    store = _replay_store("2026-10-01T02:10:00Z")
+    frame = ReplayMarketLoader(store).get_15m("TEST/USDT:USDT")
+    forming = frame.iloc[-1]
+
+    assert forming["timestamp"] == pd.Timestamp("2026-10-01T02:00:00Z")
+    assert forming["open"] == pytest.approx(110.0)
+    assert forming["high"] == pytest.approx(112.0)
+    assert forming["low"] == pytest.approx(109.0)
+    assert forming["close"] == pytest.approx(112.0)
+    assert forming["volume"] == pytest.approx(20.0)
+
+
 def test_replay_boundary_ticker_uses_next_candle_open_not_previous_close():
     from tools.historical_replay import ReplayExchange
 
