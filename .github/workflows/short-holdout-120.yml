@@ -16,6 +16,9 @@ on:
       - "config.py"
       - "engines/**"
       - "indicators/**"
+  pull_request:
+    branches:
+      - research/short-gate-clean
 
 concurrency:
   group: short-holdout-90-${{ github.ref }}
