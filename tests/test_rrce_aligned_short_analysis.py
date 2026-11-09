@@ -43,6 +43,3 @@ class RRCEAlignedShortAnalysisTests(unittest.TestCase):
         self.assertEqual(report["rrce_failed_stage_cohorts"]["stage3_confirmation"]["tp3"], 1)
         self.assertFalse(report["production_strategy_changed"])
 
-
-if __context__ := True:
-    pass
