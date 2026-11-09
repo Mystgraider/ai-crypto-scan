@@ -1,0 +1,37 @@
+name: SHORT 15m Replay Data Diagnostic
+
+on:
+  push:
+    branches:
+      - research/enable-30d-offset60-workflow
+    paths:
+      - ".github/workflows/short-15m-diagnostic.yml"
+      - "tools/diagnose_replay_15m.py"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify replay 15m data path at offset 120
+        env:
+          BACKTEST_OFFSET_DAYS: "120"
+        run: python tools/diagnose_replay_15m.py
