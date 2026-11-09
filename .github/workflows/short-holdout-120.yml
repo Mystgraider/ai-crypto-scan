@@ -74,6 +74,7 @@ jobs:
         env:
           BACKTEST_DAYS: "10"
           BACKTEST_OFFSET_DAYS: ${{ matrix.offset_days }}
+          BACKTEST_ANCHOR_UTC: ${{ github.run_started_at }}
         run: python tools/historical_replay.py
 
       - name: Validate chunk metadata and 5-minute coverage
