@@ -1,0 +1,175 @@
+name: SHORT Independent Holdout 90
+
+on:
+  push:
+    branches:
+      - research/enable-30d-offset60-workflow
+      - research/short-gate-clean
+    paths:
+      - ".github/workflows/short-holdout-90.yml"
+      - "tools/historical_replay.py"
+      - "tools/short_candidate_analysis.py"
+      - "tools/merge_backtest_chunks.py"
+      - "tests/test_historical_replay_data_integrity.py"
+      - "tests/test_production_risk_contract.py"
+      - "scanner_v5.py"
+      - "config.py"
+      - "engines/**"
+      - "indicators/**"
+
+concurrency:
+  group: short-holdout-90-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    name: Independent 10-day chunk (offset ${{ matrix.offset_days }}d)
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        offset_days: [90, 80, 70]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Verify research branch and required files
+        run: |
+          set -euo pipefail
+          case "${GITHUB_REF_NAME}" in
+            research/enable-30d-offset60-workflow|research/short-gate-clean) ;;
+            *) echo "::error::Unexpected research branch: ${GITHUB_REF_NAME}"; exit 1 ;;
+          esac
+          test -f tools/historical_replay.py
+          test -f tools/short_candidate_analysis.py
+          test -f tools/merge_backtest_chunks.py
+          test -f tests/test_historical_replay_data_integrity.py
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run replay integrity and SHORT production contract tests
+        run: |
+          python -m pytest -q \
+            tests/test_historical_replay_data_integrity.py \
+            tests/test_production_risk_contract.py
+
+      - name: Run fixed 10-day replay chunk
+        env:
+          BACKTEST_DAYS: "10"
+          BACKTEST_OFFSET_DAYS: ${{ matrix.offset_days }}
+        run: python tools/historical_replay.py
+
+      - name: Validate chunk metadata and 5-minute coverage
+        env:
+          EXPECTED_OFFSET: ${{ matrix.offset_days }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = Path("backtest_results.json")
+          if not p.is_file():
+              raise SystemExit("missing backtest_results.json")
+          data = json.loads(p.read_text(encoding="utf-8"))
+          meta = data.get("metadata", {})
+          if int(meta.get("days", -1)) != 10:
+              raise SystemExit(f"wrong days: {meta.get('days')}")
+          if int(meta.get("offset_days", -1)) != int(os.environ["EXPECTED_OFFSET"]):
+              raise SystemExit(f"wrong offset: {meta.get('offset_days')}")
+          coverage = meta.get("timeline_coverage", {})
+          if coverage.get("missing_scans") != 0:
+              raise SystemExit(f"missing 5m scans: {coverage}")
+          if not isinstance(data.get("results"), list):
+              raise SystemExit("results must be a list")
+          if meta.get("long_signals_enabled") is not False:
+              raise SystemExit("replay must explicitly keep LONG signals disabled")
+          if meta.get("replay_direction_policy") != ["SHORT"]:
+              raise SystemExit(f"unexpected replay direction policy: {meta.get('replay_direction_policy')}")
+          if any(row.get("direction") == "LONG" for row in data["results"]):
+              raise SystemExit("LONG rows found in SHORT-only replay artifact")
+          shorts = [row for row in data["results"] if row.get("direction") == "SHORT"]
+          if not shorts:
+              raise SystemExit("zero SHORT signals in validation artifact")
+          missing_15m = [
+              row for row in shorts
+              if any(row.get(field) is None for field in ("rsi_15m", "adx_15m", "ema20_15m", "ema50_15m"))
+              or row.get("mtf_15m") not in {"BULLISH", "BEARISH", "NEUTRAL"}
+          ]
+          invalid_gate = [
+              row for row in shorts
+              if not (50.0 <= float(row.get("rsi", -1)) <= 70.0)
+              or float(row.get("adx", 999)) >= 20.0
+              or row.get("mtf_15m") in {"BEARISH", "UNKNOWN"}
+          ]
+          if missing_15m:
+              raise SystemExit(f"SHORT 15m context unavailable for {len(missing_15m)}/{len(shorts)} rows")
+          if invalid_gate:
+              raise SystemExit(f"SHORT gate contract violated by {len(invalid_gate)} rows")
+          print(json.dumps({"start": meta.get("start"), "end": meta.get("end"),
+              "offset_days": meta.get("offset_days"), "signals": len(data["results"]),
+              "short_signals": len(shorts), "short_15m_coverage_pct": 100.0 if shorts else None,
+              "timeline_coverage": coverage}, indent=2))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: short-holdout-90-chunk-${{ matrix.offset_days }}
+          path: backtest_results.json
+          if-no-files-found: error
+          retention-days: 21
+
+  analyze:
+    name: Merge independent 30-day holdout and analyze SHORT
+    needs: replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: short-holdout-90-chunk-*
+          path: replay-chunks
+          merge-multiple: false
+
+      - name: Verify expected chunks and merge
+        run: |
+          set -euo pipefail
+          for offset in 70 80 90; do
+            test -f "replay-chunks/short-holdout-90-chunk-$offset/backtest_results.json"
+          done
+          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 90 --expected-days 30 --output backtest_results.json
+
+      - name: Run SHORT candidate analysis on independent holdout
+        run: python tools/short_candidate_analysis.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: short-independent-holdout-90-result
+          path: backtest_results.json
+          if-no-files-found: error
+          retention-days: 30
