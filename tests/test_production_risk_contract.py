@@ -329,3 +329,32 @@ def test_short_research_setup_is_direction_specific():
     assert 'mtf_15m_dir == "BEARISH"' in block
     assert 'direction == "LONG"' not in block
 
+
+
+def test_short_indicator_quality_gate_is_direction_specific():
+    scanner = _source(SCANNER)
+    config = _source(ROOT / "config.py")
+    assert '"short_atr_max_pct": 0.8' in config
+    assert '"short_price_to_ema20_min_pct": 0.0' in config
+    assert '"short_price_to_ema20_max_pct": 1.0' in config
+
+    start = scanner.index('if direction == "SHORT":')
+    end = scanner.index('quality_score = quality_engine.score(', start)
+    block = scanner[start:end]
+    assert 'short_atr_max_pct' in block
+    assert 'short_price_to_ema20_min_pct' in block
+    assert 'short_price_to_ema20_max_pct' in block
+    assert 'short_atr_max' in block
+    assert 'short_price_to_ema20_band' in block
+    assert 'direction == "LONG"' not in block
+
+
+def test_short_indicator_gate_does_not_change_risk_geometry():
+    scanner = _source(SCANNER)
+    start = scanner.index('if direction == "SHORT":')
+    end = scanner.index('quality_score = quality_engine.score(', start)
+    block = scanner[start:end]
+    assert 'risk_engine.calculate(' not in block
+    assert 'revalidate_live_entry(' not in block
+    assert 'risk["sl"]' not in block
+    assert 'risk["tp3"]' not in block
