@@ -17,8 +17,7 @@ on:
       - "engines/**"
       - "indicators/**"
   pull_request:
-    branches:
-      - research/short-gate-clean
+    types: [opened, synchronize, reopened]
 
 concurrency:
   group: short-holdout-90-${{ github.ref }}
