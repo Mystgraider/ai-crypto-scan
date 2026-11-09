@@ -750,11 +750,23 @@ def summarize(rows: list[dict]) -> dict:
 def run():
     import scanner_v5 as scanner
 
-    now = pd.Timestamp.now(tz="UTC")
-    # Reserve the complete outcome horizon plus Binance Vision's archive
-    # publication lag. offset_days=0 means the latest fully archived,
-    # fully scoreable 30-day window, not a 60-day historical offset.
-    end = now.floor("h") - pd.Timedelta(
+    anchor_raw = os.getenv("BACKTEST_ANCHOR_UTC")
+    if anchor_raw:
+        try:
+            anchor = pd.Timestamp(anchor_raw)
+            if anchor.tzinfo is None:
+                anchor = anchor.tz_localize("UTC")
+            else:
+                anchor = anchor.tz_convert("UTC")
+        except Exception as exc:
+            raise RuntimeError(f"invalid_backtest_anchor_utc:{anchor_raw}") from exc
+    else:
+        anchor = pd.Timestamp.now(tz="UTC")
+
+    # Use one explicit anchor for all chunks. Without this, independently
+    # scheduled matrix jobs compute now at different wall-clock times,
+    # producing non-contiguous 10-day windows even when offsets differ by 10d.
+    end = anchor.floor("h") - pd.Timedelta(
         days=OFFSET_DAYS,
         hours=OUTCOME_LOOKAHEAD_HOURS + ARCHIVE_LAG_HOURS + 1,
     )
