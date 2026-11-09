@@ -788,6 +788,9 @@ def run():
         except RuntimeError as exc:
             raise RuntimeError(f"symbol_five_minute_coverage_failed:{symbol}:{exc}") from exc
 
+    original_long_signals_enabled = os.environ.get("LONG_SIGNALS_ENABLED")
+    os.environ["LONG_SIGNALS_ENABLED"] = "false"
+
     original = {
         "MarketDataLoader": scanner.MarketDataLoader,
         "TopSymbolsLoader": scanner.TopSymbolsLoader,
@@ -854,6 +857,10 @@ def run():
         for name, value in original.items():
             setattr(scanner, name, value)
         scanner.CONFIG.pop("_historical_replay_fast_mode", None)
+        if original_long_signals_enabled is None:
+            os.environ.pop("LONG_SIGNALS_ENABLED", None)
+        else:
+            os.environ["LONG_SIGNALS_ENABLED"] = original_long_signals_enabled
 
     results = []
     for sig in captured:
@@ -957,6 +964,8 @@ def run():
             "lookahead_policy": "outcome candles open at or after replay timestamp; no candle data before the signal timestamp is scored",
             "same_candle_conflict_policy": "SL first, matching SignalTracker",
             "production_code_modified": False,
+            "long_signals_enabled": False,
+            "replay_direction_policy": ["SHORT"],
             "harness_mode": "scanner_v5.main historical injection",
             "scan_cadence": "5m (matches .github/workflows/scanner.yml cron */5)",
             "forming_candle_policy": "reconstruct 1h/4h/15m in-progress candles from completed 5m bars before the boundary plus boundary 5m open only; no post-boundary OHLCV is exposed",
