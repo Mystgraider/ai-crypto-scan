@@ -27,6 +27,11 @@ CONFIG = {
     "short_rsi_ceiling": 70.0,
     "short_adx_max": 20.0,
     "short_require_15m_not_bearish": True,
+    # Evidence-backed SHORT risk-quality gate from the corrected offset-120 holdout.
+    # Reject high-volatility / overextended entries; LONG remains untouched.
+    "short_atr_max_pct": 0.8,
+    "short_price_to_ema20_min_pct": 0.0,
+    "short_price_to_ema20_max_pct": 1.0,
 
     # BTC is market context/safety, not the source of coin direction.
     "btc_symbol": "BTC/USDT:USDT",
