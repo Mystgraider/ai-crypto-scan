@@ -1055,6 +1055,12 @@ def main():
                                adx=round(adx, 2), max_adx=short_adx_max)
                         continue
 
+                    if short_require_15m_not_bearish and mtf_15m_dir == "UNKNOWN":
+                        skip["short_15m_unavailable"] = skip.get("short_15m_unavailable", 0) + 1
+                        _trace(symbol, "short_15m_unavailable_block", direction=direction,
+                               mtf_15m=mtf_15m_dir)
+                        continue
+
                     if short_require_15m_not_bearish and mtf_15m_dir == "BEARISH":
                         skip["short_15m_bearish"] = skip.get("short_15m_bearish", 0) + 1
                         _trace(symbol, "short_15m_bearish_block", direction=direction,
