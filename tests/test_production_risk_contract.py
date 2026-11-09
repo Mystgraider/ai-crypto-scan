@@ -33,6 +33,14 @@ def test_direction_discovery_is_independent():
         assert get_candidate_directions(trend_direction, False) == ["LONG", "SHORT"]
 
 
+def test_long_signals_disabled_environment_suppresses_long(monkeypatch):
+    from engines.direction_policy import get_candidate_directions
+
+    monkeypatch.setenv("LONG_SIGNALS_ENABLED", "false")
+    assert get_candidate_directions("NONE", False) == ["SHORT"]
+    assert get_candidate_directions("LONG", False) == ["SHORT"]
+
+
 def test_no_legacy_global_direction_gates_remain():
     scanner = _source(SCANNER)
     assert "pause_shorts" not in scanner
@@ -303,3 +311,21 @@ def test_rrce_stage4_quality_breakdown_telemetry_exists():
     assert "short_rsi_below_min" in scanner
     assert "rel_volume=float(rel_volume)" in scanner
     assert "rsi=float(rsi)" in scanner
+
+def test_short_research_setup_is_direction_specific():
+    scanner = _source(SCANNER)
+    config = _source(ROOT / "config.py")
+    assert '"short_rsi_floor": 50.0' in config
+    assert '"short_rsi_ceiling": 70.0' in config
+    assert '"short_adx_max": 20.0' in config
+    start = scanner.index('if direction == "SHORT":')
+    end = scanner.index('quality_score = quality_engine.score(', start)
+    block = scanner[start:end]
+    assert 'short_rsi_floor' in block
+    assert 'short_rsi_ceiling' in block
+    assert 'short_adx_max' in block
+    assert 'mtf_15m_dir == "UNKNOWN"' in block
+    assert 'short_15m_unavailable' in block
+    assert 'mtf_15m_dir == "BEARISH"' in block
+    assert 'direction == "LONG"' not in block
+
