@@ -82,8 +82,25 @@ jobs:
               raise SystemExit(f"missing 5m scans: {coverage}")
           if not isinstance(data.get("results"), list):
               raise SystemExit("results must be a list")
+          shorts = [row for row in data["results"] if row.get("direction") == "SHORT"]
+          missing_15m = [
+              row for row in shorts
+              if any(row.get(field) is None for field in ("rsi_15m", "adx_15m", "ema20_15m", "ema50_15m"))
+              or row.get("mtf_15m") not in {"BULLISH", "BEARISH", "NEUTRAL"}
+          ]
+          invalid_gate = [
+              row for row in shorts
+              if not (50.0 <= float(row.get("rsi", -1)) <= 70.0)
+              or float(row.get("adx", 999)) >= 20.0
+              or row.get("mtf_15m") in {"BEARISH", "UNKNOWN"}
+          ]
+          if missing_15m:
+              raise SystemExit(f"SHORT 15m context unavailable for {len(missing_15m)}/{len(shorts)} rows")
+          if invalid_gate:
+              raise SystemExit(f"SHORT gate contract violated by {len(invalid_gate)} rows")
           print(json.dumps({"start": meta.get("start"), "end": meta.get("end"),
               "offset_days": meta.get("offset_days"), "signals": len(data["results"]),
+              "short_signals": len(shorts), "short_15m_coverage_pct": 100.0 if shorts else None,
               "timeline_coverage": coverage}, indent=2))
           PY
 
