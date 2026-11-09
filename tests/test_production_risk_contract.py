@@ -33,6 +33,14 @@ def test_direction_discovery_is_independent():
         assert get_candidate_directions(trend_direction, False) == ["LONG", "SHORT"]
 
 
+def test_long_signals_disabled_environment_suppresses_long(monkeypatch):
+    from engines.direction_policy import get_candidate_directions
+
+    monkeypatch.setenv("LONG_SIGNALS_ENABLED", "false")
+    assert get_candidate_directions("NONE", False) == ["SHORT"]
+    assert get_candidate_directions("LONG", False) == ["SHORT"]
+
+
 def test_no_legacy_global_direction_gates_remain():
     scanner = _source(SCANNER)
     assert "pause_shorts" not in scanner
