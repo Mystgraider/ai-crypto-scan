@@ -151,6 +151,55 @@ def build_report(payload: dict) -> dict:
     choch = collections.defaultdict(list)
     for row in rows:
         choch[str(bool(row.get("rrce_choch_confirmed")))].append(row)
+    stage_fields = {
+        "stage1_4h_premium": "rrce_stage1_passed",
+        "stage2_1h_liquidity_sweep": "rrce_stage2_passed",
+        "stage3_15m_choch": "rrce_stage3_passed",
+        "stage4_5m_execution": "rrce_stage4_valid",
+    }
+    stage_cohorts = {}
+    for label, field in stage_fields.items():
+        for value in (True, False, None):
+            group = [row for row in rows if row.get(field) is value]
+            if group:
+                stage_cohorts[f"{label}:{value}"] = {
+                    **outcome_counts(group), **geometry(group)
+                }
+
+    premium_bands = {
+        "below_40pct": [],
+        "40_to_60pct": [],
+        "60_to_80pct": [],
+        "80_to_100pct": [],
+        "outside_or_missing": [],
+    }
+    for row in rows:
+        position = number(row.get("rrce_stage1_position_pct"))
+        if position is None or position < 0 or position > 100:
+            premium_bands["outside_or_missing"].append(row)
+        elif position < 40:
+            premium_bands["below_40pct"].append(row)
+        elif position < 60:
+            premium_bands["40_to_60pct"].append(row)
+        elif position < 80:
+            premium_bands["60_to_80pct"].append(row)
+        else:
+            premium_bands["80_to_100pct"].append(row)
+
+    entry_zones = collections.defaultdict(list)
+    for row in rows:
+        entry_zones[str(row.get("rrce_stage4_entry_zone") or "NOT_REACHED_OR_MISSING")].append(row)
+
+    full_sequence = [
+        row for row in rows
+        if all(row.get(field) is True for field in stage_fields.values())
+    ]
+    stage3_and_bearish_15m = [
+        row for row in rows
+        if row.get("rrce_stage3_passed") is True
+        and number(row.get("rsi_15m")) is not None and number(row["rsi_15m"]) < 50
+        and number(row.get("macd_hist_15m")) is not None and number(row["macd_hist_15m"]) < 0
+    ]
     symbols = {}
     for symbol in sorted({row.get("symbol") for row in rows if row.get("symbol")}):
         group = [row for row in rows if row.get("symbol") == symbol]
@@ -174,6 +223,19 @@ def build_report(payload: dict) -> dict:
         "rrce_choch_confirmed_cohorts": {
             key: {**outcome_counts(group), **geometry(group)}
             for key, group in sorted(choch.items())
+        },
+        "rrce_stage_pass_cohorts": stage_cohorts,
+        "rrce_4h_premium_position_bands": {
+            key: {**outcome_counts(group), **geometry(group)}
+            for key, group in premium_bands.items()
+        },
+        "rrce_5m_entry_zone_cohorts": {
+            key: {**outcome_counts(group), **geometry(group)}
+            for key, group in sorted(entry_zones.items())
+        },
+        "full_rrce_sequence": {**outcome_counts(full_sequence), **geometry(full_sequence)},
+        "rrce_stage3_plus_bearish_15m_momentum": {
+            **outcome_counts(stage3_and_bearish_15m), **geometry(stage3_and_bearish_15m)
         },
         "chronological_discovery": {
             **outcome_counts(discovery),
