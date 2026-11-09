@@ -1067,6 +1067,35 @@ def main():
                                mtf_15m=mtf_15m_dir)
                         continue
 
+                    # Evidence-backed SHORT quality/risk gate.
+                    # The corrected offset-120 holdout showed that TP3s were
+                    # concentrated in ATR < 0.8% and price 0-1% above EMA20;
+                    # higher ATR and >1% extension produced zero TP3 in that
+                    # discovery holdout. This changes SHORT selection only.
+                    short_atr_max_pct = float(CONFIG.get("short_atr_max_pct", float("inf")))
+                    short_price_to_ema20_min_pct = float(CONFIG.get("short_price_to_ema20_min_pct", float("-inf")))
+                    short_price_to_ema20_max_pct = float(CONFIG.get("short_price_to_ema20_max_pct", float("inf")))
+                    _atr_pct = float(prev.get("atr_pct")) if pd.notna(prev.get("atr_pct")) else None
+                    _price_to_ema20_pct = ((price / ema20 - 1.0) * 100.0) if ema20 else None
+
+                    if _atr_pct is None or _atr_pct >= short_atr_max_pct:
+                        skip["short_atr_max"] = skip.get("short_atr_max", 0) + 1
+                        _trace(symbol, "short_atr_max_block", direction=direction,
+                               atr_pct=_atr_pct, max_atr_pct=short_atr_max_pct)
+                        continue
+
+                    if (
+                        _price_to_ema20_pct is None
+                        or _price_to_ema20_pct < short_price_to_ema20_min_pct
+                        or _price_to_ema20_pct > short_price_to_ema20_max_pct
+                    ):
+                        skip["short_price_to_ema20_band"] = skip.get("short_price_to_ema20_band", 0) + 1
+                        _trace(symbol, "short_price_to_ema20_band_block", direction=direction,
+                               price_to_ema20_pct=_price_to_ema20_pct,
+                               min_pct=short_price_to_ema20_min_pct,
+                               max_pct=short_price_to_ema20_max_pct)
+                        continue
+
                 quality_score = quality_engine.score(
                     rel_volume=rel_volume, rsi=rsi, direction=direction,
                     stoch_k=stoch_k, bb_pct_b=bb_pct_b, macd_hist=macd_hist,
