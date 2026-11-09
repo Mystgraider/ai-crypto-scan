@@ -2,19 +2,6 @@ name: Historical Backtest
 
 # Research-only trigger: a branch push runs the fixed 30-day, offset-90 chunked replay.
 on:
-  push:
-    branches:
-      - research/enable-30d-offset60-workflow
-    paths:
-      - "tools/historical_replay.py"
-      - "tools/short_candidate_analysis.py"
-      - "tools/merge_backtest_chunks.py"
-      - "tests/test_historical_replay_data_integrity.py"
-      - "scanner_v5.py"
-      - "config.py"
-      - "engines/**"
-      - "indicators/**"
-      - ".github/workflows/historical-backtest.yml"
   pull_request:
     paths:
       - "tools/historical_replay.py"
