@@ -6,7 +6,7 @@ on:
       - research/enable-30d-offset60-workflow
       - research/short-gate-clean
     paths:
-      - ".github/workflows/short-holdout-90.yml"
+      - ".github/workflows/short-holdout-120.yml"
       - "tools/historical_replay.py"
       - "tools/short_candidate_analysis.py"
       - "tools/merge_backtest_chunks.py"
