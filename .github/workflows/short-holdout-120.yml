@@ -43,7 +43,8 @@ jobs:
       - name: Verify research branch and required files
         run: |
           set -euo pipefail
-          case "${GITHUB_REF_NAME}" in
+          RESEARCH_REF="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+          case "${RESEARCH_REF}" in
             research/enable-30d-offset60-workflow|research/short-gate-clean) ;;
             *) echo "::error::Unexpected research branch: ${GITHUB_REF_NAME}"; exit 1 ;;
           esac
