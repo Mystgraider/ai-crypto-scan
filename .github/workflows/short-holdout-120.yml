@@ -1,4 +1,4 @@
-name: SHORT Independent Holdout 120
+name: SHORT Independent Holdout 90
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - research/enable-30d-offset60-workflow
       - research/short-gate-clean
     paths:
-      - ".github/workflows/short-holdout-120.yml"
+      - ".github/workflows/short-holdout-90.yml"
       - "tools/historical_replay.py"
       - "tools/short_candidate_analysis.py"
       - "tools/merge_backtest_chunks.py"
@@ -18,7 +18,7 @@ on:
       - "indicators/**"
 
 concurrency:
-  group: short-holdout-120-${{ github.ref }}
+  group: short-holdout-90-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -32,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        offset_days: [120, 110, 100]
+        offset_days: [90, 80, 70]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -113,6 +113,8 @@ jobs:
               if not (50.0 <= float(row.get("rsi", -1)) <= 70.0)
               or float(row.get("adx", 999)) >= 20.0
               or row.get("mtf_15m") in {"BEARISH", "UNKNOWN"}
+              or float(row.get("atr_pct", 999)) >= 0.8
+              or not (0.0 <= float(row.get("price_to_ema20_pct", -999)) <= 1.0)
           ]
           if missing_15m:
               raise SystemExit(f"SHORT 15m context unavailable for {len(missing_15m)}/{len(shorts)} rows")
@@ -126,7 +128,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: short-holdout-120-chunk-${{ matrix.offset_days }}
+          name: short-holdout-90-chunk-${{ matrix.offset_days }}
           path: backtest_results.json
           if-no-files-found: error
           retention-days: 21
@@ -152,24 +154,24 @@ jobs:
 
       - uses: actions/download-artifact@v5
         with:
-          pattern: short-holdout-120-chunk-*
+          pattern: short-holdout-90-chunk-*
           path: replay-chunks
           merge-multiple: false
 
       - name: Verify expected chunks and merge
         run: |
           set -euo pipefail
-          for offset in 100 110 120; do
-            test -f "replay-chunks/short-holdout-120-chunk-$offset/backtest_results.json"
+          for offset in 70 80 90; do
+            test -f "replay-chunks/short-holdout-90-chunk-$offset/backtest_results.json"
           done
-          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 120 --expected-days 30 --output backtest_results.json
+          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 90 --expected-days 30 --output backtest_results.json
 
       - name: Run SHORT candidate analysis on independent holdout
         run: python tools/short_candidate_analysis.py
 
       - uses: actions/upload-artifact@v4
         with:
-          name: short-independent-holdout-120-result
+          name: short-independent-holdout-90-result
           path: backtest_results.json
           if-no-files-found: error
           retention-days: 30
