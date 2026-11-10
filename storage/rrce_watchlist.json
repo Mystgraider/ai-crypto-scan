@@ -1,62 +1,26 @@
 {
   "COMP/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-09T20:54:29.239522+00:00",
-    "last_seen": "2026-11-09T20:54:29.239522+00:00",
+    "first_seen": "2026-11-10T03:01:07.757776+00:00",
+    "last_seen": "2026-11-10T03:01:07.757776+00:00",
     "observations": 1,
-    "pool_level": 20.37,
+    "pool_level": 20.03,
     "range_high": 20.73,
     "range_low": 18.88,
     "regime": "RANGE",
-    "sweep_extreme": 20.39,
+    "sweep_extreme": 20.11,
     "symbol": "COMP/USDT:USDT"
   },
-  "CRV/USDT:USDT|SHORT": {
+  "IOST/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-09T20:54:00.537905+00:00",
-    "last_seen": "2026-11-09T20:54:00.537905+00:00",
+    "first_seen": "2026-11-10T03:00:49.764880+00:00",
+    "last_seen": "2026-11-10T03:00:49.764880+00:00",
     "observations": 1,
-    "pool_level": 0.2684,
-    "range_high": 0.2818,
-    "range_low": 0.2466,
+    "pool_level": 0.0006832,
+    "range_high": 0.0007182,
+    "range_low": 0.0006397,
     "regime": "RANGE",
-    "sweep_extreme": 0.269,
-    "symbol": "CRV/USDT:USDT"
-  },
-  "DASH/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-11-09T20:53:55.055207+00:00",
-    "last_seen": "2026-11-09T20:53:55.055207+00:00",
-    "observations": 1,
-    "pool_level": 47.85,
-    "range_high": 49.97,
-    "range_low": 43.29,
-    "regime": "RANGE",
-    "sweep_extreme": 48.08,
-    "symbol": "DASH/USDT:USDT"
-  },
-  "INJ/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-11-09T20:54:56.264841+00:00",
-    "last_seen": "2026-11-09T20:54:56.264841+00:00",
-    "observations": 1,
-    "pool_level": 8.279,
-    "range_high": 8.587,
-    "range_low": 6.817,
-    "regime": "RANGE",
-    "sweep_extreme": 8.29,
-    "symbol": "INJ/USDT:USDT"
-  },
-  "KAVA/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-11-09T20:54:21.209501+00:00",
-    "last_seen": "2026-11-09T20:54:21.209501+00:00",
-    "observations": 1,
-    "pool_level": 0.06868,
-    "range_high": 0.06899,
-    "range_low": 0.06659,
-    "regime": "RANGE",
-    "sweep_extreme": 0.06881,
-    "symbol": "KAVA/USDT:USDT"
+    "sweep_extreme": 0.0006837,
+    "symbol": "IOST/USDT:USDT"
   }
 }
