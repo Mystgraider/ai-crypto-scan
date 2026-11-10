@@ -131,7 +131,7 @@ jobs:
           retention-days: 21
 
   analyze:
-    name: Merge independent 30-day offset-60 window and align SHORT
+    name: Merge independent 120d 90d 60d windows and audit SHORT setup
     needs: replay
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -151,7 +151,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          pattern: short-holdout-60-chunk-*
+          pattern: short-holdout-window-*-chunk-*
           path: replay-chunks
           merge-multiple: false
 
@@ -185,7 +185,10 @@ jobs:
 
       - name: Run pooled cross-window setup audit
         run: |
-          python tools/pooled_short_setup_audit.py             merged/short_window_120.json             merged/short_window_90.json             merged/short_window_60.json
+          python tools/pooled_short_setup_audit.py \
+            merged/short_window_120.json \
+            merged/short_window_90.json \
+            merged/short_window_60.json
 
       - uses: actions/upload-artifact@v4
         with:
