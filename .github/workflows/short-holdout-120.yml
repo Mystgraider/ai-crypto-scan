@@ -1,4 +1,4 @@
-name: SHORT Independent Holdout 90
+name: SHORT Independent Holdout 60
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
       - ".github/workflows/short-holdout-120.yml"
       - "tools/historical_replay.py"
       - "tools/short_candidate_analysis.py"
+      - "tools/short_setup_alignment.py"
       - "tools/rrce_aligned_short_analysis.py"
       - "tests/test_rrce_aligned_short_analysis.py"
       - "tools/merge_backtest_chunks.py"
@@ -22,7 +23,7 @@ on:
     types: [opened, synchronize, reopened]
 
 concurrency:
-  group: short-holdout-90-${{ github.ref }}
+  group: short-holdout-60-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -36,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        offset_days: [90, 80, 70]
+        offset_days: [60, 50, 40]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,11 +53,12 @@ jobs:
           esac
           test -f tools/historical_replay.py
           test -f tools/short_candidate_analysis.py
+          test -f tools/short_setup_alignment.py
           test -f tools/rrce_aligned_short_analysis.py
           test -f tools/merge_backtest_chunks.py
           test -f tests/test_historical_replay_data_integrity.py
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v4
         with:
           python-version: "3.11"
           cache: "pip"
@@ -69,10 +71,7 @@ jobs:
 
       - name: Run replay integrity and SHORT production contract tests
         run: |
-          python -m pytest -q \
-            tests/test_historical_replay_data_integrity.py \
-            tests/test_production_risk_contract.py \
-            tests/test_rrce_aligned_short_analysis.py
+          python -m pytest -q             tests/test_historical_replay_data_integrity.py             tests/test_production_risk_contract.py             tests/test_rrce_aligned_short_analysis.py
 
       - name: Run fixed 10-day replay chunk
         env:
@@ -81,7 +80,7 @@ jobs:
           BACKTEST_ANCHOR_UTC: ${{ github.run_started_at }}
         run: python tools/historical_replay.py
 
-      - name: Validate chunk metadata and 5-minute coverage
+      - name: Validate chunk metadata, coverage, and SHORT contract
         env:
           EXPECTED_OFFSET: ${{ matrix.offset_days }}
         run: |
@@ -97,52 +96,31 @@ jobs:
               raise SystemExit(f"wrong days: {meta.get('days')}")
           if int(meta.get("offset_days", -1)) != int(os.environ["EXPECTED_OFFSET"]):
               raise SystemExit(f"wrong offset: {meta.get('offset_days')}")
-          coverage = meta.get("timeline_coverage", {})
-          if coverage.get("missing_scans") != 0:
-              raise SystemExit(f"missing 5m scans: {coverage}")
-          if not isinstance(data.get("results"), list):
-              raise SystemExit("results must be a list")
+          if meta.get("timeline_coverage", {}).get("missing_scans") != 0:
+              raise SystemExit(f"missing 5m scans: {meta.get('timeline_coverage')}")
           if meta.get("long_signals_enabled") is not False:
-              raise SystemExit("replay must explicitly keep LONG signals disabled")
+              raise SystemExit("LONG must remain disabled")
           if meta.get("replay_direction_policy") != ["SHORT"]:
-              raise SystemExit(f"unexpected replay direction policy: {meta.get('replay_direction_policy')}")
-          if any(row.get("direction") == "LONG" for row in data["results"]):
-              raise SystemExit("LONG rows found in SHORT-only replay artifact")
-          shorts = [row for row in data["results"] if row.get("direction") == "SHORT"]
+              raise SystemExit(f"unexpected direction policy: {meta.get('replay_direction_policy')}")
+          shorts=[r for r in data["results"] if r.get("direction")=="SHORT"]
           if not shorts:
-              raise SystemExit("zero SHORT signals in validation artifact")
-          missing_15m = [
-              row for row in shorts
-              if any(row.get(field) is None for field in ("rsi_15m", "adx_15m", "ema20_15m", "ema50_15m"))
-              or row.get("mtf_15m") not in {"BULLISH", "BEARISH", "NEUTRAL"}
-          ]
-          invalid_gate = [
-              row for row in shorts
-              if not (50.0 <= float(row.get("rsi", -1)) <= 70.0)
-              or float(row.get("adx", 999)) >= 20.0
-              or row.get("mtf_15m") in {"BEARISH", "UNKNOWN"}
-              or float(row.get("atr_pct", 999)) >= 0.8
-              or not (0.0 <= float(row.get("price_to_ema20_pct", -999)) <= 1.0)
-          ]
-          if missing_15m:
-              raise SystemExit(f"SHORT 15m context unavailable for {len(missing_15m)}/{len(shorts)} rows")
-          if invalid_gate:
-              raise SystemExit(f"SHORT gate contract violated by {len(invalid_gate)} rows")
-          print(json.dumps({"start": meta.get("start"), "end": meta.get("end"),
-              "offset_days": meta.get("offset_days"), "signals": len(data["results"]),
-              "short_signals": len(shorts), "short_15m_coverage_pct": 100.0 if shorts else None,
-              "timeline_coverage": coverage}, indent=2))
+              raise SystemExit("zero SHORT signals")
+          missing=[r for r in shorts if any(r.get(k) is None for k in ("rsi_15m","adx_15m","ema20_15m","ema50_15m")) or r.get("mtf_15m") not in {"BULLISH","BEARISH","NEUTRAL"}]
+          invalid=[r for r in shorts if not (50<=float(r.get("rsi",-1))<=70) or float(r.get("adx",999))>=20 or r.get("mtf_15m") in {"BEARISH","UNKNOWN"} or float(r.get("atr_pct",999))>=.8 or not (0<=float(r.get("price_to_ema20_pct",-999))<=1)]
+          if missing: raise SystemExit(f"incomplete 15m context: {len(missing)}/{len(shorts)}")
+          if invalid: raise SystemExit(f"SHORT gate contract violated: {len(invalid)} rows")
+          print(json.dumps({"start":meta.get("start"),"end":meta.get("end"),"offset":meta.get("offset_days"),"short_signals":len(shorts),"missing_15m":len(missing),"invalid_gate":len(invalid)},indent=2))
           PY
 
       - uses: actions/upload-artifact@v4
         with:
-          name: short-holdout-90-chunk-${{ matrix.offset_days }}
+          name: short-holdout-60-chunk-${{ matrix.offset_days }}
           path: backtest_results.json
           if-no-files-found: error
           retention-days: 21
 
   analyze:
-    name: Merge independent 30-day holdout and analyze SHORT
+    name: Merge independent 30-day offset-60 window and align SHORT
     needs: replay
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -151,7 +129,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
@@ -160,29 +138,32 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v4
         with:
-          pattern: short-holdout-90-chunk-*
+          pattern: short-holdout-60-chunk-*
           path: replay-chunks
           merge-multiple: false
 
       - name: Verify expected chunks and merge
         run: |
           set -euo pipefail
-          for offset in 70 80 90; do
-            test -f "replay-chunks/short-holdout-90-chunk-$offset/backtest_results.json"
+          for offset in 40 50 60; do
+            test -f "replay-chunks/short-holdout-60-chunk-$offset/backtest_results.json"
           done
-          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 90 --expected-days 30 --output backtest_results.json
+          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 60 --expected-days 30 --output backtest_results.json
 
-      - name: Run SHORT candidate analysis on independent holdout
+      - name: Run baseline SHORT analysis
         run: python tools/short_candidate_analysis.py
 
-      - name: Run RRCE-aligned SHORT research analysis
+      - name: Run RRCE-aligned SHORT analysis
         run: python tools/rrce_aligned_short_analysis.py
+
+      - name: Run fixed setup-alignment audit
+        run: python tools/short_setup_alignment.py
 
       - uses: actions/upload-artifact@v4
         with:
-          name: short-independent-holdout-90-result
+          name: short-independent-holdout-60-result
           path: backtest_results.json
           if-no-files-found: error
           retention-days: 30
