@@ -1,4 +1,4 @@
-name: SHORT Independent Holdout 60
+name: SHORT Independent Multi-Window Holdout
 
 on:
   push:
@@ -10,6 +10,7 @@ on:
       - "tools/historical_replay.py"
       - "tools/short_candidate_analysis.py"
       - "tools/short_setup_alignment.py"
+      - "tools/pooled_short_setup_audit.py"
       - "tools/rrce_aligned_short_analysis.py"
       - "tests/test_rrce_aligned_short_analysis.py"
       - "tools/merge_backtest_chunks.py"
@@ -23,7 +24,7 @@ on:
     types: [opened, synchronize, reopened]
 
 concurrency:
-  group: short-holdout-60-${{ github.ref }}
+  group: short-multi-window-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -31,13 +32,22 @@ permissions:
 
 jobs:
   replay:
-    name: Independent 10-day chunk (offset ${{ matrix.offset_days }}d)
+    name: 10-day chunk (window ${{ matrix.window }}d / offset ${{ matrix.offset_days }}d)
     runs-on: ubuntu-latest
     timeout-minutes: 360
     strategy:
       fail-fast: false
       matrix:
-        offset_days: [60, 50, 40]
+        include:
+          - {window: 120, offset_days: 120}
+          - {window: 120, offset_days: 110}
+          - {window: 120, offset_days: 100}
+          - {window: 90, offset_days: 90}
+          - {window: 90, offset_days: 80}
+          - {window: 90, offset_days: 70}
+          - {window: 60, offset_days: 60}
+          - {window: 60, offset_days: 50}
+          - {window: 60, offset_days: 40}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,6 +66,7 @@ jobs:
           test -f tools/short_setup_alignment.py
           test -f tools/rrce_aligned_short_analysis.py
           test -f tools/merge_backtest_chunks.py
+          test -f tools/pooled_short_setup_audit.py
           test -f tests/test_historical_replay_data_integrity.py
 
       - uses: actions/setup-python@v4
@@ -114,7 +125,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: short-holdout-60-chunk-${{ matrix.offset_days }}
+          name: short-holdout-window-${{ matrix.window }}-chunk-${{ matrix.offset_days }}
           path: backtest_results.json
           if-no-files-found: error
           retention-days: 21
@@ -147,23 +158,41 @@ jobs:
       - name: Verify expected chunks and merge
         run: |
           set -euo pipefail
-          for offset in 40 50 60; do
-            test -f "replay-chunks/short-holdout-60-chunk-$offset/backtest_results.json"
+          for offset in 100 110 120; do
+            test -f "replay-chunks/short-holdout-window-120-chunk-$offset/backtest_results.json"
           done
-          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 60 --expected-days 30 --output backtest_results.json
+          for offset in 70 80 90; do
+            test -f "replay-chunks/short-holdout-window-90-chunk-$offset/backtest_results.json"
+          done
+          for offset in 40 50 60; do
+            test -f "replay-chunks/short-holdout-window-60-chunk-$offset/backtest_results.json"
+          done
+          mkdir -p merged
+          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 120 --expected-days 30 --output merged/short_window_120.json
+          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 90 --expected-days 30 --output merged/short_window_90.json
+          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 60 --expected-days 30 --output merged/short_window_60.json
 
-      - name: Run baseline SHORT analysis
-        run: python tools/short_candidate_analysis.py
+      - name: Run fixed per-window research analyses
+        run: |
+          set -euo pipefail
+          for window in 120 90 60; do
+            mkdir -p "analysis/$window"
+            cp "merged/short_window_$window.json" backtest_results.json
+            python tools/short_candidate_analysis.py > "analysis/$window/short_candidate_analysis.json"
+            python tools/rrce_aligned_short_analysis.py > "analysis/$window/rrce_aligned_short_analysis.json"
+            python tools/short_setup_alignment.py > "analysis/$window/short_setup_alignment.json"
+          done
 
-      - name: Run RRCE-aligned SHORT analysis
-        run: python tools/rrce_aligned_short_analysis.py
-
-      - name: Run fixed setup-alignment audit
-        run: python tools/short_setup_alignment.py
+      - name: Run pooled cross-window setup audit
+        run: |
+          python tools/pooled_short_setup_audit.py             merged/short_window_120.json             merged/short_window_90.json             merged/short_window_60.json
 
       - uses: actions/upload-artifact@v4
         with:
-          name: short-independent-holdout-60-result
-          path: backtest_results.json
+          name: short-multi-window-audit-result
+          path: |
+            merged/*.json
+            analysis/**/*.json
+            pooled_short_setup_audit.json
           if-no-files-found: error
           retention-days: 30
