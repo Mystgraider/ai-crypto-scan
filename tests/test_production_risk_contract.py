@@ -317,7 +317,7 @@ def test_short_research_setup_is_direction_specific():
     config = _source(ROOT / "config.py")
     assert '"short_rsi_floor": 50.0' in config
     assert '"short_rsi_ceiling": 70.0' in config
-    assert '"short_adx_max": 20.0' in config
+    assert '"short_adx_max": float("inf")' in config
     start = scanner.index('if direction == "SHORT":')
     end = scanner.index('quality_score = quality_engine.score(', start)
     block = scanner[start:end]
