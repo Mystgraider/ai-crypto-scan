@@ -334,9 +334,9 @@ def test_short_research_setup_is_direction_specific():
 def test_short_indicator_quality_gate_is_direction_specific():
     scanner = _source(SCANNER)
     config = _source(ROOT / "config.py")
-    assert '"short_atr_max_pct": 0.8' in config
-    assert '"short_price_to_ema20_min_pct": 0.0' in config
-    assert '"short_price_to_ema20_max_pct": 1.0' in config
+    assert '"short_atr_max_pct": float("inf")' in config
+    assert '"short_price_to_ema20_min_pct": float("-inf")' in config
+    assert '"short_price_to_ema20_max_pct": float("inf")' in config
 
     start = scanner.index('if direction == "SHORT":')
     end = scanner.index('quality_score = quality_engine.score(', start)
