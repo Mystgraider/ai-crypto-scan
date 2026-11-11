@@ -87,7 +87,8 @@ jobs:
           python -m pytest -q \
             tests/test_historical_replay_data_integrity.py \
             tests/test_production_risk_contract.py \
-            tests/test_rrce_aligned_short_analysis.py
+            tests/test_rrce_aligned_short_analysis.py \
+            tests/test_short_quality_score.py
 
       - name: Run fixed 10-day replay chunk
         env:
@@ -176,8 +177,6 @@ jobs:
             cp backtest_results.json "analysis/$window/short_failure_mode_audit.json"
           done
 
-      - name: Run pooled cross-window setup audit
-        run: |
       - name: Run pooled SHORT interaction audit
         run: python tools/short_interaction_audit.py
 
