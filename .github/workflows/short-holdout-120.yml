@@ -8,11 +8,11 @@ on:
     paths:
       - ".github/workflows/short-holdout-120.yml"
       - "tools/historical_replay.py"
-      - "tools/short_candidate_analysis.py"
       - "tools/short_setup_alignment.py"
       - "tools/short_failure_mode_audit.py"
       - "tools/short_interaction_audit.py"
-      - "tools/pooled_short_setup_audit.py"
+      - "tools/short_quality_score.py"
+      - "tests/test_short_quality_score.py"
       - "tools/rrce_aligned_short_analysis.py"
       - "tests/test_rrce_aligned_short_analysis.py"
       - "tools/merge_backtest_chunks.py"
@@ -64,13 +64,11 @@ jobs:
             *) echo "::error::Unexpected research branch: ${GITHUB_REF_NAME}"; exit 1 ;;
           esac
           test -f tools/historical_replay.py
-          test -f tools/short_candidate_analysis.py
           test -f tools/short_setup_alignment.py
           test -f tools/short_failure_mode_audit.py
           test -f tools/short_interaction_audit.py
           test -f tools/rrce_aligned_short_analysis.py
           test -f tools/merge_backtest_chunks.py
-          test -f tools/pooled_short_setup_audit.py
           test -f tests/test_historical_replay_data_integrity.py
 
       - uses: actions/setup-python@v4
@@ -172,7 +170,6 @@ jobs:
           for window in 120 90 60; do
             mkdir -p "analysis/$window"
             cp "merged/short_window_$window.json" backtest_results.json
-            python tools/short_candidate_analysis.py > "analysis/$window/short_candidate_analysis.json"
             python tools/rrce_aligned_short_analysis.py > "analysis/$window/rrce_aligned_short_analysis.json"
             python tools/short_setup_alignment.py > "analysis/$window/short_setup_alignment.json"
             python tools/short_failure_mode_audit.py
@@ -181,13 +178,15 @@ jobs:
 
       - name: Run pooled cross-window setup audit
         run: |
-          python tools/pooled_short_setup_audit.py \
+      - name: Run pooled SHORT interaction audit
+        run: python tools/short_interaction_audit.py
+
+      - name: Run frozen research-only SHORT quality score
+        run: |
+          python tools/short_quality_score.py \
             merged/short_window_120.json \
             merged/short_window_90.json \
             merged/short_window_60.json
-
-      - name: Run pooled SHORT interaction audit
-        run: python tools/short_interaction_audit.py
 
       - name: Validate research-only contract
         run: |
@@ -215,7 +214,7 @@ jobs:
           path: |
             merged/*.json
             analysis/**/*.json
-            pooled_short_setup_audit.json
             pooled_short_interaction_audit.json
+            short_quality_score.json
           if-no-files-found: error
           retention-days: 30
