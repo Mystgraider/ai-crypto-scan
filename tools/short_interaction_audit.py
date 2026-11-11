@@ -14,10 +14,10 @@ OUT = Path('pooled_short_interaction_audit.json')
 FEATURES = (
     'rsi', 'adx', 'plus_di', 'minus_di', 'di_spread', 'macd_hist',
     'stoch_k', 'stoch_d', 'bb_pct_b', 'roc', 'atr_pct', 'rel_volume',
-    'price_to_ema20_pct', 'ema20_ema50_gap_pct', 'ema200_distance_pct',
-    'support_distance_pct', 'rsi_15m', 'adx_15m', 'macd_hist_15m',
-    'rsi_4h', 'adx_4h', 'macd_hist_4h', 'rrce_stage1_position_pct',
-    'rrce_stage1_range_width_pct', 'rrce_stage4_rr',
+    'price_to_ema20_pct', 'ema20_ema50_gap_pct', 'support_distance_pct',
+    'rsi_15m', 'adx_15m', 'macd_hist_15m', 'stoch_k_15m', 'bb_pct_b_15m',
+    'rsi_4h', 'adx_4h', 'macd_hist_4h', 'stoch_k_4h', 'bb_pct_b_4h',
+    'rrce_stage1_position_pct', 'rrce_stage1_range_width_pct', 'rrce_stage4_rr',
 )
 OUTCOMES = ('TP3_HIT', 'SL_HIT', 'EXPIRED')
 
