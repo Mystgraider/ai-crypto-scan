@@ -11,6 +11,7 @@ on:
       - "tools/short_candidate_analysis.py"
       - "tools/short_setup_alignment.py"
       - "tools/short_failure_mode_audit.py"
+      - "tools/short_interaction_audit.py"
       - "tools/pooled_short_setup_audit.py"
       - "tools/rrce_aligned_short_analysis.py"
       - "tests/test_rrce_aligned_short_analysis.py"
@@ -66,6 +67,7 @@ jobs:
           test -f tools/short_candidate_analysis.py
           test -f tools/short_setup_alignment.py
           test -f tools/short_failure_mode_audit.py
+          test -f tools/short_interaction_audit.py
           test -f tools/rrce_aligned_short_analysis.py
           test -f tools/merge_backtest_chunks.py
           test -f tools/pooled_short_setup_audit.py
@@ -184,6 +186,9 @@ jobs:
             merged/short_window_90.json \
             merged/short_window_60.json
 
+      - name: Run pooled SHORT interaction audit
+        run: python tools/short_interaction_audit.py
+
       - name: Validate research-only contract
         run: |
           python - <<'PY'
@@ -195,7 +200,13 @@ jobs:
               assert r["production_strategy_changed"] is False
               assert r["long_logic_changed"] is False
               assert r["risk_or_sl_tp_geometry_changed"] is False
+          interaction=json.load(open("pooled_short_interaction_audit.json"))
+          assert interaction["research_only"] is True
+          assert interaction["production_strategy_changed"] is False
+          assert interaction["long_logic_changed"] is False
+          assert interaction["risk_or_sl_tp_geometry_changed"] is False
           print("SHORT_FAILURE_MODE_RESEARCH_CONTRACT=PASS")
+          print("SHORT_INTERACTION_RESEARCH_CONTRACT=PASS")
           PY
 
       - uses: actions/upload-artifact@v4
@@ -205,5 +216,6 @@ jobs:
             merged/*.json
             analysis/**/*.json
             pooled_short_setup_audit.json
+            pooled_short_interaction_audit.json
           if-no-files-found: error
           retention-days: 30
