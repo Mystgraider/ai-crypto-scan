@@ -10,6 +10,7 @@ on:
       - "tools/historical_replay.py"
       - "tools/short_candidate_analysis.py"
       - "tools/short_setup_alignment.py"
+      - "tools/short_failure_mode_audit.py"
       - "tools/pooled_short_setup_audit.py"
       - "tools/rrce_aligned_short_analysis.py"
       - "tests/test_rrce_aligned_short_analysis.py"
@@ -64,6 +65,7 @@ jobs:
           test -f tools/historical_replay.py
           test -f tools/short_candidate_analysis.py
           test -f tools/short_setup_alignment.py
+          test -f tools/short_failure_mode_audit.py
           test -f tools/rrce_aligned_short_analysis.py
           test -f tools/merge_backtest_chunks.py
           test -f tools/pooled_short_setup_audit.py
@@ -82,7 +84,10 @@ jobs:
 
       - name: Run replay integrity and SHORT production contract tests
         run: |
-          python -m pytest -q             tests/test_historical_replay_data_integrity.py             tests/test_production_risk_contract.py             tests/test_rrce_aligned_short_analysis.py
+          python -m pytest -q \
+            tests/test_historical_replay_data_integrity.py \
+            tests/test_production_risk_contract.py \
+            tests/test_rrce_aligned_short_analysis.py
 
       - name: Run fixed 10-day replay chunk
         env:
@@ -98,24 +103,17 @@ jobs:
           python - <<'PY'
           import json, os
           from pathlib import Path
-          p = Path("backtest_results.json")
-          if not p.is_file():
-              raise SystemExit("missing backtest_results.json")
-          data = json.loads(p.read_text(encoding="utf-8"))
-          meta = data.get("metadata", {})
-          if int(meta.get("days", -1)) != 10:
-              raise SystemExit(f"wrong days: {meta.get('days')}")
-          if int(meta.get("offset_days", -1)) != int(os.environ["EXPECTED_OFFSET"]):
-              raise SystemExit(f"wrong offset: {meta.get('offset_days')}")
-          if meta.get("timeline_coverage", {}).get("missing_scans") != 0:
-              raise SystemExit(f"missing 5m scans: {meta.get('timeline_coverage')}")
-          if meta.get("long_signals_enabled") is not False:
-              raise SystemExit("LONG must remain disabled")
-          if meta.get("replay_direction_policy") != ["SHORT"]:
-              raise SystemExit(f"unexpected direction policy: {meta.get('replay_direction_policy')}")
+          p=Path("backtest_results.json")
+          if not p.is_file(): raise SystemExit("missing backtest_results.json")
+          data=json.loads(p.read_text(encoding="utf-8"))
+          meta=data.get("metadata",{})
+          if int(meta.get("days",-1)) != 10: raise SystemExit(f"wrong days: {meta.get('days')}")
+          if int(meta.get("offset_days",-1)) != int(os.environ["EXPECTED_OFFSET"]): raise SystemExit(f"wrong offset: {meta.get('offset_days')}")
+          if meta.get("timeline_coverage",{}).get("missing_scans") != 0: raise SystemExit(f"missing 5m scans: {meta.get('timeline_coverage')}")
+          if meta.get("long_signals_enabled") is not False: raise SystemExit("LONG must remain disabled")
+          if meta.get("replay_direction_policy") != ["SHORT"]: raise SystemExit(f"unexpected direction policy: {meta.get('replay_direction_policy')}")
           shorts=[r for r in data["results"] if r.get("direction")=="SHORT"]
-          if not shorts:
-              raise SystemExit("zero SHORT signals")
+          if not shorts: raise SystemExit("zero SHORT signals")
           missing=[r for r in shorts if any(r.get(k) is None for k in ("rsi_15m","adx_15m","ema20_15m","ema50_15m")) or r.get("mtf_15m") not in {"BULLISH","BEARISH","NEUTRAL"}]
           invalid=[r for r in shorts if not (50<=float(r.get("rsi",-1))<=70) or float(r.get("adx",999))>=20 or r.get("mtf_15m") in {"BEARISH","UNKNOWN"} or float(r.get("atr_pct",999))>=.8 or not (0<=float(r.get("price_to_ema20_pct",-999))<=1)]
           if missing: raise SystemExit(f"incomplete 15m context: {len(missing)}/{len(shorts)}")
@@ -158,15 +156,9 @@ jobs:
       - name: Verify expected chunks and merge
         run: |
           set -euo pipefail
-          for offset in 100 110 120; do
-            test -f "replay-chunks/short-holdout-window-120-chunk-$offset/backtest_results.json"
-          done
-          for offset in 70 80 90; do
-            test -f "replay-chunks/short-holdout-window-90-chunk-$offset/backtest_results.json"
-          done
-          for offset in 40 50 60; do
-            test -f "replay-chunks/short-holdout-window-60-chunk-$offset/backtest_results.json"
-          done
+          for offset in 100 110 120; do test -f "replay-chunks/short-holdout-window-120-chunk-$offset/backtest_results.json"; done
+          for offset in 70 80 90; do test -f "replay-chunks/short-holdout-window-90-chunk-$offset/backtest_results.json"; done
+          for offset in 40 50 60; do test -f "replay-chunks/short-holdout-window-60-chunk-$offset/backtest_results.json"; done
           mkdir -p merged
           python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 120 --expected-days 30 --output merged/short_window_120.json
           python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 90 --expected-days 30 --output merged/short_window_90.json
@@ -181,6 +173,8 @@ jobs:
             python tools/short_candidate_analysis.py > "analysis/$window/short_candidate_analysis.json"
             python tools/rrce_aligned_short_analysis.py > "analysis/$window/rrce_aligned_short_analysis.json"
             python tools/short_setup_alignment.py > "analysis/$window/short_setup_alignment.json"
+            python tools/short_failure_mode_audit.py
+            cp backtest_results.json "analysis/$window/short_failure_mode_audit.json"
           done
 
       - name: Run pooled cross-window setup audit
@@ -189,6 +183,20 @@ jobs:
             merged/short_window_120.json \
             merged/short_window_90.json \
             merged/short_window_60.json
+
+      - name: Validate research-only contract
+        run: |
+          python - <<'PY'
+          import json
+          for window in ("120","90","60"):
+              p=json.load(open(f"analysis/{window}/short_failure_mode_audit.json"))
+              r=p["summary"]["short_failure_mode_audit"]
+              assert r["research_only"] is True
+              assert r["production_strategy_changed"] is False
+              assert r["long_logic_changed"] is False
+              assert r["risk_or_sl_tp_geometry_changed"] is False
+          print("SHORT_FAILURE_MODE_RESEARCH_CONTRACT=PASS")
+          PY
 
       - uses: actions/upload-artifact@v4
         with:
