@@ -1,107 +1,120 @@
-"""Research-only SHORT interaction audit.
+"""Research-only SHORT indicator outcome comparison.
 
-Evaluates fixed indicator/structure interactions across the three independent
-30-day chronological windows. It does not modify production strategy, LONG,
-risk, SL/TP geometry, or thresholds.
+Compares indicator distributions for TP3_HIT versus SL_HIT on the existing
+independent 120d/90d/60d windows. This is descriptive research, not a gate
+selector: it emits no approved candidate and never changes production code.
 """
 from __future__ import annotations
-import json, math
+import json, math, statistics
 from pathlib import Path
 
 WINDOWS = (120, 90, 60)
-BASE = Path("merged")
-OUT = Path("pooled_short_interaction_audit.json")
+BASE = Path('merged')
+OUT = Path('pooled_short_interaction_audit.json')
+FEATURES = (
+    'rsi', 'adx', 'plus_di', 'minus_di', 'di_spread', 'macd_hist',
+    'stoch_k', 'stoch_d', 'bb_pct_b', 'roc', 'atr_pct', 'rel_volume',
+    'price_to_ema20_pct', 'ema20_ema50_gap_pct', 'ema200_distance_pct',
+    'support_distance_pct', 'rsi_15m', 'adx_15m', 'macd_hist_15m',
+    'rsi_4h', 'adx_4h', 'macd_hist_4h', 'rrce_stage1_position_pct',
+    'rrce_stage1_range_width_pct', 'rrce_stage4_rr',
+)
+OUTCOMES = ('TP3_HIT', 'SL_HIT', 'EXPIRED')
 
-def f(v):
+def number(v):
     try:
         x = float(v)
         return x if math.isfinite(x) else None
     except (TypeError, ValueError):
         return None
 
-def stats(rows):
-    tp = sum(r.get("outcome") == "TP3_HIT" for r in rows)
-    sl = sum(r.get("outcome") == "SL_HIT" for r in rows)
-    ex = sum(r.get("outcome") == "EXPIRED" for r in rows)
-    resolved = tp + sl
-    sl_dist = []
+def quantiles(values):
+    xs = sorted(x for x in values if x is not None)
+    if not xs:
+        return {'n': 0, 'median': None, 'q25': None, 'q75': None, 'mean': None}
+    def q(p):
+        pos = (len(xs)-1)*p
+        lo, hi = math.floor(pos), math.ceil(pos)
+        return xs[lo] if lo == hi else xs[lo]*(hi-pos)+xs[hi]*(pos-lo)
+    return {'n':len(xs), 'median':round(statistics.median(xs),6),
+            'q25':round(q(.25),6), 'q75':round(q(.75),6),
+            'mean':round(statistics.fmean(xs),6)}
+
+def planned_sl_distance(r):
+    entry, sl = number(r.get('entry')), number(r.get('sl'))
+    if entry is None or entry <= 0 or sl is None: return None
+    return abs(sl-entry)/entry*100
+
+def outcome_counts(rows):
+    c = {k:sum(r.get('outcome') == k for r in rows) for k in OUTCOMES}
+    resolved = c['TP3_HIT'] + c['SL_HIT']
+    return {'signals':len(rows), 'tp3':c['TP3_HIT'], 'sl':c['SL_HIT'],
+            'expired':c['EXPIRED'], 'resolved':resolved,
+            'tp3_rate_pct':round(100*c['TP3_HIT']/resolved,3) if resolved else None,
+            'planned_entry_to_sl_distance_pct':quantiles([planned_sl_distance(r) for r in rows])}
+
+def cohort(rows):
+    out = {}
+    for label in OUTCOMES:
+        rr = [r for r in rows if r.get('outcome') == label]
+        out[label] = {'count':len(rr), 'features':{k:quantiles([number(r.get(k)) for r in rr]) for k in FEATURES},
+                      'planned_sl_distance_pct':quantiles([planned_sl_distance(r) for r in rr])}
+    return out
+
+def grouped(rows, key):
+    result = {}
     for r in rows:
-        if r.get("outcome") != "SL_HIT":
-            continue
-        e, s = f(r.get("entry")), f(r.get("sl"))
-        if e and e > 0 and s is not None:
-            sl_dist.append(abs(s-e)/e*100)
-    return {
-        "signals": len(rows), "tp3": tp, "sl": sl, "expired": ex,
-        "resolved": resolved,
-        "tp3_rate_pct": round(100*tp/resolved, 2) if resolved else None,
-        "median_sl_distance_pct": round(sorted(sl_dist)[len(sl_dist)//2], 5) if sl_dist else None,
-    }
+        value = r.get(key)
+        value = str(value) if value is not None else 'MISSING'
+        result.setdefault(value, []).append(r)
+    return {k:outcome_counts(v) for k,v in sorted(result.items())}
 
-def val(r, key):
-    return f(r.get(key))
+def thirds(rows):
+    ordered = sorted(rows, key=lambda r: str(r.get('replay_time') or r.get('event_time') or ''))
+    n = len(ordered)
+    return {f'third_{i+1}':outcome_counts(ordered[(i*n)//3:((i+1)*n)//3]) for i in range(3)}
 
-def conditions(r):
-    adx, rsi, sup = val(r,"adx"), val(r,"rsi"), val(r,"support_distance_pct")
-    pos = val(r,"rrce_stage1_position_pct")
-    plus, minus = val(r,"plus_di"), val(r,"minus_di")
-    sweep = str(r.get("rrce_stage2_passed")).lower() == "true"
-    return {
-        "ADX_10_15": adx is not None and 10 <= adx < 15,
-        "ADX_10_15_RSI_50_60": adx is not None and rsi is not None and 10 <= adx < 15 and 50 <= rsi < 60,
-        "ADX_10_15_RSI_55_65": adx is not None and rsi is not None and 10 <= adx < 15 and 55 <= rsi < 65,
-        "ADX_10_15_RSI_60_65": adx is not None and rsi is not None and 10 <= adx < 15 and 60 <= rsi < 65,
-        "ADX_10_15_SUPPORT_LT1": adx is not None and sup is not None and 10 <= adx < 15 and sup < 1,
-        "ADX_10_15_SUPPORT_1_2": adx is not None and sup is not None and 10 <= adx < 15 and 1 <= sup < 2,
-        "ADX_10_15_NOT_BEARISH_DI": adx is not None and plus is not None and minus is not None and 10 <= adx < 15 and minus <= plus,
-        "ADX_10_15_4H_40_80": adx is not None and pos is not None and 10 <= adx < 15 and 40 <= pos < 80,
-        "ADX_10_15_4H_40_80_SUPPORT_LT1": adx is not None and pos is not None and sup is not None and 10 <= adx < 15 and 40 <= pos < 80 and sup < 1,
-        "ADX_10_15_4H_40_80_RSI_50_60": adx is not None and pos is not None and rsi is not None and 10 <= adx < 15 and 40 <= pos < 80 and 50 <= rsi < 60,
-        "ADX_10_15_4H_40_80_RSI_60_65": adx is not None and pos is not None and rsi is not None and 10 <= adx < 15 and 40 <= pos < 80 and 60 <= rsi < 65,
-        "ADX_10_15_4H_40_80_SWEEP": adx is not None and pos is not None and 10 <= adx < 15 and 40 <= pos < 80 and sweep,
-        "ADX_10_15_RSI_50_60_SUPPORT_LT1": adx is not None and rsi is not None and sup is not None and 10 <= adx < 15 and 50 <= rsi < 60 and sup < 1,
-    }
+def load_window(w):
+    data = json.loads((BASE/f'short_window_{w}.json').read_text(encoding='utf-8'))
+    rows = [r for r in data.get('results',[]) if r.get('direction') == 'SHORT']
+    unknown = sorted({str(r.get('outcome')) for r in rows if r.get('outcome') not in OUTCOMES})
+    if unknown: raise ValueError(f'{w}d contains unsupported outcomes: {unknown}')
+    if not rows: raise ValueError(f'{w}d contains no SHORT rows')
+    return data, rows
 
-def run():
-    windows = {}
+def main():
+    windows, reports = {}, {}
     for w in WINDOWS:
-        data = json.loads((BASE / f"short_window_{w}.json").read_text())
-        rows = [r for r in data.get("results", []) if r.get("direction") == "SHORT"]
+        source, rows = load_window(w)
         windows[w] = rows
-
-    baseline = {str(w): stats(rows) for w, rows in windows.items()}
-    candidates = {}
-    for name in next(iter(conditions(r) for r in windows[WINDOWS[0]])):
-        per = {}
-        stable = True
-        concentration = {}
-        for w, rows in windows.items():
-            selected = [r for r in rows if conditions(r).get(name, False)]
-            s = stats(selected)
-            tp_symbols = {}
-            for r in selected:
-                if r.get("outcome") == "TP3_HIT":
-                    tp_symbols[r.get("symbol","MISSING")] = tp_symbols.get(r.get("symbol","MISSING"),0) + 1
-            max_share = (max(tp_symbols.values()) / s["tp3"] * 100) if s["tp3"] else None
-            s["largest_symbol_tp3_share_pct"] = round(max_share,2) if max_share is not None else None
-            per[str(w)] = s
-            base_rate = baseline[str(w)]["tp3_rate_pct"] or 0
-            if s["signals"] < 50 or s["tp3_rate_pct"] is None or s["tp3_rate_pct"] <= base_rate:
-                stable = False
-        candidates[name] = {"windows": per, "passes_basic_cross_window_test": stable}
-
+        reports[str(w)] = {
+            'source_summary':source.get('summary',{}).get('outcomes',{}),
+            'baseline':outcome_counts(rows),
+            'tp3_vs_sl_feature_distributions':cohort(rows),
+            'by_symbol':grouped(rows,'symbol'),
+            'chronological_thirds':thirds(rows),
+        }
+    pooled = [r for w in WINDOWS for r in windows[w]]
     report = {
-        "research_only": True,
-        "production_strategy_changed": False,
-        "long_logic_changed": False,
-        "risk_or_sl_tp_geometry_changed": False,
-        "method": "Fixed predeclared SHORT interactions tested independently on 120d, 90d, and 60d merged chronological holdouts. Candidate approval requires improvement over each window baseline and at least 50 observations per window. Symbol concentration is reported but never used to manufacture approval.",
-        "baseline": baseline,
-        "candidates": candidates,
-        "decision": "NO_PRODUCTION_CHANGE",
+        'research_only':True,
+        'production_strategy_changed':False,
+        'long_logic_changed':False,
+        'risk_or_sl_tp_geometry_changed':False,
+        'decision':'NO_PRODUCTION_CHANGE',
+        'purpose':'Compare actual TP3_HIT and SL_HIT indicator distributions and planned entry-to-SL distance. Descriptive diagnostics only; no thresholds, candidate approval, or production gate are generated.',
+        'feature_fields_used':list(FEATURES),
+        'windows':reports,
+        'pooled_descriptive_counts':outcome_counts(pooled),
+        'pooled_tp3_vs_sl_feature_distributions':cohort(pooled),
+        'interpretation_guardrails':[
+            'TP3 rate is TP3_HIT divided by TP3_HIT plus SL_HIT; EXPIRED is reported separately.',
+            'Planned entry-to-SL distance is measured from entry and SL for every row, not only SL_HIT rows.',
+            'A feature distribution difference is association, not proof of causality or a production-ready threshold.',
+            'Check window, symbol, and chronological-third consistency before proposing any single indicator change.',
+            'No LONG, risk engine, SL/TP geometry, or production strategy changes are made.'
+        ]
     }
-    OUT.write_text(json.dumps(report, indent=2), encoding="utf-8")
-    print(json.dumps(report, indent=2))
+    OUT.write_text(json.dumps(report,indent=2),encoding='utf-8')
+    print(json.dumps({'output':str(OUT),'windows':{w:reports[str(w)]['baseline'] for w in WINDOWS},'pooled':report['pooled_descriptive_counts']},indent=2))
 
-if __name__ == "__main__":
-    run()
+if __name__ == '__main__': main()
