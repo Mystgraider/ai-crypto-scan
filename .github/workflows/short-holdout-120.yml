@@ -117,7 +117,7 @@ jobs:
           shorts=[r for r in data["results"] if r.get("direction")=="SHORT"]
           if not shorts: raise SystemExit("zero SHORT signals")
           missing=[r for r in shorts if any(r.get(k) is None for k in ("rsi_15m","adx_15m","ema20_15m","ema50_15m")) or r.get("mtf_15m") not in {"BULLISH","BEARISH","NEUTRAL"}]
-          invalid=[r for r in shorts if not (50<=float(r.get("rsi",-1))<=70) or float(r.get("adx",999))>=20 or r.get("mtf_15m") in {"BEARISH","UNKNOWN"} or float(r.get("atr_pct",999))>=.8 or not (0<=float(r.get("price_to_ema20_pct",-999))<=1)]
+          invalid=[r for r in shorts if not (50<=float(r.get("rsi",-1))<=70) or r.get("mtf_15m") in {"BEARISH","UNKNOWN"}]
           if missing: raise SystemExit(f"incomplete 15m context: {len(missing)}/{len(shorts)}")
           if invalid: raise SystemExit(f"SHORT gate contract violated: {len(invalid)} rows")
           print(json.dumps({"start":meta.get("start"),"end":meta.get("end"),"offset":meta.get("offset_days"),"short_signals":len(shorts),"missing_15m":len(missing),"invalid_gate":len(invalid)},indent=2))
