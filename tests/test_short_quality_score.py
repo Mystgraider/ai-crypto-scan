@@ -29,8 +29,8 @@ def test_weights_are_derived_from_discovery_data_only():
         discovery.append(make_row(i + 40, "SL_HIT", 5, 30 + i, -0.1, -0.1, -2, 1.5, 0.2, 45))
     weights, medians, _ = derive_weights([discovery])
     assert weights
-    assert medians["range_width_4h"] > 0.5
     assert medians["adx_4h"] < 0.5
+    assert "range_width_4h" not in weights
     assert sum(abs(v) for v in weights.values()) > 0
 
 
