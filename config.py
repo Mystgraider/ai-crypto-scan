@@ -28,11 +28,7 @@ CONFIG = {
     # broader setup filter. They remain available as telemetry.
     "short_rsi_floor": 50.0,
     "short_rsi_ceiling": 70.0,
-    "short_adx_max": float("inf"),
     "short_require_15m_not_bearish": True,
-    "short_atr_max_pct": float("inf"),
-    "short_price_to_ema20_min_pct": float("-inf"),
-    "short_price_to_ema20_max_pct": float("inf"),
 
     # BTC is market context/safety, not the source of coin direction.
     "btc_symbol": "BTC/USDT:USDT",
