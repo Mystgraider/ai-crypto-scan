@@ -15,6 +15,7 @@ on:
       - "tools/short_quality_score_v2.py"
       - "tools/short_event_aligned_audit.py"
       - "tests/test_short_quality_score.py"
+      - "tests/test_short_event_aligned_audit.py"
       - "tools/rrce_aligned_short_analysis.py"
       - "tests/test_rrce_aligned_short_analysis.py"
       - "tools/merge_backtest_chunks.py"
@@ -73,6 +74,7 @@ jobs:
           test -f tools/short_failure_mode_audit.py
           test -f tools/short_interaction_audit.py
           test -f tools/rrce_aligned_short_analysis.py
+          test -f tools/short_event_aligned_audit.py
           test -f tools/merge_backtest_chunks.py
           test -f tests/test_historical_replay_data_integrity.py
 
@@ -93,7 +95,8 @@ jobs:
             tests/test_historical_replay_data_integrity.py \
             tests/test_production_risk_contract.py \
             tests/test_rrce_aligned_short_analysis.py \
-            tests/test_short_quality_score.py
+            tests/test_short_quality_score.py \
+            tests/test_short_event_aligned_audit.py
 
       - name: Run fixed 10-day replay chunk
         env:
