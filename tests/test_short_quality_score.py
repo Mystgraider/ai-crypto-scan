@@ -42,7 +42,7 @@ def test_score_requires_complete_feature_set():
     weights, _, _ = derive_weights([discovery])
     rows = [
         make_row(100, "TP3_HIT", 12, 9, 0.2, 0.2, 3, 0.4, 4, 65),
-        {**make_row(101, "TP3_HIT", 12, 9, 0.2, 0.2, 3, 0.4, 4, 65), "roc": None},
+        {**make_row(101, "TP3_HIT", 12, 9, 0.2, 0.2, 3, 0.4, 4, 65), "macd_hist_15m": None},
     ]
     scored = score_rows(rows, weights, discovery)
     assert len(scored) == 1
