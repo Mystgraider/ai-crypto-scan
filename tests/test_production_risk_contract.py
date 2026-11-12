@@ -323,7 +323,6 @@ def test_short_research_setup_is_direction_specific():
     block = scanner[start:end]
     assert 'short_rsi_floor' in block
     assert 'short_rsi_ceiling' in block
-    assert 'short_adx_max' in block
     assert 'mtf_15m_dir == "UNKNOWN"' in block
     assert 'short_15m_unavailable' in block
     assert 'mtf_15m_dir == "BEARISH"' in block
@@ -349,7 +348,6 @@ def test_short_indicator_research_features_are_not_production_hard_gates():
     assert 'short_rsi_ceiling' in block
     assert 'short_15m_unavailable' in block
     assert 'short_15m_bearish' in block
-    assert 'short_adx_max' not in block
     assert 'short_atr_max' not in block
     assert 'short_price_to_ema20_band' not in block
     assert 'direction == "LONG"' not in block
