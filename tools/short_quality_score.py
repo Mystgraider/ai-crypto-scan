@@ -13,14 +13,10 @@ import sys
 from pathlib import Path
 
 FEATURES = {
-    "range_width_4h": "rrce_stage1_range_width_pct",
     "adx_4h": "adx_4h",
     "macd_hist_15m": "macd_hist_15m",
     "macd_hist_1h": "macd_hist",
-    "roc_1h": "roc",
-    "atr_pct": "atr_pct",
     "support_distance_pct": "support_distance_pct",
-    "rsi_1h": "rsi",
 }
 MIN_PAIRS = 80
 
@@ -110,9 +106,13 @@ def derive_weights(discovery_windows):
     }
     usable = []
     for name, value in medians.items():
-        if value is None:
+        values = by_feature[name]
+        if value is None or not values:
             continue
-        direction = 1 if value >= 0.5 else -1
+        directions = {1 if item >= 0.5 else -1 for item in values}
+        if len(directions) != 1:
+            continue
+        direction = directions.pop()
         strength = abs(value - 0.5)
         usable.append((name, direction, strength))
 
