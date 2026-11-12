@@ -12,6 +12,7 @@ on:
       - "tools/short_failure_mode_audit.py"
       - "tools/short_interaction_audit.py"
       - "tools/short_quality_score.py"
+      - "tools/short_quality_score_v2.py"
       - "tests/test_short_quality_score.py"
       - "tools/rrce_aligned_short_analysis.py"
       - "tests/test_rrce_aligned_short_analysis.py"
@@ -50,6 +51,9 @@ jobs:
           - {window: 60, offset_days: 60}
           - {window: 60, offset_days: 50}
           - {window: 60, offset_days: 40}
+          - {window: 30, offset_days: 30}
+          - {window: 30, offset_days: 20}
+          - {window: 30, offset_days: 10}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -160,10 +164,12 @@ jobs:
           for offset in 100 110 120; do test -f "replay-chunks/short-holdout-window-120-chunk-$offset/backtest_results.json"; done
           for offset in 70 80 90; do test -f "replay-chunks/short-holdout-window-90-chunk-$offset/backtest_results.json"; done
           for offset in 40 50 60; do test -f "replay-chunks/short-holdout-window-60-chunk-$offset/backtest_results.json"; done
+          for offset in 10 20 30; do test -f "replay-chunks/short-holdout-window-30-chunk-$offset/backtest_results.json"; done
           mkdir -p merged
           python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 120 --expected-days 30 --output merged/short_window_120.json
           python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 90 --expected-days 30 --output merged/short_window_90.json
           python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 60 --expected-days 30 --output merged/short_window_60.json
+          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 30 --expected-days 30 --output merged/short_window_30.json
 
       - name: Run fixed per-window research analyses
         run: |
@@ -180,12 +186,13 @@ jobs:
       - name: Run pooled SHORT interaction audit
         run: python tools/short_interaction_audit.py
 
-      - name: Run frozen research-only SHORT quality score
+      - name: Run frozen research-only SHORT quality score v2
         run: |
-          python tools/short_quality_score.py \
+          python tools/short_quality_score_v2.py \
             merged/short_window_120.json \
             merged/short_window_90.json \
-            merged/short_window_60.json
+            merged/short_window_60.json \
+            merged/short_window_30.json
 
       - name: Validate research-only contract
         run: |
@@ -215,5 +222,6 @@ jobs:
             analysis/**/*.json
             pooled_short_interaction_audit.json
             short_quality_score.json
+            short_quality_score_v2.json
           if-no-files-found: error
           retention-days: 30
