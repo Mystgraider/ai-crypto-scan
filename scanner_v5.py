@@ -1032,7 +1032,6 @@ def main():
                 if direction == "SHORT":
                     short_rsi_floor = float(CONFIG.get("short_rsi_floor", 0.0))
                     short_rsi_ceiling = float(CONFIG.get("short_rsi_ceiling", 100.0))
-                    short_adx_max = float(CONFIG.get("short_adx_max", float("inf")))
                     short_require_15m_not_bearish = bool(
                         CONFIG.get("short_require_15m_not_bearish", False)
                     )
@@ -1049,12 +1048,6 @@ def main():
                                rsi=round(rsi, 2), ceiling=short_rsi_ceiling)
                         continue
 
-                    if adx >= short_adx_max:
-                        skip["short_adx_max"] = skip.get("short_adx_max", 0) + 1
-                        _trace(symbol, "short_adx_max_block", direction=direction,
-                               adx=round(adx, 2), max_adx=short_adx_max)
-                        continue
-
                     if short_require_15m_not_bearish and mtf_15m_dir == "UNKNOWN":
                         skip["short_15m_unavailable"] = skip.get("short_15m_unavailable", 0) + 1
                         _trace(symbol, "short_15m_unavailable_block", direction=direction,
@@ -1065,35 +1058,6 @@ def main():
                         skip["short_15m_bearish"] = skip.get("short_15m_bearish", 0) + 1
                         _trace(symbol, "short_15m_bearish_block", direction=direction,
                                mtf_15m=mtf_15m_dir)
-                        continue
-
-                    # Evidence-backed SHORT quality/risk gate.
-                    # The corrected offset-120 holdout showed that TP3s were
-                    # concentrated in ATR < 0.8% and price 0-1% above EMA20;
-                    # higher ATR and >1% extension produced zero TP3 in that
-                    # discovery holdout. This changes SHORT selection only.
-                    short_atr_max_pct = float(CONFIG.get("short_atr_max_pct", float("inf")))
-                    short_price_to_ema20_min_pct = float(CONFIG.get("short_price_to_ema20_min_pct", float("-inf")))
-                    short_price_to_ema20_max_pct = float(CONFIG.get("short_price_to_ema20_max_pct", float("inf")))
-                    _atr_pct = float(prev.get("atr_pct")) if pd.notna(prev.get("atr_pct")) else None
-                    _price_to_ema20_pct = ((price / ema20 - 1.0) * 100.0) if ema20 else None
-
-                    if _atr_pct is None or _atr_pct >= short_atr_max_pct:
-                        skip["short_atr_max"] = skip.get("short_atr_max", 0) + 1
-                        _trace(symbol, "short_atr_max_block", direction=direction,
-                               atr_pct=_atr_pct, max_atr_pct=short_atr_max_pct)
-                        continue
-
-                    if (
-                        _price_to_ema20_pct is None
-                        or _price_to_ema20_pct < short_price_to_ema20_min_pct
-                        or _price_to_ema20_pct > short_price_to_ema20_max_pct
-                    ):
-                        skip["short_price_to_ema20_band"] = skip.get("short_price_to_ema20_band", 0) + 1
-                        _trace(symbol, "short_price_to_ema20_band_block", direction=direction,
-                               price_to_ema20_pct=_price_to_ema20_pct,
-                               min_pct=short_price_to_ema20_min_pct,
-                               max_pct=short_price_to_ema20_max_pct)
                         continue
 
                 quality_score = quality_engine.score(
