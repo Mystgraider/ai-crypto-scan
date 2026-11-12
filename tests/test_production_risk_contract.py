@@ -317,7 +317,7 @@ def test_short_research_setup_is_direction_specific():
     config = _source(ROOT / "config.py")
     assert '"short_rsi_floor": 50.0' in config
     assert '"short_rsi_ceiling": 70.0' in config
-    assert '"short_adx_max": float("inf")' in config
+    assert '"short_adx_max"' not in config
     start = scanner.index('if direction == "SHORT":')
     end = scanner.index('quality_score = quality_engine.score(', start)
     block = scanner[start:end]
@@ -331,21 +331,27 @@ def test_short_research_setup_is_direction_specific():
 
 
 
-def test_short_indicator_quality_gate_is_direction_specific():
+def test_short_indicator_research_features_are_not_production_hard_gates():
     scanner = _source(SCANNER)
     config = _source(ROOT / "config.py")
-    assert '"short_atr_max_pct": float("inf")' in config
-    assert '"short_price_to_ema20_min_pct": float("-inf")' in config
-    assert '"short_price_to_ema20_max_pct": float("inf")' in config
+    for key in (
+        "short_adx_max",
+        "short_atr_max_pct",
+        "short_price_to_ema20_min_pct",
+        "short_price_to_ema20_max_pct",
+    ):
+        assert f'"{key}"' not in config
 
     start = scanner.index('if direction == "SHORT":')
     end = scanner.index('quality_score = quality_engine.score(', start)
     block = scanner[start:end]
-    assert 'short_atr_max_pct' in block
-    assert 'short_price_to_ema20_min_pct' in block
-    assert 'short_price_to_ema20_max_pct' in block
-    assert 'short_atr_max' in block
-    assert 'short_price_to_ema20_band' in block
+    assert 'short_rsi_floor' in block
+    assert 'short_rsi_ceiling' in block
+    assert 'short_15m_unavailable' in block
+    assert 'short_15m_bearish' in block
+    assert 'short_adx_max' not in block
+    assert 'short_atr_max' not in block
+    assert 'short_price_to_ema20_band' not in block
     assert 'direction == "LONG"' not in block
 
 
