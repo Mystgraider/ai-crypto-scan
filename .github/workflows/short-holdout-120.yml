@@ -13,6 +13,7 @@ on:
       - "tools/short_interaction_audit.py"
       - "tools/short_quality_score.py"
       - "tools/short_quality_score_v2.py"
+      - "tools/short_event_aligned_audit.py"
       - "tests/test_short_quality_score.py"
       - "tools/rrce_aligned_short_analysis.py"
       - "tests/test_rrce_aligned_short_analysis.py"
@@ -194,6 +195,14 @@ jobs:
             merged/short_window_60.json \
             merged/short_window_30.json
 
+      - name: Run event-aligned SHORT quality audit
+        run: |
+          python tools/short_event_aligned_audit.py \
+            merged/short_window_120.json \
+            merged/short_window_90.json \
+            merged/short_window_60.json \
+            merged/short_window_30.json
+
       - name: Validate research-only contract
         run: |
           python - <<'PY'
@@ -205,6 +214,11 @@ jobs:
               assert r["production_strategy_changed"] is False
               assert r["long_logic_changed"] is False
               assert r["risk_or_sl_tp_geometry_changed"] is False
+          event_aligned=json.load(open("short_event_aligned_audit.json"))
+          assert event_aligned["research_only"] is True
+          assert event_aligned["production_strategy_changed"] is False
+          assert event_aligned["long_logic_changed"] is False
+          assert event_aligned["risk_or_sl_tp_geometry_changed"] is False
           interaction=json.load(open("pooled_short_interaction_audit.json"))
           assert interaction["research_only"] is True
           assert interaction["production_strategy_changed"] is False
@@ -212,6 +226,7 @@ jobs:
           assert interaction["risk_or_sl_tp_geometry_changed"] is False
           print("SHORT_FAILURE_MODE_RESEARCH_CONTRACT=PASS")
           print("SHORT_INTERACTION_RESEARCH_CONTRACT=PASS")
+          print("SHORT_EVENT_ALIGNED_RESEARCH_CONTRACT=PASS")
           PY
 
       - uses: actions/upload-artifact@v4
@@ -223,5 +238,6 @@ jobs:
             pooled_short_interaction_audit.json
             short_quality_score.json
             short_quality_score_v2.json
+            short_event_aligned_audit.json
           if-no-files-found: error
           retention-days: 30
