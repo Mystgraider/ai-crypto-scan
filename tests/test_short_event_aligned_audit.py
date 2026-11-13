@@ -15,10 +15,13 @@ def row(**overrides):
         "rrce_stage1_position_pct": 60.0,
         "rrce_stage2_pool_level": 100.0,
         "rrce_stage2_sweep_extreme": 100.1,
+        "rrce_stage2_sweep_time": "2026-01-01 00:00:00+00:00",
         "rrce_stage3_choch_level": 99.7,
+        "rrce_stage3_break_time": "2026-01-01 00:15:00+00:00",
         "rrce_stage3_fvg_bottom": 99.8,
         "rrce_stage3_fvg_top": 99.9,
-        "replay_time": "2026-01-01T00:00:00+00:00",
+        "rrce_stage4_entry_zone": "OB",
+        "replay_time": "2026-01-01T00:30:00+00:00",
         "symbol": "BTC/USDT:USDT",
     }
     base.update(overrides)
@@ -61,3 +64,29 @@ def test_symbol_concentration():
     result = audit.symbol_concentration(rows)
     assert result["symbol_count"] == 2
     assert result["largest_symbol_tp3_share_pct"] == 66.67
+
+
+def test_episode_key_groups_repeated_scans():
+    a = row(replay_time="2026-01-01T00:30:00+00:00")
+    b = row(replay_time="2026-01-01T00:35:00+00:00")
+    assert audit.episode_key(a) == audit.episode_key(b)
+
+
+def test_episode_audit_exposes_dependence():
+    rows = [
+        row(replay_time="2026-01-01T00:30:00+00:00", outcome="TP3_HIT"),
+        row(replay_time="2026-01-01T00:35:00+00:00", outcome="TP3_HIT"),
+        row(
+            symbol="ETH/USDT:USDT",
+            replay_time="2026-01-01T01:30:00+00:00",
+            outcome="SL_HIT",
+            rrce_stage2_sweep_time="2026-01-01 01:00:00+00:00",
+            rrce_stage3_break_time="2026-01-01 01:15:00+00:00",
+        ),
+    ]
+    result = audit.episode_audit(rows)
+    assert result["rows"] == 3
+    assert result["independent_rrce_episodes"] == 2
+    assert result["max_rows_per_episode"] == 2
+    assert result["outcome_conflict_episode_count"] == 0
+    assert result["first_entry_tp3_rate_pct"] == 50.0
