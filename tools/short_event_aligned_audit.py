@@ -212,7 +212,7 @@ def main(paths):
 
     candidates, approvals = candidate_report(loaded)
     fresh = {
-        name: report["30"]["passes_window"]
+        name: report["windows"]["30"]["passes_window"]
         for name, report in candidates.items()
     }
 
