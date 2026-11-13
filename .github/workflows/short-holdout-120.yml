@@ -14,8 +14,10 @@ on:
       - "tools/short_quality_score.py"
       - "tools/short_quality_score_v2.py"
       - "tools/short_event_aligned_audit.py"
+      - "tools/short_cadence_audit.py"
       - "tests/test_short_quality_score.py"
       - "tests/test_short_event_aligned_audit.py"
+      - "tests/test_short_cadence_audit.py"
       - "tools/rrce_aligned_short_analysis.py"
       - "tests/test_rrce_aligned_short_analysis.py"
       - "tools/merge_backtest_chunks.py"
@@ -75,6 +77,7 @@ jobs:
           test -f tools/short_interaction_audit.py
           test -f tools/rrce_aligned_short_analysis.py
           test -f tools/short_event_aligned_audit.py
+          test -f tools/short_cadence_audit.py
           test -f tools/merge_backtest_chunks.py
           test -f tests/test_historical_replay_data_integrity.py
 
@@ -96,7 +99,8 @@ jobs:
             tests/test_production_risk_contract.py \
             tests/test_rrce_aligned_short_analysis.py \
             tests/test_short_quality_score.py \
-            tests/test_short_event_aligned_audit.py
+            tests/test_short_event_aligned_audit.py \
+            tests/test_short_cadence_audit.py
 
       - name: Run fixed 10-day replay chunk
         env:
@@ -206,6 +210,14 @@ jobs:
             merged/short_window_60.json \
             merged/short_window_30.json
 
+      - name: Run production-cadence and first-entry SHORT audit
+        run: |
+          python tools/short_cadence_audit.py \
+            merged/short_window_120.json \
+            merged/short_window_90.json \
+            merged/short_window_60.json \
+            merged/short_window_30.json
+
       - name: Validate research-only contract
         run: |
           python - <<'PY'
@@ -222,6 +234,13 @@ jobs:
           assert event_aligned["production_strategy_changed"] is False
           assert event_aligned["long_logic_changed"] is False
           assert event_aligned["risk_or_sl_tp_geometry_changed"] is False
+          cadence=json.load(open("short_cadence_audit.json"))
+          assert cadence["research_only"] is True
+          assert cadence["decision"] == "DIAGNOSTIC_ONLY_NO_CANDIDATE_PROMOTED"
+          assert cadence["production_strategy_changed"] is False
+          assert cadence["long_logic_changed"] is False
+          assert cadence["risk_or_sl_tp_geometry_changed"] is False
+          assert cadence["rrce_gate_changed"] is False
           interaction=json.load(open("pooled_short_interaction_audit.json"))
           assert interaction["research_only"] is True
           assert interaction["production_strategy_changed"] is False
@@ -242,5 +261,6 @@ jobs:
             short_quality_score.json
             short_quality_score_v2.json
             short_event_aligned_audit.json
+            short_cadence_audit.json
           if-no-files-found: error
           retention-days: 30
