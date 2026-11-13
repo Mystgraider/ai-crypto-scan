@@ -1,9 +1,11 @@
 """Research-only event-aligned SHORT quality audit.
 
-The audit evaluates features that exist at the RRCE sequence state available at
-entry. It deliberately avoids raw-indicator scoring across unrelated market
-states. No production scanner, LONG logic, risk engine, or SL/TP geometry is
-changed.
+The audit evaluates RRCE event-state features rather than fitting raw global
+indicator thresholds. It also measures repeated scanner observations of the
+same RRCE structural episode so row-level hit rates are not mistaken for
+independent evidence.
+
+No production scanner, LONG logic, risk engine, or SL/TP geometry is changed.
 """
 from __future__ import annotations
 
@@ -11,6 +13,7 @@ import json
 import math
 import statistics
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 OUT = Path("short_event_aligned_audit.json")
@@ -32,6 +35,16 @@ def sl_distance(row):
     if entry is None or entry <= 0 or stop is None:
         return None
     return abs(stop - entry) / entry * 100.0
+
+
+def episode_key(row):
+    """Identify repeated scans belonging to one RRCE structural episode."""
+    return (
+        str(row.get("symbol") or ""),
+        str(row.get("rrce_stage2_sweep_time") or ""),
+        str(row.get("rrce_stage3_break_time") or ""),
+        str(row.get("rrce_stage4_entry_zone") or ""),
+    )
 
 
 def event_features(row):
@@ -104,6 +117,70 @@ def symbol_concentration(rows):
     }
 
 
+def episode_audit(rows):
+    """Quantify dependence caused by repeated 5-minute observations."""
+    groups = defaultdict(list)
+    for row in rows:
+        groups[episode_key(row)].append(row)
+
+    episodes = []
+    conflicts = 0
+    for key, group in groups.items():
+        ordered = sorted(group, key=lambda r: str(r.get("replay_time", "")))
+        outcomes = {r.get("outcome") for r in ordered}
+        if len(outcomes) > 1:
+            conflicts += 1
+        episodes.append(
+            {
+                "key": list(key),
+                "symbol": ordered[0].get("symbol"),
+                "rows": len(ordered),
+                "first_outcome": ordered[0].get("outcome"),
+                "any_tp3": "TP3_HIT" in outcomes,
+                "outcomes": sorted(outcomes),
+            }
+        )
+
+    n_rows = len(rows)
+    n_episodes = len(episodes)
+    sum_sq = sum(ep["rows"] ** 2 for ep in episodes)
+    ess = (n_rows * n_rows / sum_sq) if sum_sq else 0.0
+
+    first_resolved = [
+        ep for ep in episodes if ep["first_outcome"] in {"TP3_HIT", "SL_HIT"}
+    ]
+    any_tp3 = [ep for ep in episodes if ep["any_tp3"]]
+    first_tp3 = sum(ep["first_outcome"] == "TP3_HIT" for ep in first_resolved)
+    any_tp3_count = sum(ep["any_tp3"] for ep in episodes)
+
+    first_tp_by_symbol = defaultdict(int)
+    any_tp_by_symbol = defaultdict(int)
+    for ep in first_resolved:
+        if ep["first_outcome"] == "TP3_HIT":
+            first_tp_by_symbol[str(ep["symbol"])] += 1
+    for ep in any_tp3:
+        any_tp_by_symbol[str(ep["symbol"])] += 1
+
+    def concentration(mapping):
+        total = sum(mapping.values())
+        return round(100 * max(mapping.values(), default=0) / total, 2) if total else 0.0
+
+    return {
+        "rows": n_rows,
+        "independent_rrce_episodes": n_episodes,
+        "mean_rows_per_episode": round(n_rows / n_episodes, 3) if n_episodes else 0.0,
+        "max_rows_per_episode": max((ep["rows"] for ep in episodes), default=0),
+        "effective_sample_size": round(ess, 3),
+        "outcome_conflict_episode_count": conflicts,
+        "first_entry_resolved_episodes": len(first_resolved),
+        "first_entry_tp3_rate_pct": round(100 * first_tp3 / len(first_resolved), 3) if first_resolved else None,
+        "episode_any_tp3_rate_pct": round(100 * any_tp3_count / n_episodes, 3) if n_episodes else None,
+        "first_entry_tp3_symbol_concentration_pct": concentration(first_tp_by_symbol),
+        "any_tp3_symbol_concentration_pct": concentration(any_tp_by_symbol),
+        "episode_symbol_count": len({str(ep["symbol"]) for ep in episodes if ep["symbol"]}),
+    }
+
+
 def chronological_thirds(rows):
     ordered = sorted(rows, key=lambda r: str(r.get("replay_time", "")))
     n = len(ordered)
@@ -118,7 +195,8 @@ def load(path):
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     rows = [
         r for r in payload.get("results", [])
-        if r.get("direction") == "SHORT" and r.get("outcome") in OUTCOMES
+        if r.get("direction") == "SHORT"
+        and r.get("outcome") in OUTCOMES
         and r.get("rrce_stage3_passed") is True
     ]
     if not rows:
@@ -127,8 +205,6 @@ def load(path):
 
 
 def candidate_predicates():
-    # These are deliberately fixed, interpretable hypotheses. They are not
-    # fitted to the fresh 30d window.
     return {
         "range_width_to_initial_sl_ge_5": lambda f: f["range_width_to_initial_sl"] is not None and f["range_width_to_initial_sl"] >= 5.0,
         "range_width_to_initial_sl_ge_6": lambda f: f["range_width_to_initial_sl"] is not None and f["range_width_to_initial_sl"] >= 6.0,
@@ -139,12 +215,7 @@ def candidate_predicates():
 
 
 def evaluate(rows, predicate):
-    selected = []
-    for row in rows:
-        features = event_features(row)
-        if predicate(features):
-            selected.append(row)
-    return selected
+    return [row for row in rows if predicate(event_features(row))]
 
 
 def candidate_report(all_windows):
@@ -162,10 +233,14 @@ def candidate_report(all_windows):
             base = stats(rows)
             quality = stats(selected)
             concentration = symbol_concentration(selected)
+            dependence = episode_audit(selected)
             enough = (
                 quality["resolved"] >= 20
                 and concentration["symbol_count"] >= 3
                 and concentration["largest_symbol_tp3_share_pct"] < 60.0
+                and dependence["independent_rrce_episodes"] >= 20
+                and dependence["episode_symbol_count"] >= 3
+                and dependence["first_entry_tp3_symbol_concentration_pct"] < 60.0
             )
             improved = (
                 quality["tp3_rate_pct"] is not None
@@ -187,6 +262,7 @@ def candidate_report(all_windows):
                 "selected": quality,
                 "retention_pct": round(100 * len(selected) / len(rows), 2),
                 "symbol_concentration": concentration,
+                "episode_dependence": dependence,
                 "passes_window": passed,
                 "chronological_thirds": chronological_thirds(selected),
             }
@@ -215,7 +291,6 @@ def main(paths):
         name: report["windows"]["30"]["passes_window"]
         for name, report in candidates.items()
     }
-
     approved = [
         name for name, ok in approvals.items()
         if ok and fresh.get(name) is True
@@ -238,12 +313,20 @@ def main(paths):
                 "15M FVG width relative to entry",
             ],
             "fresh_window": "30d",
+            "dependence_control": [
+                "Repeated 5-minute scans are grouped by symbol + RRCE sweep time + CHOCH break time + execution zone.",
+                "Row-level TP3 remains visible, but approval additionally requires at least 20 independent RRCE episodes.",
+                "Episode first-entry and any-TP3 rates are reported separately.",
+                "Mixed outcomes inside one structural episode are reported instead of silently deduplicated.",
+            ],
             "approval_requirements": [
                 "TP3 rate strictly improves in 120d, 90d, 60d, and fresh 30d",
                 "median and P75 initial SL distance do not worsen in every window",
                 "at least 20 resolved selected trades per window",
                 "at least 3 symbols contribute selected trades",
                 "no single symbol contributes 60% or more of selected TP3 outcomes",
+                "at least 20 independent RRCE episodes per window",
+                "no single symbol contributes 60% or more of first-entry episode TP3 outcomes",
             ],
         },
         "candidates": candidates,
