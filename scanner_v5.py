@@ -333,7 +333,7 @@ def main():
             live = df_1h.iloc[-1]
             prev = df_1h.iloc[-2]
 
-            req = ["close","ema_20","ema_50","atr","adx","rsi","roc","rel_volume",
+            req = ["close","ema_20","ema_50","atr","adx","plus_di_research","minus_di_research","rsi","roc","rel_volume",
                    "macd","macd_sig","macd_hist","bb_pct_b","stoch_k","stoch_d"]
             if prev[req].isnull().any():
                 skip["errors"] += 1
@@ -434,65 +434,66 @@ def main():
                     except Exception:
                         rrce_stage1_prefilter[_direction] = None
 
-                    # Shadow only: replay raw V6.9 Stage 1/2 on the exact
-                    # same fetched 4H/1H frames. Never changes production gating.
-                    try:
-                        _shadow = _runtime_metrics["rrce_shadow"]
-                        _shadow["directions"] += 1
-                        _raw_s1 = _prefilter_engine.stage1_v69_shadow(df_4h, _direction, price)
-                        _cur_s1 = rrce_stage1_prefilter[_direction]
-                        _raw_s1_pass = bool(_raw_s1 and _raw_s1.get("passed"))
-                        _cur_s1_pass = bool(_cur_s1 and _cur_s1.get("passed"))
-                        _shadow["raw_v69_stage1_pass"] += int(_raw_s1_pass)
-                        _shadow["current_stage1_pass"] += int(_cur_s1_pass)
-                        _shadow["raw_stage1_pass_current_fail"] += int(_raw_s1_pass and not _cur_s1_pass)
-                        _shadow["current_stage1_pass_raw_fail"] += int(_cur_s1_pass and not _raw_s1_pass)
-
-                        _raw_s2 = None
-                        _cur_s2 = None
-                        if _raw_s1_pass:
-                            _shadow["raw_stage2_evaluable"] += 1
-                            _raw_s2 = _prefilter_engine.stage2_v69_shadow(
-                                df_1h, _direction, _raw_s1["range_low"], _raw_s1["range_high"]
-                            )
-                            _shadow["raw_v69_stage2_pass"] += int(bool(_raw_s2 and _raw_s2.get("passed")))
-                        if _cur_s1_pass:
-                            _shadow["current_stage2_evaluable"] += 1
-                            _cur_s2 = _prefilter_engine.stage2_retail_liquidity(
-                                df_1h, _direction, _cur_s1["range_low"], _cur_s1["range_high"],
-                                patience_bars=(CONFIG["rrce_range_patience_bars"] if _prefilter_is_range else CONFIG["rrce_default_patience_bars"])
-                            )
-                            _shadow["current_stage2_pass"] += int(bool(_cur_s2 and _cur_s2.get("passed")))
-                        if _raw_s1_pass and _cur_s1_pass and _raw_s2 is not None and _cur_s2 is not None:
-                            _raw2_pass = bool(_raw_s2.get("passed"))
-                            _cur2_pass = bool(_cur_s2.get("passed"))
-                            _shadow["both_stage2_evaluable_current_fail_raw_pass"] += int(_raw2_pass and not _cur2_pass)
-                            _shadow["both_stage2_evaluable_current_pass_raw_fail"] += int(_cur2_pass and not _raw2_pass)
-                        if _cur_s2 is not None and _cur_s2.get("passed"):
-                            _shadow["current_stage3_evaluable"] += 1
-                            _cur3 = _prefilter_engine.stage3_confirmation(
-                                df_rrce_15m, _direction,
-                                sweep_time=_cur_s2.get("sweep_time"),
-                                confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
-                            )
-                            _raw3 = _prefilter_engine.stage3_v69_shadow(df_rrce_15m, _direction)
-                            _cur3_pass = bool(_cur3 and _cur3.get("passed"))
-                            _raw3_pass = bool(_raw3 and _raw3.get("passed"))
-                            _shadow["current_stage3_pass"] += int(_cur3_pass)
-                            _shadow["raw_v69_stage3_evaluable"] += 1
-                            _shadow["raw_v69_stage3_pass"] += int(_raw3_pass)
-                            for key, obj, bucket in (
-                                ("current_stage3_reasons", _cur3, "reason"),
-                                ("raw_v69_stage3_reasons", _raw3, "reason"),
-                            ):
-                                reason = (obj or {}).get(bucket)
-                                if reason:
-                                    _shadow[key][reason] = _shadow[key].get(reason, 0) + 1
-                            _shadow["both_stage3_current_fail_raw_pass"] += int(_raw3_pass and not _cur3_pass)
-                            _shadow["both_stage3_current_pass_raw_fail"] += int(_cur3_pass and not _raw3_pass)
-                    except Exception as _shadow_e:
-                        print(f"      ⚠️ RRCE shadow diagnostic failed for {symbol}/{_direction}: {_shadow_e}")
-
+                    if not CONFIG.get("_historical_replay_fast_mode", False):
+                        # Shadow only: replay raw V6.9 Stage 1/2 on the exact
+                        # same fetched 4H/1H frames. Never changes production gating.
+                        try:
+                            _shadow = _runtime_metrics["rrce_shadow"]
+                            _shadow["directions"] += 1
+                            _raw_s1 = _prefilter_engine.stage1_v69_shadow(df_4h, _direction, price)
+                            _cur_s1 = rrce_stage1_prefilter[_direction]
+                            _raw_s1_pass = bool(_raw_s1 and _raw_s1.get("passed"))
+                            _cur_s1_pass = bool(_cur_s1 and _cur_s1.get("passed"))
+                            _shadow["raw_v69_stage1_pass"] += int(_raw_s1_pass)
+                            _shadow["current_stage1_pass"] += int(_cur_s1_pass)
+                            _shadow["raw_stage1_pass_current_fail"] += int(_raw_s1_pass and not _cur_s1_pass)
+                            _shadow["current_stage1_pass_raw_fail"] += int(_cur_s1_pass and not _raw_s1_pass)
+    
+                            _raw_s2 = None
+                            _cur_s2 = None
+                            if _raw_s1_pass:
+                                _shadow["raw_stage2_evaluable"] += 1
+                                _raw_s2 = _prefilter_engine.stage2_v69_shadow(
+                                    df_1h, _direction, _raw_s1["range_low"], _raw_s1["range_high"]
+                                )
+                                _shadow["raw_v69_stage2_pass"] += int(bool(_raw_s2 and _raw_s2.get("passed")))
+                            if _cur_s1_pass:
+                                _shadow["current_stage2_evaluable"] += 1
+                                _cur_s2 = _prefilter_engine.stage2_retail_liquidity(
+                                    df_1h, _direction, _cur_s1["range_low"], _cur_s1["range_high"],
+                                    patience_bars=(CONFIG["rrce_range_patience_bars"] if _prefilter_is_range else CONFIG["rrce_default_patience_bars"])
+                                )
+                                _shadow["current_stage2_pass"] += int(bool(_cur_s2 and _cur_s2.get("passed")))
+                            if _raw_s1_pass and _cur_s1_pass and _raw_s2 is not None and _cur_s2 is not None:
+                                _raw2_pass = bool(_raw_s2.get("passed"))
+                                _cur2_pass = bool(_cur_s2.get("passed"))
+                                _shadow["both_stage2_evaluable_current_fail_raw_pass"] += int(_raw2_pass and not _cur2_pass)
+                                _shadow["both_stage2_evaluable_current_pass_raw_fail"] += int(_cur2_pass and not _raw2_pass)
+                            if _cur_s2 is not None and _cur_s2.get("passed"):
+                                _shadow["current_stage3_evaluable"] += 1
+                                _cur3 = _prefilter_engine.stage3_confirmation(
+                                    df_rrce_15m, _direction,
+                                    sweep_time=_cur_s2.get("sweep_time"),
+                                    confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
+                                )
+                                _raw3 = _prefilter_engine.stage3_v69_shadow(df_rrce_15m, _direction)
+                                _cur3_pass = bool(_cur3 and _cur3.get("passed"))
+                                _raw3_pass = bool(_raw3 and _raw3.get("passed"))
+                                _shadow["current_stage3_pass"] += int(_cur3_pass)
+                                _shadow["raw_v69_stage3_evaluable"] += 1
+                                _shadow["raw_v69_stage3_pass"] += int(_raw3_pass)
+                                for key, obj, bucket in (
+                                    ("current_stage3_reasons", _cur3, "reason"),
+                                    ("raw_v69_stage3_reasons", _raw3, "reason"),
+                                ):
+                                    reason = (obj or {}).get(bucket)
+                                    if reason:
+                                        _shadow[key][reason] = _shadow[key].get(reason, 0) + 1
+                                _shadow["both_stage3_current_fail_raw_pass"] += int(_raw3_pass and not _cur3_pass)
+                                _shadow["both_stage3_current_pass_raw_fail"] += int(_cur3_pass and not _raw3_pass)
+                        except Exception as _shadow_e:
+                            print(f"      ⚠️ RRCE shadow diagnostic failed for {symbol}/{_direction}: {_shadow_e}")
+    
                 # RRCE Stage-1 is diagnostic/confluence only. It must never
                 # hard-reject an otherwise valid original-strategy candidate.
                 # A non-passing Stage-1 path is recorded for telemetry, while the
@@ -643,199 +644,202 @@ def main():
                         # Keep the V6.7.2 additive bonus above; modern RRCE
                         # validity is not allowed to zero-out partial confluence.
 
-                        # Diagnostic-only Stage-1 variant replay. Production remains
-                        # on the current V6.9 Stage-1 gate. This measures whether the
-                        # directional Discount/Premium gate itself is removing viable
-                        # downstream RRCE paths; no signal gating is changed here.
-                        try:
-                            _shadow = _runtime_metrics["rrce_shadow"]
-                            _shadow["stage1_variant_directions"] += 1
-                            _s1v = rrce_result.get("stage1") if rrce_result else None
-                            if isinstance(_s1v, dict):
-                                _pos = float(_s1v.get("position_pct", float("nan")))
-                                _inside = bool(0.0 <= _pos <= 100.0)
-                                _midpoint = _inside and ((_pos <= 50.0) if direction == "LONG" else (_pos >= 50.0))
-                                if _midpoint:
-                                    _shadow["stage1_variant_midpoint_pass"] += 1
-                                if _inside:
-                                    _shadow["stage1_variant_inside_range_pass"] += 1
-
-                                def _run_s1_variant(_name, _passed):
-                                    if not _passed:
-                                        return
-                                    _s2v = active_rrce_engine.stage2_retail_liquidity(
-                                        df_1h, direction, _s1v["range_low"], _s1v["range_high"],
-                                        patience_bars=patience_bars,
-                                    )
-                                    if not _s2v or not _s2v.get("passed"):
-                                        _reason = (_s2v or {}).get("reason", "no_stage2")
-                                        _shadow[f"stage1_variant_{_name}_reasons"][_reason] = (
-                                            _shadow[f"stage1_variant_{_name}_reasons"].get(_reason, 0) + 1
+                        if not CONFIG.get("_historical_replay_fast_mode", False):
+                            # Diagnostic-only Stage-1 variant replay. Production remains
+                            # on the current V6.9 Stage-1 gate. This measures whether the
+                            # directional Discount/Premium gate itself is removing viable
+                            # downstream RRCE paths; no signal gating is changed here.
+                            try:
+                                _shadow = _runtime_metrics["rrce_shadow"]
+                                _shadow["stage1_variant_directions"] += 1
+                                _s1v = rrce_result.get("stage1") if rrce_result else None
+                                if isinstance(_s1v, dict):
+                                    _pos = float(_s1v.get("position_pct", float("nan")))
+                                    _inside = bool(0.0 <= _pos <= 100.0)
+                                    _midpoint = _inside and ((_pos <= 50.0) if direction == "LONG" else (_pos >= 50.0))
+                                    if _midpoint:
+                                        _shadow["stage1_variant_midpoint_pass"] += 1
+                                    if _inside:
+                                        _shadow["stage1_variant_inside_range_pass"] += 1
+    
+                                    def _run_s1_variant(_name, _passed):
+                                        if not _passed:
+                                            return
+                                        _s2v = active_rrce_engine.stage2_retail_liquidity(
+                                            df_1h, direction, _s1v["range_low"], _s1v["range_high"],
+                                            patience_bars=patience_bars,
                                         )
-                                        return
-                                    _shadow[f"stage1_variant_{_name}_stage2_pass"] += 1
-                                    _s3v = active_rrce_engine.stage3_confirmation(
-                                        _df_rrce_15m, direction,
-                                        sweep_time=_s2v.get("sweep_time"),
-                                        confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
-                                    )
-                                    if not _s3v or not _s3v.get("passed"):
-                                        _reason = (_s3v or {}).get("reason", "no_stage3")
-                                        _shadow[f"stage1_variant_{_name}_reasons"][_reason] = (
-                                            _shadow[f"stage1_variant_{_name}_reasons"].get(_reason, 0) + 1
-                                        )
-                                        return
-                                    _shadow[f"stage1_variant_{_name}_stage3_pass"] += 1
-                                    _opposite_pool = _s1v["range_high"] if direction == "LONG" else _s1v["range_low"]
-
-                                    # Diagnostic Stage-4 replay must align the 15m CHOCH
-                                    # timestamp to the corresponding 5m candle. Passing the
-                                    # 15m positional index directly into the 5m dataframe
-                                    # produces a false execution location and can corrupt
-                                    # Stage-4 diagnostics without affecting production gating.
-                                    _s4_break_idx = None
-                                    _s3_break_idx = _s3v.get("break_idx")
-                                    if (
-                                        _s3_break_idx is not None
-                                        and 0 <= int(_s3_break_idx) < len(_df_rrce_15m)
-                                        and "timestamp" in _df_rrce_15m.columns
-                                        and "timestamp" in _df_rrce_5m.columns
-                                    ):
-                                        _confirm_ts = pd.to_datetime(
-                                            _df_rrce_15m["timestamp"].iloc[int(_s3_break_idx)],
-                                            utc=True, errors="coerce"
-                                        )
-                                        _exec_ts = pd.to_datetime(
-                                            _df_rrce_5m["timestamp"], utc=True, errors="coerce"
-                                        )
-                                        _matches = [i for i, _ts in enumerate(_exec_ts) if _ts == _confirm_ts]
-                                        if len(_matches) == 1:
-                                            _s4_break_idx = _matches[0]
-
-                                    if _s4_break_idx is None:
-                                        _reason = "execution_candle_not_aligned"
-                                        _shadow[f"stage1_variant_{_name}_reasons"][_reason] = (
-                                            _shadow[f"stage1_variant_{_name}_reasons"].get(_reason, 0) + 1
-                                        )
-                                        return
-
-                                    _s4v = active_rrce_engine.stage4_execution(
-                                        _df_rrce_5m, direction, _s3v["fvg"], _s2v["sweep_extreme"],
-                                        _opposite_pool, break_idx=_s4_break_idx
-                                    )
-                                    if _s4v.get("valid"):
-                                        _shadow[f"stage1_variant_{_name}_stage4_valid"] += 1
-                                    else:
-                                        _reason = _s4v.get("reason", "stage4_invalid")
-                                        _shadow[f"stage1_variant_{_name}_reasons"][_reason] = (
-                                            _shadow[f"stage1_variant_{_name}_reasons"].get(_reason, 0) + 1
-                                        )
-
-                                _run_s1_variant("midpoint", _midpoint)
-                                _run_s1_variant("inside", _inside)
-                        except Exception as _s1v_e:
-                            print(f"      ⚠️  Stage-1 variant replay failed: {_s1v_e}")
-
-                        # Diagnostic-only Stage-2 -> Stage-3 replay.
-                        # Production remains on the current RRCE settings. This isolates
-                        # liquidity-pool/sweep sensitivity from the CHOCH confirmation window.
-                        try:
-                            _s23 = _runtime_metrics["rrce_shadow"]["stage2_stage3_replay"]
-                            _s23["directions"] += 1
-                            _base_eq = float(active_rrce_engine.eq_tolerance_pct)
-                            _variants = {
-                                "current": {"patience": int(patience_bars), "eq": _base_eq, "proximity": 5.0},
-                                "patience_12": {"patience": 12, "eq": _base_eq, "proximity": 5.0},
-                                "patience_16": {"patience": 16, "eq": _base_eq, "proximity": 5.0},
-                                "eq_tolerance_030": {"patience": int(patience_bars), "eq": 0.30, "proximity": 5.0},
-                                "proximity_10": {"patience": int(patience_bars), "eq": _base_eq, "proximity": 10.0},
-                                "broad": {"patience": 16, "eq": 0.30, "proximity": 10.0},
-                            }
-                            for _name, _cfg in _variants.items():
-                                _diag_engine = active_rrce_engine
-                                if float(_cfg["eq"]) != _base_eq:
-                                    _diag_engine = RRCEEngine(eq_tolerance_pct=float(_cfg["eq"]))
-                                if not isinstance(_s1v, dict):
-                                    # Stage-2/3 diagnostics are non-blocking; missing Stage-1 structure
-                                    # must not be dereferenced or surfaced as a caught runtime error.
-                                    continue
-                                _s2d = _diag_engine.stage2_retail_liquidity(
-                                    df_1h, direction, _s1v["range_low"], _s1v["range_high"],
-                                    proximity_pct=float(_cfg["proximity"]),
-                                    patience_bars=int(_cfg["patience"]),
-                                )
-                                _bucket = _s23["variants"][_name]
-                                if not _s2d or not _s2d.get("passed"):
-                                    _reason = (_s2d or {}).get("reason", "no_stage2")
-                                    _bucket["stage2_reasons"][_reason] = (
-                                        _bucket["stage2_reasons"].get(_reason, 0) + 1
-                                    )
-                                    continue
-                                _bucket["stage2_pass"] += 1
-                                for _cb in (3, 6, 12, 24):
-                                    _s3d = _diag_engine.stage3_confirmation(
-                                        _df_rrce_15m, direction,
-                                        sweep_time=_s2d.get("sweep_time"),
-                                        confirmation_bars=_cb,
-                                    )
-                                    _ck = str(_cb)
-                                    _c_bucket = _s23["stage3_confirmation_variants"][_ck]
-                                    _c_bucket["evaluable"] += 1
-                                    if _s3d and _s3d.get("passed"):
-                                        _c_bucket["pass"] += 1
-                                        if _cb == CONFIG["rrce_stage3_confirmation_bars"]:
-                                            _bucket["stage3_pass"] += 1
-                                    else:
-                                        _reason = (_s3d or {}).get("reason", "no_stage3")
-                                        _c_bucket["reasons"][_reason] = (
-                                            _c_bucket["reasons"].get(_reason, 0) + 1
-                                        )
-                                        if _cb == CONFIG["rrce_stage3_confirmation_bars"]:
-                                            _bucket["stage3_reasons"][_reason] = (
-                                                _bucket["stage3_reasons"].get(_reason, 0) + 1
+                                        if not _s2v or not _s2v.get("passed"):
+                                            _reason = (_s2v or {}).get("reason", "no_stage2")
+                                            _shadow[f"stage1_variant_{_name}_reasons"][_reason] = (
+                                                _shadow[f"stage1_variant_{_name}_reasons"].get(_reason, 0) + 1
                                             )
-                        except Exception as _s23_e:
-                            print(f"      ⚠️  Stage-2/3 replay failed: {_s23_e}")
-
-                        # Exact historical V6.7.2 replay on the same 1H frame.
-                        # Telemetry only; production remains on V6.9.
-                        try:
-                            legacy = legacy_v672_engine.evaluate(df_1h, direction, price)
-                            shadow = _runtime_metrics["rrce_shadow"]
-                            shadow["legacy_v672_directions"] += 1
-                            shadow["legacy_v672_bonus_sum"] += float(legacy.get("bonus", 0.0))
-                            k = str(int(legacy.get("stages_passed", 0)))
-                            shadow["legacy_v672_stage_counts"][k] = (
-                                shadow["legacy_v672_stage_counts"].get(k, 0) + 1
-                            )
-                            legacy_stages = int(legacy.get("stages_passed", 0))
-                            if legacy_stages >= 5:
-                                shadow["legacy_v672_full_sequence"] += 1
-                            if rrce_result.get("valid") is False and legacy_stages >= 5:
-                                shadow["legacy_v672_full_current_v69_invalid"] += 1
-
-                            # Diagnostic case trace only; no production gating change.
-                            if legacy_stages >= 4:
-                                _case = {
-                                    "symbol": symbol, "direction": direction, "price": price,
-                                    "legacy_stages_passed": legacy_stages,
-                                    "legacy_bonus": float(legacy.get("bonus", 0.0)),
-                                    "legacy_sweep": legacy.get("sweep"),
-                                    "legacy_choch_bos": legacy.get("choch_bos"),
-                                    "legacy_fvg": legacy.get("fvg") or [],
-                                    "legacy_ob": legacy.get("ob"),
-                                    "legacy_in_ote": bool(legacy.get("in_ote")),
-                                    "legacy_candle": legacy.get("candle"),
-                                    "current_v69_valid": bool(rrce_result.get("valid")),
-                                    "current_v69_failed_at": rrce_result.get("failed_at"),
+                                            return
+                                        _shadow[f"stage1_variant_{_name}_stage2_pass"] += 1
+                                        _s3v = active_rrce_engine.stage3_confirmation(
+                                            _df_rrce_15m, direction,
+                                            sweep_time=_s2v.get("sweep_time"),
+                                            confirmation_bars=CONFIG["rrce_stage3_confirmation_bars"],
+                                        )
+                                        if not _s3v or not _s3v.get("passed"):
+                                            _reason = (_s3v or {}).get("reason", "no_stage3")
+                                            _shadow[f"stage1_variant_{_name}_reasons"][_reason] = (
+                                                _shadow[f"stage1_variant_{_name}_reasons"].get(_reason, 0) + 1
+                                            )
+                                            return
+                                        _shadow[f"stage1_variant_{_name}_stage3_pass"] += 1
+                                        _opposite_pool = _s1v["range_high"] if direction == "LONG" else _s1v["range_low"]
+    
+                                        # Diagnostic Stage-4 replay must align the 15m CHOCH
+                                        # timestamp to the corresponding 5m candle. Passing the
+                                        # 15m positional index directly into the 5m dataframe
+                                        # produces a false execution location and can corrupt
+                                        # Stage-4 diagnostics without affecting production gating.
+                                        _s4_break_idx = None
+                                        _s3_break_idx = _s3v.get("break_idx")
+                                        if (
+                                            _s3_break_idx is not None
+                                            and 0 <= int(_s3_break_idx) < len(_df_rrce_15m)
+                                            and "timestamp" in _df_rrce_15m.columns
+                                            and "timestamp" in _df_rrce_5m.columns
+                                        ):
+                                            _confirm_ts = pd.to_datetime(
+                                                _df_rrce_15m["timestamp"].iloc[int(_s3_break_idx)],
+                                                utc=True, errors="coerce"
+                                            )
+                                            _exec_ts = pd.to_datetime(
+                                                _df_rrce_5m["timestamp"], utc=True, errors="coerce"
+                                            )
+                                            _matches = [i for i, _ts in enumerate(_exec_ts) if _ts == _confirm_ts]
+                                            if len(_matches) == 1:
+                                                _s4_break_idx = _matches[0]
+    
+                                        if _s4_break_idx is None:
+                                            _reason = "execution_candle_not_aligned"
+                                            _shadow[f"stage1_variant_{_name}_reasons"][_reason] = (
+                                                _shadow[f"stage1_variant_{_name}_reasons"].get(_reason, 0) + 1
+                                            )
+                                            return
+    
+                                        _s4v = active_rrce_engine.stage4_execution(
+                                            _df_rrce_5m, direction, _s3v["fvg"], _s2v["sweep_extreme"],
+                                            _opposite_pool, break_idx=_s4_break_idx
+                                        )
+                                        if _s4v.get("valid"):
+                                            _shadow[f"stage1_variant_{_name}_stage4_valid"] += 1
+                                        else:
+                                            _reason = _s4v.get("reason", "stage4_invalid")
+                                            _shadow[f"stage1_variant_{_name}_reasons"][_reason] = (
+                                                _shadow[f"stage1_variant_{_name}_reasons"].get(_reason, 0) + 1
+                                            )
+    
+                                    _run_s1_variant("midpoint", _midpoint)
+                                    _run_s1_variant("inside", _inside)
+                            except Exception as _s1v_e:
+                                print(f"      ⚠️  Stage-1 variant replay failed: {_s1v_e}")
+    
+                        if not CONFIG.get("_historical_replay_fast_mode", False):
+                            # Diagnostic-only Stage-2 -> Stage-3 replay.
+                            # Production remains on the current RRCE settings. This isolates
+                            # liquidity-pool/sweep sensitivity from the CHOCH confirmation window.
+                            try:
+                                _s23 = _runtime_metrics["rrce_shadow"]["stage2_stage3_replay"]
+                                _s23["directions"] += 1
+                                _base_eq = float(active_rrce_engine.eq_tolerance_pct)
+                                _variants = {
+                                    "current": {"patience": int(patience_bars), "eq": _base_eq, "proximity": 5.0},
+                                    "patience_12": {"patience": 12, "eq": _base_eq, "proximity": 5.0},
+                                    "patience_16": {"patience": 16, "eq": _base_eq, "proximity": 5.0},
+                                    "eq_tolerance_030": {"patience": int(patience_bars), "eq": 0.30, "proximity": 5.0},
+                                    "proximity_10": {"patience": int(patience_bars), "eq": _base_eq, "proximity": 10.0},
+                                    "broad": {"patience": 16, "eq": 0.30, "proximity": 10.0},
                                 }
-                                for _stage_name in ("stage1", "stage2", "stage3", "stage4"):
-                                    _stage_data = rrce_result.get(_stage_name)
-                                    if isinstance(_stage_data, dict):
-                                        _case[f"current_{_stage_name}"] = _stage_data
-                                shadow.setdefault("legacy_v672_case_trace", []).append(_case)
-                        except Exception as _legacy_e:
-                            print(f"      ⚠️  {symbol} V6.7.2 replay failed: {_legacy_e}")
+                                for _name, _cfg in _variants.items():
+                                    _diag_engine = active_rrce_engine
+                                    if float(_cfg["eq"]) != _base_eq:
+                                        _diag_engine = RRCEEngine(eq_tolerance_pct=float(_cfg["eq"]))
+                                    if not isinstance(_s1v, dict):
+                                        # Stage-2/3 diagnostics are non-blocking; missing Stage-1 structure
+                                        # must not be dereferenced or surfaced as a caught runtime error.
+                                        continue
+                                    _s2d = _diag_engine.stage2_retail_liquidity(
+                                        df_1h, direction, _s1v["range_low"], _s1v["range_high"],
+                                        proximity_pct=float(_cfg["proximity"]),
+                                        patience_bars=int(_cfg["patience"]),
+                                    )
+                                    _bucket = _s23["variants"][_name]
+                                    if not _s2d or not _s2d.get("passed"):
+                                        _reason = (_s2d or {}).get("reason", "no_stage2")
+                                        _bucket["stage2_reasons"][_reason] = (
+                                            _bucket["stage2_reasons"].get(_reason, 0) + 1
+                                        )
+                                        continue
+                                    _bucket["stage2_pass"] += 1
+                                    for _cb in (3, 6, 12, 24):
+                                        _s3d = _diag_engine.stage3_confirmation(
+                                            _df_rrce_15m, direction,
+                                            sweep_time=_s2d.get("sweep_time"),
+                                            confirmation_bars=_cb,
+                                        )
+                                        _ck = str(_cb)
+                                        _c_bucket = _s23["stage3_confirmation_variants"][_ck]
+                                        _c_bucket["evaluable"] += 1
+                                        if _s3d and _s3d.get("passed"):
+                                            _c_bucket["pass"] += 1
+                                            if _cb == CONFIG["rrce_stage3_confirmation_bars"]:
+                                                _bucket["stage3_pass"] += 1
+                                        else:
+                                            _reason = (_s3d or {}).get("reason", "no_stage3")
+                                            _c_bucket["reasons"][_reason] = (
+                                                _c_bucket["reasons"].get(_reason, 0) + 1
+                                            )
+                                            if _cb == CONFIG["rrce_stage3_confirmation_bars"]:
+                                                _bucket["stage3_reasons"][_reason] = (
+                                                    _bucket["stage3_reasons"].get(_reason, 0) + 1
+                                                )
+                            except Exception as _s23_e:
+                                print(f"      ⚠️  Stage-2/3 replay failed: {_s23_e}")
+
+                        if not CONFIG.get("_historical_replay_fast_mode", False):
+                            # Exact historical V6.7.2 replay on the same 1H frame.
+                            # Telemetry only; production remains on V6.9.
+                            try:
+                                legacy = legacy_v672_engine.evaluate(df_1h, direction, price)
+                                shadow = _runtime_metrics["rrce_shadow"]
+                                shadow["legacy_v672_directions"] += 1
+                                shadow["legacy_v672_bonus_sum"] += float(legacy.get("bonus", 0.0))
+                                k = str(int(legacy.get("stages_passed", 0)))
+                                shadow["legacy_v672_stage_counts"][k] = (
+                                    shadow["legacy_v672_stage_counts"].get(k, 0) + 1
+                                )
+                                legacy_stages = int(legacy.get("stages_passed", 0))
+                                if legacy_stages >= 5:
+                                    shadow["legacy_v672_full_sequence"] += 1
+                                if rrce_result.get("valid") is False and legacy_stages >= 5:
+                                    shadow["legacy_v672_full_current_v69_invalid"] += 1
+    
+                                # Diagnostic case trace only; no production gating change.
+                                if legacy_stages >= 4:
+                                    _case = {
+                                        "symbol": symbol, "direction": direction, "price": price,
+                                        "legacy_stages_passed": legacy_stages,
+                                        "legacy_bonus": float(legacy.get("bonus", 0.0)),
+                                        "legacy_sweep": legacy.get("sweep"),
+                                        "legacy_choch_bos": legacy.get("choch_bos"),
+                                        "legacy_fvg": legacy.get("fvg") or [],
+                                        "legacy_ob": legacy.get("ob"),
+                                        "legacy_in_ote": bool(legacy.get("in_ote")),
+                                        "legacy_candle": legacy.get("candle"),
+                                        "current_v69_valid": bool(rrce_result.get("valid")),
+                                        "current_v69_failed_at": rrce_result.get("failed_at"),
+                                    }
+                                    for _stage_name in ("stage1", "stage2", "stage3", "stage4"):
+                                        _stage_data = rrce_result.get(_stage_name)
+                                        if isinstance(_stage_data, dict):
+                                            _case[f"current_{_stage_name}"] = _stage_data
+                                    shadow.setdefault("legacy_v672_case_trace", []).append(_case)
+                            except Exception as _legacy_e:
+                                print(f"      ⚠️  {symbol} V6.7.2 replay failed: {_legacy_e}")
                 except Exception as _rrce_e:
                     print(f"      ⚠️  {symbol} RRCE multi-TF fetch/eval failed: {_rrce_e}")
 
@@ -1018,6 +1022,44 @@ def main():
                         _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="mtf")
                     continue
 
+                # Research SHORT setup gate.
+                #
+                # Run #168 discovery identified RSI 50-70 with ADX <20 as
+                # the strongest broad SHORT regime. This gate is direction-
+                # specific; LONG is untouched. It remains on this research
+                # branch until independent chronological validation confirms
+                # that the edge generalizes outside the discovery window.
+                if direction == "SHORT":
+                    short_rsi_floor = float(CONFIG.get("short_rsi_floor", 0.0))
+                    short_rsi_ceiling = float(CONFIG.get("short_rsi_ceiling", 100.0))
+                    short_require_15m_not_bearish = bool(
+                        CONFIG.get("short_require_15m_not_bearish", False)
+                    )
+
+                    if rsi < short_rsi_floor:
+                        skip["short_rsi_floor"] = skip.get("short_rsi_floor", 0) + 1
+                        _trace(symbol, "short_rsi_floor_block", direction=direction,
+                               rsi=round(rsi, 2), floor=short_rsi_floor)
+                        continue
+
+                    if rsi > short_rsi_ceiling:
+                        skip["short_rsi_ceiling"] = skip.get("short_rsi_ceiling", 0) + 1
+                        _trace(symbol, "short_rsi_ceiling_block", direction=direction,
+                               rsi=round(rsi, 2), ceiling=short_rsi_ceiling)
+                        continue
+
+                    if short_require_15m_not_bearish and mtf_15m_dir == "UNKNOWN":
+                        skip["short_15m_unavailable"] = skip.get("short_15m_unavailable", 0) + 1
+                        _trace(symbol, "short_15m_unavailable_block", direction=direction,
+                               mtf_15m=mtf_15m_dir)
+                        continue
+
+                    if short_require_15m_not_bearish and mtf_15m_dir == "BEARISH":
+                        skip["short_15m_bearish"] = skip.get("short_15m_bearish", 0) + 1
+                        _trace(symbol, "short_15m_bearish_block", direction=direction,
+                               mtf_15m=mtf_15m_dir)
+                        continue
+
                 quality_score = quality_engine.score(
                     rel_volume=rel_volume, rsi=rsi, direction=direction,
                     stoch_k=stoch_k, bb_pct_b=bb_pct_b, macd_hist=macd_hist,
@@ -1107,7 +1149,13 @@ def main():
 
                 # Persist the final RRCE disposition with the candidate so the exact
                 # structural path can be joined to the eventual TP/SL outcome.
+                _rrce_stage1 = rrce_result.get("stage1") if isinstance(rrce_result, dict) else None
+                _rrce_stage2 = rrce_result.get("stage2") if isinstance(rrce_result, dict) else None
                 _rrce_stage3 = rrce_result.get("stage3") if isinstance(rrce_result, dict) else None
+                _rrce_stage4 = rrce_result.get("stage4") if isinstance(rrce_result, dict) else None
+                _rrce_stage3_fvg = _rrce_stage3.get("fvg") if isinstance(_rrce_stage3, dict) else None
+                _rrce_stage4_ob = _rrce_stage4.get("order_block") if isinstance(_rrce_stage4, dict) else None
+                _rrce_stage4_fvg = _rrce_stage4.get("fvg") if isinstance(_rrce_stage4, dict) else None
                 _rrce_failed_stage = rrce_result.get("failed_at") if isinstance(rrce_result, dict) else None
                 _rrce_failure_reason = None
                 if rrce_live_failure_reason:
@@ -1174,13 +1222,66 @@ def main():
                     "rrce_choch_confirmed": _rrce_choch_confirmed,
                     "rrce_risk_contract": _rrce_risk_contract,
                     "rrce_engine_mode": _rrce_engine_mode_final,
+                    # Research telemetry only: scalar snapshots of the exact
+                    # RRCE stages evaluated at this scan boundary. These fields
+                    # do not participate in scoring, gating, or risk geometry.
+                    "rrce_stage1_passed": bool(_rrce_stage1.get("passed")) if isinstance(_rrce_stage1, dict) else None,
+                    "rrce_stage1_position_pct": _rrce_stage1.get("position_pct") if isinstance(_rrce_stage1, dict) else None,
+                    "rrce_stage1_zone": _rrce_stage1.get("zone") if isinstance(_rrce_stage1, dict) else None,
+                    "rrce_stage1_range_width_pct": _rrce_stage1.get("range_width_pct") if isinstance(_rrce_stage1, dict) else None,
+                    "rrce_stage2_passed": bool(_rrce_stage2.get("passed")) if isinstance(_rrce_stage2, dict) else None,
+                    "rrce_stage2_pool_level": _rrce_stage2.get("pool_level") if isinstance(_rrce_stage2, dict) else None,
+                    "rrce_stage2_sweep_extreme": _rrce_stage2.get("sweep_extreme") if isinstance(_rrce_stage2, dict) else None,
+                    "rrce_stage2_sweep_time": str(_rrce_stage2.get("sweep_time")) if isinstance(_rrce_stage2, dict) and _rrce_stage2.get("sweep_time") is not None else None,
+                    "rrce_stage3_passed": bool(_rrce_stage3.get("passed")) if isinstance(_rrce_stage3, dict) else None,
+                    "rrce_stage3_choch_level": _rrce_stage3.get("choch_level") if isinstance(_rrce_stage3, dict) else None,
+                    "rrce_stage3_break_time": str(_rrce_stage3.get("break_time")) if isinstance(_rrce_stage3, dict) and _rrce_stage3.get("break_time") is not None else None,
+                    "rrce_stage3_fvg_top": _rrce_stage3_fvg.get("top") if isinstance(_rrce_stage3_fvg, dict) else None,
+                    "rrce_stage3_fvg_bottom": _rrce_stage3_fvg.get("bottom") if isinstance(_rrce_stage3_fvg, dict) else None,
+                    "rrce_stage4_valid": bool(_rrce_stage4.get("valid")) if isinstance(_rrce_stage4, dict) else None,
+                    "rrce_stage4_entry_zone": _rrce_stage4.get("entry_zone") if isinstance(_rrce_stage4, dict) else None,
+                    "rrce_stage4_rr": _rrce_stage4.get("rr") if isinstance(_rrce_stage4, dict) else None,
+                    "rrce_stage4_ob_top": _rrce_stage4_ob.get("top") if isinstance(_rrce_stage4_ob, dict) else None,
+                    "rrce_stage4_ob_bottom": _rrce_stage4_ob.get("bottom") if isinstance(_rrce_stage4_ob, dict) else None,
+                    "rrce_stage4_fvg_top": _rrce_stage4_fvg.get("top") if isinstance(_rrce_stage4_fvg, dict) else None,
+                    "rrce_stage4_fvg_bottom": _rrce_stage4_fvg.get("bottom") if isinstance(_rrce_stage4_fvg, dict) else None,
                     "rsi":             round(rsi, 2),
                     "adx":             round(adx, 2),
+                    "plus_di":         round(float(prev["plus_di_research"]), 4),
+                    "minus_di":        round(float(prev["minus_di_research"]), 4),
+                    "di_spread":       round(float(prev["minus_di_research"] - prev["plus_di_research"]), 4),
+                    "ema20_ema50_gap_pct": round((ema20 / ema50 - 1.0) * 100, 4) if ema50 else None,
+                    "price_to_ema20_pct": round((price / ema20 - 1.0) * 100, 4) if ema20 else None,
+                    "support_distance_pct": (
+                        round((price - float(sr_levels["nearest_support"])) / price * 100, 4)
+                        if sr_levels.get("nearest_support") not in (None, 0) and price > float(sr_levels["nearest_support"])
+                        else None
+                    ),
                     "rel_volume":      round(rel_volume, 2),
                     "spike_tier":      spike["tier"],
-                    "macd_hist":       round(macd_hist, 6),
+                    "macd_hist":       round(macd_hist, 8),
                     "stoch_k":         round(stoch_k, 2),
-                    "bb_pct_b":        round(bb_pct_b, 3),
+                    "stoch_d":         round(stoch_d, 2),
+                    "bb_pct_b":        round(bb_pct_b, 4),
+                    "roc":             round(roc, 6),
+                    "atr_pct":         round(float(prev["atr_pct"]), 6) if pd.notna(prev.get("atr_pct")) else None,
+                    "ema20_1h":        round(ema20, 10),
+                    "ema50_1h":        round(ema50, 10),
+                    "price_1h_signal": round(price, 10),
+                    "rsi_4h":          round(float(df_4h.iloc[-2]["rsi"]), 4) if df_4h is not None and len(df_4h) >= 2 and "rsi" in df_4h.columns and pd.notna(df_4h.iloc[-2]["rsi"]) else None,
+                    "adx_4h":          round(float(df_4h.iloc[-2]["adx"]), 4) if df_4h is not None and len(df_4h) >= 2 and "adx" in df_4h.columns and pd.notna(df_4h.iloc[-2]["adx"]) else None,
+                    "ema20_4h":        round(float(df_4h.iloc[-2]["ema_20"]), 10) if df_4h is not None and len(df_4h) >= 2 and pd.notna(df_4h.iloc[-2]["ema_20"]) else None,
+                    "ema50_4h":        round(float(df_4h.iloc[-2]["ema_50"]), 10) if df_4h is not None and len(df_4h) >= 2 and pd.notna(df_4h.iloc[-2]["ema_50"]) else None,
+                    "macd_hist_4h":    round(float(df_4h.iloc[-2]["macd_hist"]), 8) if df_4h is not None and len(df_4h) >= 2 and "macd_hist" in df_4h.columns and pd.notna(df_4h.iloc[-2]["macd_hist"]) else None,
+                    "stoch_k_4h":      round(float(df_4h.iloc[-2]["stoch_k"]), 3) if df_4h is not None and len(df_4h) >= 2 and "stoch_k" in df_4h.columns and pd.notna(df_4h.iloc[-2]["stoch_k"]) else None,
+                    "bb_pct_b_4h":     round(float(df_4h.iloc[-2]["bb_pct_b"]), 4) if df_4h is not None and len(df_4h) >= 2 and "bb_pct_b" in df_4h.columns and pd.notna(df_4h.iloc[-2]["bb_pct_b"]) else None,
+                    "rsi_15m":         round(float(df_rrce_15m.iloc[-2]["rsi"]), 4) if df_rrce_15m is not None and len(df_rrce_15m) >= 2 and "rsi" in df_rrce_15m.columns and pd.notna(df_rrce_15m.iloc[-2]["rsi"]) else None,
+                    "adx_15m":         round(float(df_rrce_15m.iloc[-2]["adx"]), 4) if df_rrce_15m is not None and len(df_rrce_15m) >= 2 and "adx" in df_rrce_15m.columns and pd.notna(df_rrce_15m.iloc[-2]["adx"]) else None,
+                    "ema20_15m":       round(float(df_rrce_15m.iloc[-2]["ema_20"]), 10) if df_rrce_15m is not None and len(df_rrce_15m) >= 2 and pd.notna(df_rrce_15m.iloc[-2]["ema_20"]) else None,
+                    "ema50_15m":       round(float(df_rrce_15m.iloc[-2]["ema_50"]), 10) if df_rrce_15m is not None and len(df_rrce_15m) >= 2 and pd.notna(df_rrce_15m.iloc[-2]["ema_50"]) else None,
+                    "macd_hist_15m":   round(float(df_rrce_15m.iloc[-2]["macd_hist"]), 8) if df_rrce_15m is not None and len(df_rrce_15m) >= 2 and "macd_hist" in df_rrce_15m.columns and pd.notna(df_rrce_15m.iloc[-2]["macd_hist"]) else None,
+                    "stoch_k_15m":     round(float(df_rrce_15m.iloc[-2]["stoch_k"]), 3) if df_rrce_15m is not None and len(df_rrce_15m) >= 2 and "stoch_k" in df_rrce_15m.columns and pd.notna(df_rrce_15m.iloc[-2]["stoch_k"]) else None,
+                    "bb_pct_b_15m":    round(float(df_rrce_15m.iloc[-2]["bb_pct_b"]), 4) if df_rrce_15m is not None and len(df_rrce_15m) >= 2 and "bb_pct_b" in df_rrce_15m.columns and pd.notna(df_rrce_15m.iloc[-2]["bb_pct_b"]) else None,
                     "mtf_status":      mtf_status,
                     "mtf_4h":          mtf_4h_dir,
                     "mtf_15m":         mtf_15m_dir,
@@ -1443,6 +1544,25 @@ def main():
             tp1=sig["tp1"],              tp2=sig["tp2"],        tp3=sig["tp3"],
             score=sig["composite"],      grade=sig["grade"],    rr=sig["rr"],
             adx=sig["adx"],              rsi=sig["rsi"],
+            plus_di=sig.get("plus_di"), minus_di=sig.get("minus_di"),
+            di_spread=sig.get("di_spread"),
+            ema20_ema50_gap_pct=sig.get("ema20_ema50_gap_pct"),
+            price_to_ema20_pct=sig.get("price_to_ema20_pct"),
+            support_distance_pct=sig.get("support_distance_pct"),
+            macd_hist=sig.get("macd_hist"), stoch_k=sig.get("stoch_k"),
+            stoch_d=sig.get("stoch_d"), bb_pct_b=sig.get("bb_pct_b"),
+            roc=sig.get("roc"), atr_pct=sig.get("atr_pct"),
+            ema20_1h=sig.get("ema20_1h"), ema50_1h=sig.get("ema50_1h"),
+            price_1h_signal=sig.get("price_1h_signal"),
+            rsi_4h=sig.get("rsi_4h"), adx_4h=sig.get("adx_4h"),
+            ema20_4h=sig.get("ema20_4h"), ema50_4h=sig.get("ema50_4h"),
+            macd_hist_4h=sig.get("macd_hist_4h"), stoch_k_4h=sig.get("stoch_k_4h"),
+            bb_pct_b_4h=sig.get("bb_pct_b_4h"),
+            rsi_15m=sig.get("rsi_15m"), adx_15m=sig.get("adx_15m"),
+            ema20_15m=sig.get("ema20_15m"), ema50_15m=sig.get("ema50_15m"),
+            macd_hist_15m=sig.get("macd_hist_15m"), stoch_k_15m=sig.get("stoch_k_15m"),
+            bb_pct_b_15m=sig.get("bb_pct_b_15m"),
+            mtf_4h=sig.get("mtf_4h"), mtf_15m=sig.get("mtf_15m"),
             rel_volume=sig["rel_volume"], spike_tier=sig["spike_tier"],
             mtf_status=sig["mtf_status"], btc_regime=sig["btc_regime"],
             rs_label=sig["rs_label"],
@@ -1459,6 +1579,26 @@ def main():
             rrce_choch_confirmed=sig.get("rrce_choch_confirmed", False),
             rrce_risk_contract=sig.get("rrce_risk_contract", "ATR_FALLBACK"),
             rrce_engine_mode=sig.get("rrce_engine_mode", ""),
+            rrce_stage1_passed=sig.get("rrce_stage1_passed"),
+            rrce_stage1_position_pct=sig.get("rrce_stage1_position_pct"),
+            rrce_stage1_zone=sig.get("rrce_stage1_zone"),
+            rrce_stage1_range_width_pct=sig.get("rrce_stage1_range_width_pct"),
+            rrce_stage2_passed=sig.get("rrce_stage2_passed"),
+            rrce_stage2_pool_level=sig.get("rrce_stage2_pool_level"),
+            rrce_stage2_sweep_extreme=sig.get("rrce_stage2_sweep_extreme"),
+            rrce_stage2_sweep_time=sig.get("rrce_stage2_sweep_time"),
+            rrce_stage3_passed=sig.get("rrce_stage3_passed"),
+            rrce_stage3_choch_level=sig.get("rrce_stage3_choch_level"),
+            rrce_stage3_break_time=sig.get("rrce_stage3_break_time"),
+            rrce_stage3_fvg_top=sig.get("rrce_stage3_fvg_top"),
+            rrce_stage3_fvg_bottom=sig.get("rrce_stage3_fvg_bottom"),
+            rrce_stage4_valid=sig.get("rrce_stage4_valid"),
+            rrce_stage4_entry_zone=sig.get("rrce_stage4_entry_zone"),
+            rrce_stage4_rr=sig.get("rrce_stage4_rr"),
+            rrce_stage4_ob_top=sig.get("rrce_stage4_ob_top"),
+            rrce_stage4_ob_bottom=sig.get("rrce_stage4_ob_bottom"),
+            rrce_stage4_fvg_top=sig.get("rrce_stage4_fvg_top"),
+            rrce_stage4_fvg_bottom=sig.get("rrce_stage4_fvg_bottom"),
         )
 
         set_cooldown(sig["symbol"])

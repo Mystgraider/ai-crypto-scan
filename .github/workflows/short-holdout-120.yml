@@ -1,0 +1,266 @@
+name: SHORT Independent Multi-Window Holdout
+
+on:
+  push:
+    branches:
+      - research/enable-30d-offset60-workflow
+      - research/short-gate-clean
+    paths:
+      - ".github/workflows/short-holdout-120.yml"
+      - "tools/historical_replay.py"
+      - "tools/short_setup_alignment.py"
+      - "tools/short_failure_mode_audit.py"
+      - "tools/short_interaction_audit.py"
+      - "tools/short_quality_score.py"
+      - "tools/short_quality_score_v2.py"
+      - "tools/short_event_aligned_audit.py"
+      - "tools/short_cadence_audit.py"
+      - "tests/test_short_quality_score.py"
+      - "tests/test_short_event_aligned_audit.py"
+      - "tests/test_short_cadence_audit.py"
+      - "tools/rrce_aligned_short_analysis.py"
+      - "tests/test_rrce_aligned_short_analysis.py"
+      - "tools/merge_backtest_chunks.py"
+      - "tests/test_historical_replay_data_integrity.py"
+      - "tests/test_production_risk_contract.py"
+      - "scanner_v5.py"
+      - "config.py"
+      - "engines/**"
+      - "indicators/**"
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: short-multi-window-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    name: 10-day chunk (window ${{ matrix.window }}d / offset ${{ matrix.offset_days }}d)
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {window: 120, offset_days: 120}
+          - {window: 120, offset_days: 110}
+          - {window: 120, offset_days: 100}
+          - {window: 90, offset_days: 90}
+          - {window: 90, offset_days: 80}
+          - {window: 90, offset_days: 70}
+          - {window: 60, offset_days: 60}
+          - {window: 60, offset_days: 50}
+          - {window: 60, offset_days: 40}
+          - {window: 30, offset_days: 30}
+          - {window: 30, offset_days: 20}
+          - {window: 30, offset_days: 10}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Verify research branch and required files
+        run: |
+          set -euo pipefail
+          RESEARCH_REF="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+          case "${RESEARCH_REF}" in
+            research/enable-30d-offset60-workflow|research/short-gate-clean) ;;
+            *) echo "::error::Unexpected research branch: ${GITHUB_REF_NAME}"; exit 1 ;;
+          esac
+          test -f tools/historical_replay.py
+          test -f tools/short_setup_alignment.py
+          test -f tools/short_failure_mode_audit.py
+          test -f tools/short_interaction_audit.py
+          test -f tools/rrce_aligned_short_analysis.py
+          test -f tools/short_event_aligned_audit.py
+          test -f tools/short_cadence_audit.py
+          test -f tools/merge_backtest_chunks.py
+          test -f tests/test_historical_replay_data_integrity.py
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run replay integrity and SHORT production contract tests
+        run: |
+          python -m pytest -q \
+            tests/test_historical_replay_data_integrity.py \
+            tests/test_production_risk_contract.py \
+            tests/test_rrce_aligned_short_analysis.py \
+            tests/test_short_quality_score.py \
+            tests/test_short_event_aligned_audit.py \
+            tests/test_short_cadence_audit.py
+
+      - name: Run fixed 10-day replay chunk
+        env:
+          BACKTEST_DAYS: "10"
+          BACKTEST_OFFSET_DAYS: ${{ matrix.offset_days }}
+          BACKTEST_ANCHOR_UTC: ${{ github.run_started_at }}
+        run: python tools/historical_replay.py
+
+      - name: Validate chunk metadata, coverage, and SHORT contract
+        env:
+          EXPECTED_OFFSET: ${{ matrix.offset_days }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path("backtest_results.json")
+          if not p.is_file(): raise SystemExit("missing backtest_results.json")
+          data=json.loads(p.read_text(encoding="utf-8"))
+          meta=data.get("metadata",{})
+          if int(meta.get("days",-1)) != 10: raise SystemExit(f"wrong days: {meta.get('days')}")
+          if int(meta.get("offset_days",-1)) != int(os.environ["EXPECTED_OFFSET"]): raise SystemExit(f"wrong offset: {meta.get('offset_days')}")
+          if meta.get("timeline_coverage",{}).get("missing_scans") != 0: raise SystemExit(f"missing 5m scans: {meta.get('timeline_coverage')}")
+          if meta.get("long_signals_enabled") is not False: raise SystemExit("LONG must remain disabled")
+          if meta.get("replay_direction_policy") != ["SHORT"]: raise SystemExit(f"unexpected direction policy: {meta.get('replay_direction_policy')}")
+          shorts=[r for r in data["results"] if r.get("direction")=="SHORT"]
+          if not shorts: raise SystemExit("zero SHORT signals")
+          missing=[r for r in shorts if any(r.get(k) is None for k in ("rsi_15m","adx_15m","ema20_15m","ema50_15m")) or r.get("mtf_15m") not in {"BULLISH","BEARISH","NEUTRAL"}]
+          invalid=[r for r in shorts if not (50<=float(r.get("rsi",-1))<=70) or r.get("mtf_15m") in {"BEARISH","UNKNOWN"}]
+          if missing: raise SystemExit(f"incomplete 15m context: {len(missing)}/{len(shorts)}")
+          if invalid: raise SystemExit(f"SHORT gate contract violated: {len(invalid)} rows")
+          print(json.dumps({"start":meta.get("start"),"end":meta.get("end"),"offset":meta.get("offset_days"),"short_signals":len(shorts),"missing_15m":len(missing),"invalid_gate":len(invalid)},indent=2))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: short-holdout-window-${{ matrix.window }}-chunk-${{ matrix.offset_days }}
+          path: backtest_results.json
+          if-no-files-found: error
+          retention-days: 21
+
+  analyze:
+    name: Merge independent 120d 90d 60d windows and audit SHORT setup
+    needs: replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: short-holdout-window-*-chunk-*
+          path: replay-chunks
+          merge-multiple: false
+
+      - name: Verify expected chunks and merge
+        run: |
+          set -euo pipefail
+          for offset in 100 110 120; do test -f "replay-chunks/short-holdout-window-120-chunk-$offset/backtest_results.json"; done
+          for offset in 70 80 90; do test -f "replay-chunks/short-holdout-window-90-chunk-$offset/backtest_results.json"; done
+          for offset in 40 50 60; do test -f "replay-chunks/short-holdout-window-60-chunk-$offset/backtest_results.json"; done
+          for offset in 10 20 30; do test -f "replay-chunks/short-holdout-window-30-chunk-$offset/backtest_results.json"; done
+          mkdir -p merged
+          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 120 --expected-days 30 --output merged/short_window_120.json
+          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 90 --expected-days 30 --output merged/short_window_90.json
+          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 60 --expected-days 30 --output merged/short_window_60.json
+          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 30 --expected-days 30 --output merged/short_window_30.json
+
+      - name: Run fixed per-window research analyses
+        run: |
+          set -euo pipefail
+          for window in 120 90 60; do
+            mkdir -p "analysis/$window"
+            cp "merged/short_window_$window.json" backtest_results.json
+            python tools/rrce_aligned_short_analysis.py > "analysis/$window/rrce_aligned_short_analysis.json"
+            python tools/short_setup_alignment.py > "analysis/$window/short_setup_alignment.json"
+            python tools/short_failure_mode_audit.py
+            cp backtest_results.json "analysis/$window/short_failure_mode_audit.json"
+          done
+
+      - name: Run pooled SHORT interaction audit
+        run: python tools/short_interaction_audit.py
+
+      - name: Run frozen research-only SHORT quality score v2
+        run: |
+          python tools/short_quality_score_v2.py \
+            merged/short_window_120.json \
+            merged/short_window_90.json \
+            merged/short_window_60.json \
+            merged/short_window_30.json
+
+      - name: Run event-aligned SHORT quality audit
+        run: |
+          python tools/short_event_aligned_audit.py \
+            merged/short_window_120.json \
+            merged/short_window_90.json \
+            merged/short_window_60.json \
+            merged/short_window_30.json
+
+      - name: Run production-cadence and first-entry SHORT audit
+        run: |
+          python tools/short_cadence_audit.py \
+            merged/short_window_120.json \
+            merged/short_window_90.json \
+            merged/short_window_60.json \
+            merged/short_window_30.json
+
+      - name: Validate research-only contract
+        run: |
+          python - <<'PY'
+          import json
+          for window in ("120","90","60"):
+              p=json.load(open(f"analysis/{window}/short_failure_mode_audit.json"))
+              r=p["summary"]["short_failure_mode_audit"]
+              assert r["research_only"] is True
+              assert r["production_strategy_changed"] is False
+              assert r["long_logic_changed"] is False
+              assert r["risk_or_sl_tp_geometry_changed"] is False
+          event_aligned=json.load(open("short_event_aligned_audit.json"))
+          assert event_aligned["research_only"] is True
+          assert event_aligned["production_strategy_changed"] is False
+          assert event_aligned["long_logic_changed"] is False
+          assert event_aligned["risk_or_sl_tp_geometry_changed"] is False
+          cadence=json.load(open("short_cadence_audit.json"))
+          assert cadence["research_only"] is True
+          assert cadence["decision"] == "DIAGNOSTIC_ONLY_NO_CANDIDATE_PROMOTED"
+          assert cadence["production_strategy_changed"] is False
+          assert cadence["long_logic_changed"] is False
+          assert cadence["risk_or_sl_tp_geometry_changed"] is False
+          assert cadence["rrce_gate_changed"] is False
+          interaction=json.load(open("pooled_short_interaction_audit.json"))
+          assert interaction["research_only"] is True
+          assert interaction["production_strategy_changed"] is False
+          assert interaction["long_logic_changed"] is False
+          assert interaction["risk_or_sl_tp_geometry_changed"] is False
+          print("SHORT_FAILURE_MODE_RESEARCH_CONTRACT=PASS")
+          print("SHORT_INTERACTION_RESEARCH_CONTRACT=PASS")
+          print("SHORT_EVENT_ALIGNED_RESEARCH_CONTRACT=PASS")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: short-multi-window-audit-result
+          path: |
+            merged/*.json
+            analysis/**/*.json
+            pooled_short_interaction_audit.json
+            short_quality_score.json
+            short_quality_score_v2.json
+            short_event_aligned_audit.json
+            short_cadence_audit.json
+          if-no-files-found: error
+          retention-days: 30
