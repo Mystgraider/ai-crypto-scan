@@ -18,7 +18,7 @@ def row(**overrides):
         "rrce_stage3_choch_level": 99.7,
         "rrce_stage3_break_time": "2026-01-01T00:15:00+00:00",
         "rrce_stage3_fvg_bottom": 99.8,
-        "rrce_stage3_fvg_top": 99.9,
+        "rrce_stage3_fvg_top": 99.89,
         "rrce_stage4_entry_zone": "OB",
         "replay_time": "2026-01-01T00:30:00+00:00",
         "symbol": "BTC/USDT:USDT",
