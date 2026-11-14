@@ -1,8 +1,12 @@
 name: Historical Backtest
 
-# Research-only trigger: a branch push runs the fixed 30-day, offset-90 chunked replay.
+# Research-only validation workflow.
+# A push to the research branch runs three contiguous 10-day chunks:
+# offsets 90, 80, 70 -> merged into one chronological 30-day / offset-90 artifact.
 on:
-  pull_request:
+  push:
+    branches:
+      - "research/enable-30d-offset60-workflow"
     paths:
       - "tools/historical_replay.py"
       - "tools/short_candidate_analysis.py"
@@ -15,63 +19,46 @@ on:
       - ".github/workflows/historical-backtest.yml"
   workflow_dispatch:
     inputs:
-      days:
-        description: "Historical replay length in days; this research workflow is fixed at 30 days"
+      confirm:
+        description: "Type RUN to start the fixed 30-day / offset-90 research replay"
         required: true
-        default: "30"
-        type: string
-      offset_days:
-        description: "End-date offset from the latest fully scoreable data window"
-        required: true
-        default: "90"
+        default: "RUN"
         type: string
 
 jobs:
   replay:
     name: Replay chunk (end offset ${{ matrix.offset_days }}d)
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirm == 'RUN') }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 3
       matrix:
         offset_days: [90, 80, 70]
     timeout-minutes: 360
     steps:
-      - name: Require the research branch for manual runs
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+      - name: Require the research branch
         env:
           REF_NAME: ${{ github.ref_name }}
-          INPUT_DAYS: ${{ inputs.days }}
-          INPUT_OFFSET: ${{ inputs.offset_days }}
         run: |
           set -euo pipefail
           if [ "$REF_NAME" != "research/enable-30d-offset60-workflow" ]; then
             echo "::error::This research replay must run from research/enable-30d-offset60-workflow, not $REF_NAME."
             exit 1
           fi
-          if [ "$INPUT_DAYS" != "30" ]; then
-            echo "::error::This workflow is intentionally fixed at 30 days; received days=$INPUT_DAYS."
-            exit 1
-          fi
-          case "$INPUT_OFFSET" in
-            70|80|90) ;;
-            *)
-              echo "::error::offset_days must be 70, 80, or 90 for this fixed 30-day chunked validation."
-              exit 1
-              ;;
-          esac
 
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
 
-      - name: Verify research replay files
+      - name: Verify research replay implementation
         run: |
           set -euo pipefail
           test -f tools/historical_replay.py
           test -f tools/short_candidate_analysis.py
           test -f tools/merge_backtest_chunks.py
           grep -q 'OFFSET_DAYS = int(os.getenv("BACKTEST_OFFSET_DAYS"' tools/historical_replay.py
+          grep -q 'BACKTEST_DAYS' tools/historical_replay.py
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -94,12 +81,14 @@ jobs:
           BACKTEST_DAYS: "10"
           BACKTEST_OFFSET_DAYS: ${{ matrix.offset_days }}
         run: |
+          set -euo pipefail
           python tools/historical_replay.py
 
       - name: Validate chunk artifact
         env:
           EXPECTED_OFFSET: ${{ matrix.offset_days }}
         run: |
+          set -euo pipefail
           python - <<'PY'
           import json
           import os
@@ -111,20 +100,26 @@ jobs:
 
           payload = json.loads(path.read_text(encoding="utf-8"))
           metadata = payload.get("metadata", {})
+
           if int(metadata.get("days", -1)) != 10:
               raise SystemExit(f"unexpected chunk days: {metadata.get('days')}")
-          if int(metadata.get("offset_days", -1)) != int(os.environ["EXPECTED_OFFSET"]):
-              raise SystemExit(
-                  f"unexpected chunk offset: {metadata.get('offset_days')} "
-                  f"expected {os.environ['EXPECTED_OFFSET']}"
-              )
+
+          expected = int(os.environ["EXPECTED_OFFSET"])
+          actual = int(metadata.get("offset_days", -1))
+          if actual != expected:
+              raise SystemExit(f"unexpected chunk offset: {actual}; expected {expected}")
+
           if not isinstance(payload.get("results"), list):
               raise SystemExit("results is not a list")
+
+          if not metadata.get("start") or not metadata.get("end"):
+              raise SystemExit("chunk is missing start/end metadata")
+
           print(
               "validated chunk:",
-              metadata.get("start"),
+              metadata["start"],
               "->",
-              metadata.get("end"),
+              metadata["end"],
               "signals=",
               len(payload["results"]),
           )
@@ -140,7 +135,7 @@ jobs:
 
   analyze:
     name: Merge 30-day replay and run SHORT analysis
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirm == 'RUN') }}
     needs: replay
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -174,12 +169,14 @@ jobs:
           done
           find replay-chunks -maxdepth 2 -type f -print
 
-      - name: Merge chunks into one 30-day artifact
+      - name: Merge chunks into one 30-day offset-90 artifact
         run: |
-          python tools/merge_backtest_chunks.py replay-chunks --expected-offset-days 90 --expected-days 30 --output backtest_results.json
+          set -euo pipefail
+          python tools/merge_backtest_chunks.py             replay-chunks             --expected-offset-days 90             --expected-days 30             --output backtest_results.json
 
-      - name: Run full SHORT candidate analysis on the merged 30-day result
+      - name: Run full SHORT candidate analysis on merged result
         run: |
+          set -euo pipefail
           python tools/short_candidate_analysis.py
 
       - name: Upload merged 30-day result
