@@ -14,13 +14,13 @@
   "CELO/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-13T22:26:07.068445+00:00",
-    "last_seen": "2026-11-13T22:26:07.068445+00:00",
-    "observations": 1,
+    "last_seen": "2026-11-14T02:19:10.831309+00:00",
+    "observations": 2,
     "pool_level": 0.06613,
     "range_high": 0.06776,
     "range_low": 0.06018,
     "regime": "BEAR_CAUTION",
-    "sweep_extreme": 0.06657,
+    "sweep_extreme": 0.06622,
     "symbol": "CELO/USDT:USDT"
   },
   "FET/USDT:USDT|SHORT": {
@@ -38,13 +38,13 @@
   "IOTA/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-13T22:25:21.003893+00:00",
-    "last_seen": "2026-11-13T22:25:21.003893+00:00",
-    "observations": 1,
-    "pool_level": 0.03547,
+    "last_seen": "2026-11-14T02:18:43.994278+00:00",
+    "observations": 2,
+    "pool_level": 0.03475,
     "range_high": 0.03547,
     "range_low": 0.03285,
     "regime": "BEAR_CAUTION",
-    "sweep_extreme": 0.0359,
+    "sweep_extreme": 0.03505,
     "symbol": "IOTA/USDT:USDT"
   },
   "SNX/USDT:USDT|SHORT": {
