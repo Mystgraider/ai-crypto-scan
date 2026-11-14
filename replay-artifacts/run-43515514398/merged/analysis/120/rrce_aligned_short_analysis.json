@@ -1,0 +1,1119 @@
+{
+  "research_only": true,
+  "production_strategy_changed": false,
+  "long_logic_changed": false,
+  "risk_or_sl_tp_geometry_changed": false,
+  "method": "RRCE cohorts are observed scanner outputs; indicator overlays are fixed hypotheses. First two chronological thirds are discovery, final third is holdout.",
+  "warning": "This replay is regime-sensitive. A candidate is not approved by a positive aggregate result; independent additional holdout and economic expectancy checks remain required.",
+  "baseline": {
+    "signals": 6720,
+    "tp3": 643,
+    "sl": 5541,
+    "expired": 536,
+    "incomplete_data": 0,
+    "open_or_other": 0,
+    "resolved": 6184,
+    "tp3_rate_pct": 10.4
+  },
+  "rrce_status_cohorts": {
+    "NONQUALIFYING": {
+      "signals": 6648,
+      "tp3": 625,
+      "sl": 5487,
+      "expired": 536,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 6112,
+      "tp3_rate_pct": 10.23,
+      "sl_distance_pct_median": 1.39488,
+      "tp3_distance_pct_median": 5.57952,
+      "sl_geometry_observations": 6648
+    },
+    "QUALIFIED": {
+      "signals": 72,
+      "tp3": 18,
+      "sl": 54,
+      "expired": 0,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 72,
+      "tp3_rate_pct": 25.0,
+      "sl_distance_pct_median": 0.44134,
+      "tp3_distance_pct_median": 2.00877,
+      "sl_geometry_observations": 72
+    }
+  },
+  "rrce_failed_stage_cohorts": {
+    "RRCE_QUALIFIED": {
+      "signals": 72,
+      "tp3": 18,
+      "sl": 54,
+      "expired": 0,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 72,
+      "tp3_rate_pct": 25.0,
+      "sl_distance_pct_median": 0.44134,
+      "tp3_distance_pct_median": 2.00877,
+      "sl_geometry_observations": 72
+    },
+    "stage1_range": {
+      "signals": 2837,
+      "tp3": 268,
+      "sl": 2436,
+      "expired": 133,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 2704,
+      "tp3_rate_pct": 9.91,
+      "sl_distance_pct_median": 1.22395,
+      "tp3_distance_pct_median": 4.8958,
+      "sl_geometry_observations": 2837
+    },
+    "stage2_retail_liquidity": {
+      "signals": 1829,
+      "tp3": 151,
+      "sl": 1463,
+      "expired": 215,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 1614,
+      "tp3_rate_pct": 9.36,
+      "sl_distance_pct_median": 1.44459,
+      "tp3_distance_pct_median": 5.77835,
+      "sl_geometry_observations": 1829
+    },
+    "stage3_confirmation": {
+      "signals": 1824,
+      "tp3": 188,
+      "sl": 1452,
+      "expired": 184,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 1640,
+      "tp3_rate_pct": 11.46,
+      "sl_distance_pct_median": 1.54086,
+      "tp3_distance_pct_median": 6.16343,
+      "sl_geometry_observations": 1824
+    },
+    "stage4_execution": {
+      "signals": 158,
+      "tp3": 18,
+      "sl": 136,
+      "expired": 4,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 154,
+      "tp3_rate_pct": 11.69,
+      "sl_distance_pct_median": 1.52335,
+      "tp3_distance_pct_median": 6.09339,
+      "sl_geometry_observations": 158
+    }
+  },
+  "rrce_choch_confirmed_cohorts": {
+    "False": {
+      "signals": 6490,
+      "tp3": 607,
+      "sl": 5351,
+      "expired": 532,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 5958,
+      "tp3_rate_pct": 10.19,
+      "sl_distance_pct_median": 1.38917,
+      "tp3_distance_pct_median": 5.55667,
+      "sl_geometry_observations": 6490
+    },
+    "True": {
+      "signals": 230,
+      "tp3": 36,
+      "sl": 190,
+      "expired": 4,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 226,
+      "tp3_rate_pct": 15.93,
+      "sl_distance_pct_median": 1.18121,
+      "tp3_distance_pct_median": 4.71253,
+      "sl_geometry_observations": 230
+    }
+  },
+  "rrce_stage_pass_cohorts": {
+    "stage1_4h_premium:True": {
+      "signals": 3883,
+      "tp3": 375,
+      "sl": 3105,
+      "expired": 403,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 3480,
+      "tp3_rate_pct": 10.78,
+      "sl_distance_pct_median": 1.48212,
+      "tp3_distance_pct_median": 5.92847,
+      "sl_geometry_observations": 3883
+    },
+    "stage1_4h_premium:False": {
+      "signals": 1503,
+      "tp3": 182,
+      "sl": 1264,
+      "expired": 57,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 1446,
+      "tp3_rate_pct": 12.59,
+      "sl_distance_pct_median": 1.37935,
+      "tp3_distance_pct_median": 5.51738,
+      "sl_geometry_observations": 1503
+    },
+    "stage1_4h_premium:None": {
+      "signals": 1334,
+      "tp3": 86,
+      "sl": 1172,
+      "expired": 76,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 1258,
+      "tp3_rate_pct": 6.84,
+      "sl_distance_pct_median": 1.12759,
+      "tp3_distance_pct_median": 4.51035,
+      "sl_geometry_observations": 1334
+    },
+    "stage2_1h_liquidity_sweep:True": {
+      "signals": 2054,
+      "tp3": 224,
+      "sl": 1642,
+      "expired": 188,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 1866,
+      "tp3_rate_pct": 12.0,
+      "sl_distance_pct_median": 1.52475,
+      "tp3_distance_pct_median": 6.09898,
+      "sl_geometry_observations": 2054
+    },
+    "stage2_1h_liquidity_sweep:False": {
+      "signals": 1829,
+      "tp3": 151,
+      "sl": 1463,
+      "expired": 215,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 1614,
+      "tp3_rate_pct": 9.36,
+      "sl_distance_pct_median": 1.44459,
+      "tp3_distance_pct_median": 5.77835,
+      "sl_geometry_observations": 1829
+    },
+    "stage2_1h_liquidity_sweep:None": {
+      "signals": 2837,
+      "tp3": 268,
+      "sl": 2436,
+      "expired": 133,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 2704,
+      "tp3_rate_pct": 9.91,
+      "sl_distance_pct_median": 1.22395,
+      "tp3_distance_pct_median": 4.8958,
+      "sl_geometry_observations": 2837
+    },
+    "stage3_15m_choch:True": {
+      "signals": 230,
+      "tp3": 36,
+      "sl": 190,
+      "expired": 4,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 226,
+      "tp3_rate_pct": 15.93,
+      "sl_distance_pct_median": 1.18121,
+      "tp3_distance_pct_median": 4.71253,
+      "sl_geometry_observations": 230
+    },
+    "stage3_15m_choch:False": {
+      "signals": 1824,
+      "tp3": 188,
+      "sl": 1452,
+      "expired": 184,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 1640,
+      "tp3_rate_pct": 11.46,
+      "sl_distance_pct_median": 1.54086,
+      "tp3_distance_pct_median": 6.16343,
+      "sl_geometry_observations": 1824
+    },
+    "stage3_15m_choch:None": {
+      "signals": 4666,
+      "tp3": 419,
+      "sl": 3899,
+      "expired": 348,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 4318,
+      "tp3_rate_pct": 9.7,
+      "sl_distance_pct_median": 1.32635,
+      "tp3_distance_pct_median": 5.3054,
+      "sl_geometry_observations": 4666
+    },
+    "stage4_5m_execution:True": {
+      "signals": 230,
+      "tp3": 36,
+      "sl": 190,
+      "expired": 4,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 226,
+      "tp3_rate_pct": 15.93,
+      "sl_distance_pct_median": 1.18121,
+      "tp3_distance_pct_median": 4.71253,
+      "sl_geometry_observations": 230
+    },
+    "stage4_5m_execution:None": {
+      "signals": 6490,
+      "tp3": 607,
+      "sl": 5351,
+      "expired": 532,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 5958,
+      "tp3_rate_pct": 10.19,
+      "sl_distance_pct_median": 1.38917,
+      "tp3_distance_pct_median": 5.55667,
+      "sl_geometry_observations": 6490
+    }
+  },
+  "rrce_4h_premium_position_bands": {
+    "below_40pct": {
+      "signals": 1237,
+      "tp3": 182,
+      "sl": 1014,
+      "expired": 41,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 1196,
+      "tp3_rate_pct": 15.22,
+      "sl_distance_pct_median": 1.28485,
+      "tp3_distance_pct_median": 5.13938,
+      "sl_geometry_observations": 1237
+    },
+    "40_to_60pct": {
+      "signals": 1716,
+      "tp3": 174,
+      "sl": 1368,
+      "expired": 174,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 1542,
+      "tp3_rate_pct": 11.28,
+      "sl_distance_pct_median": 1.15901,
+      "tp3_distance_pct_median": 4.62397,
+      "sl_geometry_observations": 1716
+    },
+    "60_to_80pct": {
+      "signals": 1415,
+      "tp3": 140,
+      "sl": 1082,
+      "expired": 193,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 1222,
+      "tp3_rate_pct": 11.46,
+      "sl_distance_pct_median": 1.46275,
+      "tp3_distance_pct_median": 5.85099,
+      "sl_geometry_observations": 1415
+    },
+    "80_to_100pct": {
+      "signals": 753,
+      "tp3": 61,
+      "sl": 656,
+      "expired": 36,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 717,
+      "tp3_rate_pct": 8.51,
+      "sl_distance_pct_median": 1.98789,
+      "tp3_distance_pct_median": 7.95155,
+      "sl_geometry_observations": 753
+    },
+    "outside_or_missing": {
+      "signals": 1599,
+      "tp3": 86,
+      "sl": 1421,
+      "expired": 92,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 1507,
+      "tp3_rate_pct": 5.71,
+      "sl_distance_pct_median": 1.1415,
+      "tp3_distance_pct_median": 4.56601,
+      "sl_geometry_observations": 1599
+    }
+  },
+  "rrce_5m_entry_zone_cohorts": {
+    "FVG": {
+      "signals": 59,
+      "tp3": 0,
+      "sl": 56,
+      "expired": 3,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 56,
+      "tp3_rate_pct": 0.0,
+      "sl_distance_pct_median": 0.97695,
+      "tp3_distance_pct_median": 3.90779,
+      "sl_geometry_observations": 59
+    },
+    "NOT_REACHED_OR_MISSING": {
+      "signals": 6490,
+      "tp3": 607,
+      "sl": 5351,
+      "expired": 532,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 5958,
+      "tp3_rate_pct": 10.19,
+      "sl_distance_pct_median": 1.38917,
+      "tp3_distance_pct_median": 5.55667,
+      "sl_geometry_observations": 6490
+    },
+    "OB": {
+      "signals": 171,
+      "tp3": 36,
+      "sl": 134,
+      "expired": 1,
+      "incomplete_data": 0,
+      "open_or_other": 0,
+      "resolved": 170,
+      "tp3_rate_pct": 21.18,
+      "sl_distance_pct_median": 1.27992,
+      "tp3_distance_pct_median": 4.75519,
+      "sl_geometry_observations": 171
+    }
+  },
+  "full_rrce_sequence": {
+    "signals": 230,
+    "tp3": 36,
+    "sl": 190,
+    "expired": 4,
+    "incomplete_data": 0,
+    "open_or_other": 0,
+    "resolved": 226,
+    "tp3_rate_pct": 15.93,
+    "sl_distance_pct_median": 1.18121,
+    "tp3_distance_pct_median": 4.71253,
+    "sl_geometry_observations": 230
+  },
+  "rrce_stage3_plus_bearish_15m_momentum": {
+    "signals": 56,
+    "tp3": 16,
+    "sl": 39,
+    "expired": 1,
+    "incomplete_data": 0,
+    "open_or_other": 0,
+    "resolved": 55,
+    "tp3_rate_pct": 29.09,
+    "sl_distance_pct_median": 1.28257,
+    "tp3_distance_pct_median": 3.83842,
+    "sl_geometry_observations": 56
+  },
+  "chronological_discovery": {
+    "signals": 4480,
+    "tp3": 242,
+    "sl": 3813,
+    "expired": 425,
+    "incomplete_data": 0,
+    "open_or_other": 0,
+    "resolved": 4055,
+    "tp3_rate_pct": 5.97,
+    "start": "2026-06-28T21:00:00+00:00",
+    "end": "2026-07-20T02:40:00+00:00"
+  },
+  "chronological_holdout": {
+    "signals": 2240,
+    "tp3": 401,
+    "sl": 1728,
+    "expired": 111,
+    "incomplete_data": 0,
+    "open_or_other": 0,
+    "resolved": 2129,
+    "tp3_rate_pct": 18.84,
+    "start": "2026-07-20T02:40:00+00:00",
+    "end": "2026-07-28T17:55:00+00:00"
+  },
+  "fixed_indicator_candidates": {
+    "4h_rsi_below_50_and_macd_negative": {
+      "all": {
+        "signals": 1911,
+        "tp3": 54,
+        "sl": 1736,
+        "expired": 121,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 1790,
+        "tp3_rate_pct": 3.02,
+        "sl_distance_pct_median": 1.13674,
+        "tp3_distance_pct_median": 4.54694,
+        "sl_geometry_observations": 1911
+      },
+      "discovery_first_2_thirds": {
+        "signals": 1130,
+        "tp3": 0,
+        "sl": 1035,
+        "expired": 95,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 1035,
+        "tp3_rate_pct": 0.0,
+        "sl_distance_pct_median": 1.44437,
+        "tp3_distance_pct_median": 5.7775,
+        "sl_geometry_observations": 1130
+      },
+      "holdout_last_1_third": {
+        "signals": 781,
+        "tp3": 54,
+        "sl": 701,
+        "expired": 26,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 755,
+        "tp3_rate_pct": 7.15,
+        "sl_distance_pct_median": 0.81407,
+        "tp3_distance_pct_median": 3.25627,
+        "sl_geometry_observations": 781
+      },
+      "holdout_symbol_count": 8,
+      "minimum_holdout_evidence_met": true,
+      "screening_status": "NOT_REJECTED_BY_BASIC_HOLDOUT_SCREEN",
+      "by_symbol_all_periods": {
+        "AVAX/USDT:USDT": {
+          "signals": 190,
+          "tp3": 11,
+          "sl": 124,
+          "expired": 55,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 135,
+          "tp3_rate_pct": 8.15
+        },
+        "BNB/USDT:USDT": {
+          "signals": 333,
+          "tp3": 5,
+          "sl": 327,
+          "expired": 1,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 332,
+          "tp3_rate_pct": 1.51
+        },
+        "ETH/USDT:USDT": {
+          "signals": 189,
+          "tp3": 0,
+          "sl": 189,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 189,
+          "tp3_rate_pct": 0.0
+        },
+        "LINK/USDT:USDT": {
+          "signals": 314,
+          "tp3": 0,
+          "sl": 314,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 314,
+          "tp3_rate_pct": 0.0
+        },
+        "LTC/USDT:USDT": {
+          "signals": 178,
+          "tp3": 0,
+          "sl": 166,
+          "expired": 12,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 166,
+          "tp3_rate_pct": 0.0
+        },
+        "SOL/USDT:USDT": {
+          "signals": 185,
+          "tp3": 0,
+          "sl": 151,
+          "expired": 34,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 151,
+          "tp3_rate_pct": 0.0
+        },
+        "SUI/USDT:USDT": {
+          "signals": 202,
+          "tp3": 38,
+          "sl": 164,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 202,
+          "tp3_rate_pct": 18.81
+        },
+        "XRP/USDT:USDT": {
+          "signals": 320,
+          "tp3": 0,
+          "sl": 301,
+          "expired": 19,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 301,
+          "tp3_rate_pct": 0.0
+        }
+      }
+    },
+    "1h_rsi_45_60_and_macd_negative": {
+      "all": {
+        "signals": 852,
+        "tp3": 130,
+        "sl": 636,
+        "expired": 86,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 766,
+        "tp3_rate_pct": 16.97,
+        "sl_distance_pct_median": 1.22884,
+        "tp3_distance_pct_median": 4.90427,
+        "sl_geometry_observations": 852
+      },
+      "discovery_first_2_thirds": {
+        "signals": 569,
+        "tp3": 66,
+        "sl": 420,
+        "expired": 83,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 486,
+        "tp3_rate_pct": 13.58,
+        "sl_distance_pct_median": 1.39921,
+        "tp3_distance_pct_median": 5.59684,
+        "sl_geometry_observations": 569
+      },
+      "holdout_last_1_third": {
+        "signals": 283,
+        "tp3": 64,
+        "sl": 216,
+        "expired": 3,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 280,
+        "tp3_rate_pct": 22.86,
+        "sl_distance_pct_median": 0.84096,
+        "tp3_distance_pct_median": 3.36386,
+        "sl_geometry_observations": 283
+      },
+      "holdout_symbol_count": 7,
+      "minimum_holdout_evidence_met": true,
+      "screening_status": "NOT_REJECTED_BY_BASIC_HOLDOUT_SCREEN",
+      "by_symbol_all_periods": {
+        "AVAX/USDT:USDT": {
+          "signals": 184,
+          "tp3": 69,
+          "sl": 88,
+          "expired": 27,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 157,
+          "tp3_rate_pct": 43.95
+        },
+        "BNB/USDT:USDT": {
+          "signals": 241,
+          "tp3": 40,
+          "sl": 198,
+          "expired": 3,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 238,
+          "tp3_rate_pct": 16.81
+        },
+        "ETH/USDT:USDT": {
+          "signals": 36,
+          "tp3": 0,
+          "sl": 36,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 36,
+          "tp3_rate_pct": 0.0
+        },
+        "LINK/USDT:USDT": {
+          "signals": 58,
+          "tp3": 0,
+          "sl": 58,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 58,
+          "tp3_rate_pct": 0.0
+        },
+        "LTC/USDT:USDT": {
+          "signals": 36,
+          "tp3": 0,
+          "sl": 31,
+          "expired": 5,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 31,
+          "tp3_rate_pct": 0.0
+        },
+        "SOL/USDT:USDT": {
+          "signals": 89,
+          "tp3": 0,
+          "sl": 50,
+          "expired": 39,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 50,
+          "tp3_rate_pct": 0.0
+        },
+        "SUI/USDT:USDT": {
+          "signals": 79,
+          "tp3": 6,
+          "sl": 72,
+          "expired": 1,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 78,
+          "tp3_rate_pct": 7.69
+        },
+        "XRP/USDT:USDT": {
+          "signals": 129,
+          "tp3": 15,
+          "sl": 103,
+          "expired": 11,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 118,
+          "tp3_rate_pct": 12.71
+        }
+      }
+    },
+    "15m_rsi_below_50_and_macd_negative": {
+      "all": {
+        "signals": 1132,
+        "tp3": 141,
+        "sl": 912,
+        "expired": 79,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 1053,
+        "tp3_rate_pct": 13.39,
+        "sl_distance_pct_median": 1.35563,
+        "tp3_distance_pct_median": 5.42251,
+        "sl_geometry_observations": 1132
+      },
+      "discovery_first_2_thirds": {
+        "signals": 715,
+        "tp3": 35,
+        "sl": 608,
+        "expired": 72,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 643,
+        "tp3_rate_pct": 5.44,
+        "sl_distance_pct_median": 1.55332,
+        "tp3_distance_pct_median": 6.21328,
+        "sl_geometry_observations": 715
+      },
+      "holdout_last_1_third": {
+        "signals": 417,
+        "tp3": 106,
+        "sl": 304,
+        "expired": 7,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 410,
+        "tp3_rate_pct": 25.85,
+        "sl_distance_pct_median": 0.86831,
+        "tp3_distance_pct_median": 3.47205,
+        "sl_geometry_observations": 417
+      },
+      "holdout_symbol_count": 8,
+      "minimum_holdout_evidence_met": true,
+      "screening_status": "NOT_REJECTED_BY_BASIC_HOLDOUT_SCREEN",
+      "by_symbol_all_periods": {
+        "AVAX/USDT:USDT": {
+          "signals": 177,
+          "tp3": 59,
+          "sl": 86,
+          "expired": 32,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 145,
+          "tp3_rate_pct": 40.69
+        },
+        "BNB/USDT:USDT": {
+          "signals": 211,
+          "tp3": 15,
+          "sl": 193,
+          "expired": 3,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 208,
+          "tp3_rate_pct": 7.21
+        },
+        "ETH/USDT:USDT": {
+          "signals": 39,
+          "tp3": 0,
+          "sl": 39,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 39,
+          "tp3_rate_pct": 0.0
+        },
+        "LINK/USDT:USDT": {
+          "signals": 134,
+          "tp3": 0,
+          "sl": 134,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 134,
+          "tp3_rate_pct": 0.0
+        },
+        "LTC/USDT:USDT": {
+          "signals": 105,
+          "tp3": 1,
+          "sl": 101,
+          "expired": 3,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 102,
+          "tp3_rate_pct": 0.98
+        },
+        "SOL/USDT:USDT": {
+          "signals": 145,
+          "tp3": 0,
+          "sl": 117,
+          "expired": 28,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 117,
+          "tp3_rate_pct": 0.0
+        },
+        "SUI/USDT:USDT": {
+          "signals": 150,
+          "tp3": 35,
+          "sl": 114,
+          "expired": 1,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 149,
+          "tp3_rate_pct": 23.49
+        },
+        "XRP/USDT:USDT": {
+          "signals": 171,
+          "tp3": 31,
+          "sl": 128,
+          "expired": 12,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 159,
+          "tp3_rate_pct": 19.5
+        }
+      }
+    },
+    "4h_and_15m_bearish_momentum": {
+      "all": {
+        "signals": 170,
+        "tp3": 3,
+        "sl": 167,
+        "expired": 0,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 170,
+        "tp3_rate_pct": 1.76,
+        "sl_distance_pct_median": 0.86905,
+        "tp3_distance_pct_median": 3.4762,
+        "sl_geometry_observations": 170
+      },
+      "discovery_first_2_thirds": {
+        "signals": 88,
+        "tp3": 0,
+        "sl": 88,
+        "expired": 0,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 88,
+        "tp3_rate_pct": 0.0,
+        "sl_distance_pct_median": 1.42413,
+        "tp3_distance_pct_median": 5.69651,
+        "sl_geometry_observations": 88
+      },
+      "holdout_last_1_third": {
+        "signals": 82,
+        "tp3": 3,
+        "sl": 79,
+        "expired": 0,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 82,
+        "tp3_rate_pct": 3.66,
+        "sl_distance_pct_median": 0.75522,
+        "tp3_distance_pct_median": 3.02087,
+        "sl_geometry_observations": 82
+      },
+      "holdout_symbol_count": 6,
+      "minimum_holdout_evidence_met": true,
+      "screening_status": "NOT_REJECTED_BY_BASIC_HOLDOUT_SCREEN",
+      "by_symbol_all_periods": {
+        "BNB/USDT:USDT": {
+          "signals": 27,
+          "tp3": 0,
+          "sl": 27,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 27,
+          "tp3_rate_pct": 0.0
+        },
+        "ETH/USDT:USDT": {
+          "signals": 12,
+          "tp3": 0,
+          "sl": 12,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 12,
+          "tp3_rate_pct": 0.0
+        },
+        "LINK/USDT:USDT": {
+          "signals": 46,
+          "tp3": 0,
+          "sl": 46,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 46,
+          "tp3_rate_pct": 0.0
+        },
+        "LTC/USDT:USDT": {
+          "signals": 24,
+          "tp3": 0,
+          "sl": 24,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 24,
+          "tp3_rate_pct": 0.0
+        },
+        "SOL/USDT:USDT": {
+          "signals": 8,
+          "tp3": 0,
+          "sl": 8,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 8,
+          "tp3_rate_pct": 0.0
+        },
+        "SUI/USDT:USDT": {
+          "signals": 12,
+          "tp3": 3,
+          "sl": 9,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 12,
+          "tp3_rate_pct": 25.0
+        },
+        "XRP/USDT:USDT": {
+          "signals": 41,
+          "tp3": 0,
+          "sl": 41,
+          "expired": 0,
+          "incomplete_data": 0,
+          "open_or_other": 0,
+          "resolved": 41,
+          "tp3_rate_pct": 0.0
+        }
+      }
+    }
+  },
+  "by_symbol": {
+    "AVAX/USDT:USDT": {
+      "baseline": {
+        "signals": 1029,
+        "tp3": 256,
+        "sl": 525,
+        "expired": 248,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 781,
+        "tp3_rate_pct": 32.78
+      },
+      "rrce_qualified": {
+        "signals": 15,
+        "tp3": 14,
+        "sl": 1,
+        "expired": 0,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 15,
+        "tp3_rate_pct": 93.33
+      }
+    },
+    "BNB/USDT:USDT": {
+      "baseline": {
+        "signals": 1301,
+        "tp3": 104,
+        "sl": 1170,
+        "expired": 27,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 1274,
+        "tp3_rate_pct": 8.16
+      },
+      "rrce_qualified": {
+        "signals": 47,
+        "tp3": 4,
+        "sl": 43,
+        "expired": 0,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 47,
+        "tp3_rate_pct": 8.51
+      }
+    },
+    "ETH/USDT:USDT": {
+      "baseline": {
+        "signals": 456,
+        "tp3": 0,
+        "sl": 456,
+        "expired": 0,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 456,
+        "tp3_rate_pct": 0.0
+      },
+      "rrce_qualified": {
+        "signals": 0,
+        "tp3": 0,
+        "sl": 0,
+        "expired": 0,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 0,
+        "tp3_rate_pct": null
+      }
+    },
+    "LINK/USDT:USDT": {
+      "baseline": {
+        "signals": 806,
+        "tp3": 0,
+        "sl": 806,
+        "expired": 0,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 806,
+        "tp3_rate_pct": 0.0
+      },
+      "rrce_qualified": {
+        "signals": 0,
+        "tp3": 0,
+        "sl": 0,
+        "expired": 0,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 0,
+        "tp3_rate_pct": null
+      }
+    },
+    "LTC/USDT:USDT": {
+      "baseline": {
+        "signals": 579,
+        "tp3": 1,
+        "sl": 522,
+        "expired": 56,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 523,
+        "tp3_rate_pct": 0.19
+      },
+      "rrce_qualified": {
+        "signals": 0,
+        "tp3": 0,
+        "sl": 0,
+        "expired": 0,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 0,
+        "tp3_rate_pct": null
+      }
+    },
+    "SOL/USDT:USDT": {
+      "baseline": {
+        "signals": 806,
+        "tp3": 23,
+        "sl": 671,
+        "expired": 112,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 694,
+        "tp3_rate_pct": 3.31
+      },
+      "rrce_qualified": {
+        "signals": 2,
+        "tp3": 0,
+        "sl": 2,
+        "expired": 0,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 2,
+        "tp3_rate_pct": 0.0
+      }
+    },
+    "SUI/USDT:USDT": {
+      "baseline": {
+        "signals": 794,
+        "tp3": 138,
+        "sl": 629,
+        "expired": 27,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 767,
+        "tp3_rate_pct": 17.99
+      },
+      "rrce_qualified": {
+        "signals": 0,
+        "tp3": 0,
+        "sl": 0,
+        "expired": 0,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 0,
+        "tp3_rate_pct": null
+      }
+    },
+    "XRP/USDT:USDT": {
+      "baseline": {
+        "signals": 949,
+        "tp3": 121,
+        "sl": 762,
+        "expired": 66,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 883,
+        "tp3_rate_pct": 13.7
+      },
+      "rrce_qualified": {
+        "signals": 8,
+        "tp3": 0,
+        "sl": 8,
+        "expired": 0,
+        "incomplete_data": 0,
+        "open_or_other": 0,
+        "resolved": 8,
+        "tp3_rate_pct": 0.0
+      }
+    }
+  },
+  "decision": "NO_PRODUCTION_CHANGE"
+}

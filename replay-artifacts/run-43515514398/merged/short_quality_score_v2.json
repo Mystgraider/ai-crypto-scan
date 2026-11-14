@@ -1,0 +1,175 @@
+{
+  "research_only": true,
+  "production_strategy_changed": false,
+  "long_logic_changed": false,
+  "risk_or_sl_tp_geometry_changed": false,
+  "rrce_gate_changed": false,
+  "decision": "NOT_VALIDATED",
+  "method": {
+    "description": "Frozen RRCE-aligned indicator ranking with a fixed moderate planned-SL penalty.",
+    "features": {
+      "adx_4h": "adx_4h",
+      "macd_hist_15m": "macd_hist_15m",
+      "macd_hist_1h": "macd_hist",
+      "support_distance_pct": "support_distance_pct"
+    },
+    "sl_penalty_weight": 0.3,
+    "selection_rule": "top half by frozen score; threshold is the pooled discovery median.",
+    "weights_fit_only_from": [
+      "120d discovery",
+      "90d discovery",
+      "60d discovery"
+    ],
+    "fresh_validation_window": "30d"
+  },
+  "discovery_auc_median": {
+    "adx_4h": 0.3415502771179731,
+    "macd_hist_15m": 0.4612932172077065,
+    "macd_hist_1h": 0.42900956222242365,
+    "support_distance_pct": 0.46903607359738964
+  },
+  "discovery_auc_by_window": {
+    "adx_4h": [
+      0.39068118420453735,
+      0.3415502771179731,
+      0.3257216985407414
+    ],
+    "macd_hist_15m": [
+      0.4860936812513953,
+      0.4612932172077065,
+      0.427501586150639
+    ],
+    "macd_hist_1h": [
+      0.273242582465814,
+      0.4321155977830562,
+      0.42900956222242365
+    ],
+    "support_distance_pct": [
+      0.5069211895797977,
+      0.39016627078384797,
+      0.46903607359738964
+    ]
+  },
+  "derived_weights": {
+    "adx_4h": -0.5909063174179027,
+    "macd_hist_15m": -0.14434914787397965,
+    "macd_hist_1h": -0.2647445347081177
+  },
+  "pooled_discovery_threshold": -0.14881767499999998,
+  "windows": {
+    "short_window_120": {
+      "role": "historical_holdout_check",
+      "holdout": {
+        "signals": 2240,
+        "tp3": 401,
+        "sl": 1728,
+        "expired": 111,
+        "resolved": 2129,
+        "tp3_rate_pct": 18.84,
+        "median_sl_distance_pct": 0.9472,
+        "p75_sl_distance_pct": 1.32554
+      },
+      "scored": 2240,
+      "score_coverage_pct": 100.0,
+      "selected": {
+        "signals": 1570,
+        "tp3": 348,
+        "sl": 1141,
+        "expired": 81,
+        "resolved": 1489,
+        "tp3_rate_pct": 23.37,
+        "median_sl_distance_pct": 0.85373,
+        "p75_sl_distance_pct": 1.29987
+      },
+      "selected_retention_pct": 70.09,
+      "approval_check": true
+    },
+    "short_window_90": {
+      "role": "historical_holdout_check",
+      "holdout": {
+        "signals": 1910,
+        "tp3": 56,
+        "sl": 1373,
+        "expired": 481,
+        "resolved": 1429,
+        "tp3_rate_pct": 3.92,
+        "median_sl_distance_pct": 0.93158,
+        "p75_sl_distance_pct": 1.32061
+      },
+      "scored": 1910,
+      "score_coverage_pct": 100.0,
+      "selected": {
+        "signals": 880,
+        "tp3": 51,
+        "sl": 628,
+        "expired": 201,
+        "resolved": 679,
+        "tp3_rate_pct": 7.51,
+        "median_sl_distance_pct": 0.97233,
+        "p75_sl_distance_pct": 1.2872
+      },
+      "selected_retention_pct": 46.07,
+      "approval_check": false
+    },
+    "short_window_60": {
+      "role": "historical_holdout_check",
+      "holdout": {
+        "signals": 1118,
+        "tp3": 69,
+        "sl": 949,
+        "expired": 100,
+        "resolved": 1018,
+        "tp3_rate_pct": 6.78,
+        "median_sl_distance_pct": 1.73722,
+        "p75_sl_distance_pct": 1.90743
+      },
+      "scored": 1118,
+      "score_coverage_pct": 100.0,
+      "selected": {
+        "signals": 283,
+        "tp3": 30,
+        "sl": 249,
+        "expired": 4,
+        "resolved": 279,
+        "tp3_rate_pct": 10.75,
+        "median_sl_distance_pct": 1.35338,
+        "p75_sl_distance_pct": 1.7812
+      },
+      "selected_retention_pct": 25.31,
+      "approval_check": true
+    },
+    "short_window_30": {
+      "role": "fresh_validation",
+      "holdout": {
+        "signals": 1322,
+        "tp3": 236,
+        "sl": 780,
+        "expired": 306,
+        "resolved": 1016,
+        "tp3_rate_pct": 23.23,
+        "median_sl_distance_pct": 1.64879,
+        "p75_sl_distance_pct": 1.89442
+      },
+      "scored": 1322,
+      "score_coverage_pct": 100.0,
+      "selected": {
+        "signals": 203,
+        "tp3": 4,
+        "sl": 186,
+        "expired": 13,
+        "resolved": 190,
+        "tp3_rate_pct": 2.11,
+        "median_sl_distance_pct": 1.00358,
+        "p75_sl_distance_pct": 1.20316
+      },
+      "selected_retention_pct": 15.36,
+      "approval_check": false
+    }
+  },
+  "approval_checks": {
+    "short_window_120": true,
+    "short_window_90": false,
+    "short_window_60": true,
+    "short_window_30": false
+  }
+}
