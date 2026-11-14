@@ -1,0 +1,41 @@
+name: Fetch replay artifacts run 43515514398 (research, read-only)
+
+# One-shot helper: copies EXISTING artifacts of a finished run onto this branch so they
+# can be inspected offline. It does not run the scanner or any backtest.
+on:
+  push:
+    branches: [research/fetch-offset-artifacts]
+    paths: [".github/workflows/fetch-offset-artifacts.yml"]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download merged multi-window audit result
+        uses: actions/download-artifact@v4
+        with:
+          name: short-multi-window-audit-result
+          run-id: 43515514398
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: replay-artifacts/run-43515514398/merged
+      - name: Download per-chunk replay results (windows 30/60/90/120)
+        uses: actions/download-artifact@v4
+        with:
+          pattern: short-holdout-window-*
+          run-id: 43515514398
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: replay-artifacts/run-43515514398/chunks
+      - name: Record checksums and commit to this branch
+        run: |
+          find replay-artifacts -type f | sort | xargs sha256sum | tee replay-artifacts/SHA256.txt
+          du -sh replay-artifacts
+          git config user.name "claude-audit"
+          git config user.email "claude-audit@users.noreply.github.com"
+          git add replay-artifacts
+          git commit -m "Add replay artifacts of run 43515514398 (windows 30/60/90/120) [skip ci]"
+          git push origin HEAD:research/fetch-offset-artifacts
