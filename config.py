@@ -29,6 +29,11 @@ CONFIG = {
     "short_rsi_floor": 50.0,
     "short_rsi_ceiling": 70.0,
     "short_require_15m_not_bearish": True,
+    # Closed-candle 4H RSI floor for SHORT only (engines/short_gate.py). Replay
+    # evidence: held in discovery, development and an untouched holdout and stays
+    # significant after controlling for 1H RSI/ADX. Modest effect; needs forward
+    # validation. 0 disables. Fails closed when 4H RSI is unavailable.
+    "short_rsi_4h_floor": 50.0,
 
     # BTC is market context/safety, not the source of coin direction.
     "btc_symbol": "BTC/USDT:USDT",

@@ -54,6 +54,9 @@ from ai.signal_ranker            import AISignalRanker
 from ai.confidence_engine        import ConfidenceEngine
 from config                      import CONFIG
 from engines.direction_policy    import get_candidate_directions
+from engines.short_gate           import short_rsi_4h_check, validate_short_gate_config
+
+validate_short_gate_config(CONFIG)
 
 
 def grade_score(score: float) -> str:
@@ -1022,13 +1025,10 @@ def main():
                         _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="mtf")
                     continue
 
-                # Research SHORT setup gate.
-                #
-                # Run #168 discovery identified RSI 50-70 with ADX <20 as
-                # the strongest broad SHORT regime. This gate is direction-
-                # specific; LONG is untouched. It remains on this research
-                # branch until independent chronological validation confirms
-                # that the edge generalizes outside the discovery window.
+                # Research SHORT setup gate (direction-specific; LONG untouched).
+                # 1H RSI band + 15M not-bearish + closed-candle 4H RSI floor.
+                # ADX/ATR/EMA20 hard thresholds were removed as unstable across
+                # replay windows; they remain telemetry only.
                 if direction == "SHORT":
                     short_rsi_floor = float(CONFIG.get("short_rsi_floor", 0.0))
                     short_rsi_ceiling = float(CONFIG.get("short_rsi_ceiling", 100.0))
@@ -1058,6 +1058,16 @@ def main():
                         skip["short_15m_bearish"] = skip.get("short_15m_bearish", 0) + 1
                         _trace(symbol, "short_15m_bearish_block", direction=direction,
                                mtf_15m=mtf_15m_dir)
+                        continue
+
+                    short_rsi_4h_ok, short_rsi_4h_reason, short_rsi_4h_value = short_rsi_4h_check(
+                        df_4h, CONFIG.get("short_rsi_4h_floor", 0.0)
+                    )
+                    if not short_rsi_4h_ok:
+                        skip[short_rsi_4h_reason] = skip.get(short_rsi_4h_reason, 0) + 1
+                        _trace(symbol, short_rsi_4h_reason + "_block", direction=direction,
+                               rsi_4h=short_rsi_4h_value,
+                               floor=CONFIG.get("short_rsi_4h_floor", 0.0))
                         continue
 
                 quality_score = quality_engine.score(
