@@ -2,8 +2,8 @@
   "CKB/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-16T16:00:46.601157+00:00",
-    "last_seen": "2026-11-16T16:30:54.660885+00:00",
-    "observations": 7,
+    "last_seen": "2026-11-16T16:35:47.534422+00:00",
+    "observations": 8,
     "pool_level": 0.000853,
     "range_high": 0.000966,
     "range_low": 0.000783,
@@ -14,8 +14,8 @@
   "GALA/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-16T16:04:12.389782+00:00",
-    "last_seen": "2026-11-16T16:29:12.301240+00:00",
-    "observations": 5,
+    "last_seen": "2026-11-16T16:34:10.099221+00:00",
+    "observations": 6,
     "pool_level": 0.001371,
     "range_high": 0.001579,
     "range_low": 0.001256,
@@ -26,8 +26,8 @@
   "GRT/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-16T16:05:10.988474+00:00",
-    "last_seen": "2026-11-16T16:30:10.664696+00:00",
-    "observations": 6,
+    "last_seen": "2026-11-16T16:35:06.887717+00:00",
+    "observations": 7,
     "pool_level": 0.01695,
     "range_high": 0.01826,
     "range_low": 0.01551,
@@ -38,8 +38,8 @@
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-16T13:00:21.228237+00:00",
-    "last_seen": "2026-11-16T16:30:39.065226+00:00",
-    "observations": 43,
+    "last_seen": "2026-11-16T16:35:33.327002+00:00",
+    "observations": 44,
     "pool_level": 1.0004,
     "range_high": 1.0008,
     "range_low": 0.9994,
