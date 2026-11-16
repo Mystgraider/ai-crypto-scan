@@ -1,0 +1,2642 @@
+{
+  "research_only": true,
+  "production_strategy_changed": false,
+  "direction": "SHORT",
+  "long_changed": false,
+  "risk_geometry_changed": false,
+  "sl_tp_changed": false,
+  "rrce_gate_changed": false,
+  "baseline": {
+    "signals": 1827,
+    "tp3": 283,
+    "sl": 1382,
+    "expired": 162,
+    "resolved": 1665,
+    "tp3_rate_pct": 17.0,
+    "sl_distance_pct_median": 1.3989,
+    "tp3_distance_pct_median": 5.5923
+  },
+  "baseline_symbols": {
+    "AVAX/USDT:USDT": {
+      "signals": 210,
+      "tp3": 92,
+      "sl": 113,
+      "expired": 5,
+      "resolved": 205,
+      "tp3_rate_pct": 44.88,
+      "sl_distance_pct_median": 1.2968,
+      "tp3_distance_pct_median": 5.1873
+    },
+    "BNB/USDT:USDT": {
+      "signals": 297,
+      "tp3": 39,
+      "sl": 189,
+      "expired": 69,
+      "resolved": 228,
+      "tp3_rate_pct": 17.11,
+      "sl_distance_pct_median": 1.0651,
+      "tp3_distance_pct_median": 4.2558
+    },
+    "ETH/USDT:USDT": {
+      "signals": 439,
+      "tp3": 8,
+      "sl": 364,
+      "expired": 67,
+      "resolved": 372,
+      "tp3_rate_pct": 2.15,
+      "sl_distance_pct_median": 1.3192,
+      "tp3_distance_pct_median": 5.2769
+    },
+    "LINK/USDT:USDT": {
+      "signals": 102,
+      "tp3": 16,
+      "sl": 75,
+      "expired": 11,
+      "resolved": 91,
+      "tp3_rate_pct": 17.58,
+      "sl_distance_pct_median": 1.9954,
+      "tp3_distance_pct_median": 7.9817
+    },
+    "LTC/USDT:USDT": {
+      "signals": 223,
+      "tp3": 20,
+      "sl": 199,
+      "expired": 4,
+      "resolved": 219,
+      "tp3_rate_pct": 9.13,
+      "sl_distance_pct_median": 1.6468,
+      "tp3_distance_pct_median": 6.5874
+    },
+    "SOL/USDT:USDT": {
+      "signals": 257,
+      "tp3": 66,
+      "sl": 191,
+      "expired": 0,
+      "resolved": 257,
+      "tp3_rate_pct": 25.68,
+      "sl_distance_pct_median": 1.5144,
+      "tp3_distance_pct_median": 6.0576
+    },
+    "SUI/USDT:USDT": {
+      "signals": 13,
+      "tp3": 0,
+      "sl": 12,
+      "expired": 1,
+      "resolved": 12,
+      "tp3_rate_pct": 0.0,
+      "sl_distance_pct_median": 2.425,
+      "tp3_distance_pct_median": 9.6999
+    },
+    "XRP/USDT:USDT": {
+      "signals": 286,
+      "tp3": 42,
+      "sl": 239,
+      "expired": 5,
+      "resolved": 281,
+      "tp3_rate_pct": 14.95,
+      "sl_distance_pct_median": 1.3855,
+      "tp3_distance_pct_median": 5.5422
+    }
+  },
+  "baseline_thirds": {
+    "first": {
+      "start": "2026-08-30T12:10:00+00:00",
+      "end": "2026-09-06T02:20:00+00:00",
+      "signals": 609,
+      "tp3": 115,
+      "sl": 477,
+      "expired": 17,
+      "resolved": 592,
+      "tp3_rate_pct": 19.43,
+      "sl_distance_pct_median": 1.387,
+      "tp3_distance_pct_median": 5.5478
+    },
+    "middle": {
+      "start": "2026-09-06T02:25:00+00:00",
+      "end": "2026-09-14T10:30:00+00:00",
+      "signals": 609,
+      "tp3": 84,
+      "sl": 434,
+      "expired": 91,
+      "resolved": 518,
+      "tp3_rate_pct": 16.22,
+      "sl_distance_pct_median": 1.3703,
+      "tp3_distance_pct_median": 5.4812
+    },
+    "last": {
+      "start": "2026-09-14T10:35:00+00:00",
+      "end": "2026-09-28T01:55:00+00:00",
+      "signals": 609,
+      "tp3": 84,
+      "sl": 471,
+      "expired": 54,
+      "resolved": 555,
+      "tp3_rate_pct": 15.14,
+      "sl_distance_pct_median": 1.4584,
+      "tp3_distance_pct_median": 5.8337
+    }
+  },
+  "chronological_discovery_rows": 1218,
+  "chronological_holdout_rows": 609,
+  "families": {
+    "current_premium_40_100": {
+      "all": {
+        "signals": 1432,
+        "tp3": 253,
+        "sl": 1093,
+        "expired": 86,
+        "resolved": 1346,
+        "tp3_rate_pct": 18.8,
+        "sl_distance_pct_median": 1.3675,
+        "tp3_distance_pct_median": 5.4684
+      },
+      "discovery": {
+        "signals": 1004,
+        "tp3": 179,
+        "sl": 769,
+        "expired": 56,
+        "resolved": 948,
+        "tp3_rate_pct": 18.88,
+        "sl_distance_pct_median": 1.3519,
+        "tp3_distance_pct_median": 5.4077
+      },
+      "holdout": {
+        "signals": 428,
+        "tp3": 74,
+        "sl": 324,
+        "expired": 30,
+        "resolved": 398,
+        "tp3_rate_pct": 18.59,
+        "sl_distance_pct_median": 1.3989,
+        "tp3_distance_pct_median": 5.5869
+      },
+      "holdout_by_symbol": {
+        "AVAX/USDT:USDT": {
+          "signals": 3,
+          "tp3": 0,
+          "sl": 2,
+          "expired": 1,
+          "resolved": 2,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.1051,
+          "tp3_distance_pct_median": 8.4203
+        },
+        "BNB/USDT:USDT": {
+          "signals": 172,
+          "tp3": 39,
+          "sl": 120,
+          "expired": 13,
+          "resolved": 159,
+          "tp3_rate_pct": 24.53,
+          "sl_distance_pct_median": 0.7632,
+          "tp3_distance_pct_median": 3.053
+        },
+        "ETH/USDT:USDT": {
+          "signals": 67,
+          "tp3": 8,
+          "sl": 43,
+          "expired": 16,
+          "resolved": 51,
+          "tp3_rate_pct": 15.69,
+          "sl_distance_pct_median": 1.4482,
+          "tp3_distance_pct_median": 5.7929
+        },
+        "LINK/USDT:USDT": {
+          "signals": 3,
+          "tp3": 3,
+          "sl": 0,
+          "expired": 0,
+          "resolved": 3,
+          "tp3_rate_pct": 100.0,
+          "sl_distance_pct_median": 2.023,
+          "tp3_distance_pct_median": 8.0919
+        },
+        "LTC/USDT:USDT": {
+          "signals": 4,
+          "tp3": 0,
+          "sl": 4,
+          "expired": 0,
+          "resolved": 4,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.6198,
+          "tp3_distance_pct_median": 6.4793
+        },
+        "SOL/USDT:USDT": {
+          "signals": 139,
+          "tp3": 24,
+          "sl": 115,
+          "expired": 0,
+          "resolved": 139,
+          "tp3_rate_pct": 17.27,
+          "sl_distance_pct_median": 1.4891,
+          "tp3_distance_pct_median": 5.9564
+        },
+        "SUI/USDT:USDT": {
+          "signals": 1,
+          "tp3": 0,
+          "sl": 1,
+          "expired": 0,
+          "resolved": 1,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.3653,
+          "tp3_distance_pct_median": 9.4611
+        },
+        "XRP/USDT:USDT": {
+          "signals": 39,
+          "tp3": 0,
+          "sl": 39,
+          "expired": 0,
+          "resolved": 39,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7865,
+          "tp3_distance_pct_median": 7.1461
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T10:35:00+00:00",
+          "end": "2026-09-14T20:10:00+00:00",
+          "signals": 143,
+          "tp3": 3,
+          "sl": 140,
+          "expired": 0,
+          "resolved": 143,
+          "tp3_rate_pct": 2.1,
+          "sl_distance_pct_median": 1.4503,
+          "tp3_distance_pct_median": 5.8011
+        },
+        "middle": {
+          "start": "2026-09-14T20:15:00+00:00",
+          "end": "2026-09-17T16:10:00+00:00",
+          "signals": 143,
+          "tp3": 32,
+          "sl": 94,
+          "expired": 17,
+          "resolved": 126,
+          "tp3_rate_pct": 25.4,
+          "sl_distance_pct_median": 1.6191,
+          "tp3_distance_pct_median": 6.4762
+        },
+        "last": {
+          "start": "2026-09-17T16:15:00+00:00",
+          "end": "2026-09-28T01:40:00+00:00",
+          "signals": 142,
+          "tp3": 39,
+          "sl": 90,
+          "expired": 13,
+          "resolved": 129,
+          "tp3_rate_pct": 30.23,
+          "sl_distance_pct_median": 0.7096,
+          "tp3_distance_pct_median": 2.8385
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 52.7,
+      "passes_holdout": true
+    },
+    "midpoint_50_100": {
+      "all": {
+        "signals": 1132,
+        "tp3": 159,
+        "sl": 921,
+        "expired": 52,
+        "resolved": 1080,
+        "tp3_rate_pct": 14.72,
+        "sl_distance_pct_median": 1.3716,
+        "tp3_distance_pct_median": 5.4864
+      },
+      "discovery": {
+        "signals": 818,
+        "tp3": 96,
+        "sl": 678,
+        "expired": 44,
+        "resolved": 774,
+        "tp3_rate_pct": 12.4,
+        "sl_distance_pct_median": 1.368,
+        "tp3_distance_pct_median": 5.4722
+      },
+      "holdout": {
+        "signals": 314,
+        "tp3": 63,
+        "sl": 243,
+        "expired": 8,
+        "resolved": 306,
+        "tp3_rate_pct": 20.59,
+        "sl_distance_pct_median": 1.3989,
+        "tp3_distance_pct_median": 5.5956
+      },
+      "holdout_by_symbol": {
+        "AVAX/USDT:USDT": {
+          "signals": 1,
+          "tp3": 0,
+          "sl": 1,
+          "expired": 0,
+          "resolved": 1,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.9298,
+          "tp3_distance_pct_median": 7.7192
+        },
+        "BNB/USDT:USDT": {
+          "signals": 142,
+          "tp3": 31,
+          "sl": 106,
+          "expired": 5,
+          "resolved": 137,
+          "tp3_rate_pct": 22.63,
+          "sl_distance_pct_median": 0.7079,
+          "tp3_distance_pct_median": 2.8317
+        },
+        "ETH/USDT:USDT": {
+          "signals": 21,
+          "tp3": 8,
+          "sl": 10,
+          "expired": 3,
+          "resolved": 18,
+          "tp3_rate_pct": 44.44,
+          "sl_distance_pct_median": 1.7711,
+          "tp3_distance_pct_median": 7.0843
+        },
+        "LTC/USDT:USDT": {
+          "signals": 1,
+          "tp3": 0,
+          "sl": 1,
+          "expired": 0,
+          "resolved": 1,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.6139,
+          "tp3_distance_pct_median": 6.4557
+        },
+        "SOL/USDT:USDT": {
+          "signals": 109,
+          "tp3": 24,
+          "sl": 85,
+          "expired": 0,
+          "resolved": 109,
+          "tp3_rate_pct": 22.02,
+          "sl_distance_pct_median": 1.4903,
+          "tp3_distance_pct_median": 5.961
+        },
+        "SUI/USDT:USDT": {
+          "signals": 1,
+          "tp3": 0,
+          "sl": 1,
+          "expired": 0,
+          "resolved": 1,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.3653,
+          "tp3_distance_pct_median": 9.4611
+        },
+        "XRP/USDT:USDT": {
+          "signals": 39,
+          "tp3": 0,
+          "sl": 39,
+          "expired": 0,
+          "resolved": 39,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7865,
+          "tp3_distance_pct_median": 7.1461
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T10:35:00+00:00",
+          "end": "2026-09-14T20:15:00+00:00",
+          "signals": 105,
+          "tp3": 4,
+          "sl": 101,
+          "expired": 0,
+          "resolved": 105,
+          "tp3_rate_pct": 3.81,
+          "sl_distance_pct_median": 1.4875,
+          "tp3_distance_pct_median": 5.9501
+        },
+        "middle": {
+          "start": "2026-09-14T20:20:00+00:00",
+          "end": "2026-09-17T16:00:00+00:00",
+          "signals": 105,
+          "tp3": 28,
+          "sl": 74,
+          "expired": 3,
+          "resolved": 102,
+          "tp3_rate_pct": 27.45,
+          "sl_distance_pct_median": 1.3692,
+          "tp3_distance_pct_median": 5.4767
+        },
+        "last": {
+          "start": "2026-09-17T16:05:00+00:00",
+          "end": "2026-09-27T15:00:00+00:00",
+          "signals": 104,
+          "tp3": 31,
+          "sl": 68,
+          "expired": 5,
+          "resolved": 99,
+          "tp3_rate_pct": 31.31,
+          "sl_distance_pct_median": 0.6776,
+          "tp3_distance_pct_median": 2.7102
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 49.21,
+      "passes_holdout": true
+    },
+    "inside_range": {
+      "all": {
+        "signals": 1700,
+        "tp3": 283,
+        "sl": 1294,
+        "expired": 123,
+        "resolved": 1577,
+        "tp3_rate_pct": 17.95,
+        "sl_distance_pct_median": 1.3808,
+        "tp3_distance_pct_median": 5.5219
+      },
+      "discovery": {
+        "signals": 1149,
+        "tp3": 199,
+        "sl": 869,
+        "expired": 81,
+        "resolved": 1068,
+        "tp3_rate_pct": 18.63,
+        "sl_distance_pct_median": 1.3643,
+        "tp3_distance_pct_median": 5.4572
+      },
+      "holdout": {
+        "signals": 551,
+        "tp3": 84,
+        "sl": 425,
+        "expired": 42,
+        "resolved": 509,
+        "tp3_rate_pct": 16.5,
+        "sl_distance_pct_median": 1.4315,
+        "tp3_distance_pct_median": 5.7259
+      },
+      "holdout_by_symbol": {
+        "AVAX/USDT:USDT": {
+          "signals": 10,
+          "tp3": 0,
+          "sl": 9,
+          "expired": 1,
+          "resolved": 9,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.1147,
+          "tp3_distance_pct_median": 8.459
+        },
+        "BNB/USDT:USDT": {
+          "signals": 187,
+          "tp3": 39,
+          "sl": 135,
+          "expired": 13,
+          "resolved": 174,
+          "tp3_rate_pct": 22.41,
+          "sl_distance_pct_median": 0.8793,
+          "tp3_distance_pct_median": 3.5172
+        },
+        "ETH/USDT:USDT": {
+          "signals": 90,
+          "tp3": 8,
+          "sl": 66,
+          "expired": 16,
+          "resolved": 74,
+          "tp3_rate_pct": 10.81,
+          "sl_distance_pct_median": 1.4084,
+          "tp3_distance_pct_median": 5.6336
+        },
+        "LINK/USDT:USDT": {
+          "signals": 24,
+          "tp3": 13,
+          "sl": 0,
+          "expired": 11,
+          "resolved": 13,
+          "tp3_rate_pct": 100.0,
+          "sl_distance_pct_median": 2.047,
+          "tp3_distance_pct_median": 8.1882
+        },
+        "LTC/USDT:USDT": {
+          "signals": 36,
+          "tp3": 0,
+          "sl": 36,
+          "expired": 0,
+          "resolved": 36,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.6965,
+          "tp3_distance_pct_median": 6.7859
+        },
+        "SOL/USDT:USDT": {
+          "signals": 152,
+          "tp3": 24,
+          "sl": 128,
+          "expired": 0,
+          "resolved": 152,
+          "tp3_rate_pct": 15.79,
+          "sl_distance_pct_median": 1.4928,
+          "tp3_distance_pct_median": 5.9712
+        },
+        "SUI/USDT:USDT": {
+          "signals": 13,
+          "tp3": 0,
+          "sl": 12,
+          "expired": 1,
+          "resolved": 12,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.425,
+          "tp3_distance_pct_median": 9.6999
+        },
+        "XRP/USDT:USDT": {
+          "signals": 39,
+          "tp3": 0,
+          "sl": 39,
+          "expired": 0,
+          "resolved": 39,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7865,
+          "tp3_distance_pct_median": 7.1461
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T10:35:00+00:00",
+          "end": "2026-09-14T22:05:00+00:00",
+          "signals": 184,
+          "tp3": 16,
+          "sl": 167,
+          "expired": 1,
+          "resolved": 183,
+          "tp3_rate_pct": 8.74,
+          "sl_distance_pct_median": 1.4518,
+          "tp3_distance_pct_median": 5.8074
+        },
+        "middle": {
+          "start": "2026-09-14T22:05:00+00:00",
+          "end": "2026-09-17T15:10:00+00:00",
+          "signals": 184,
+          "tp3": 29,
+          "sl": 127,
+          "expired": 28,
+          "resolved": 156,
+          "tp3_rate_pct": 18.59,
+          "sl_distance_pct_median": 1.7603,
+          "tp3_distance_pct_median": 7.0412
+        },
+        "last": {
+          "start": "2026-09-17T15:15:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 183,
+          "tp3": 39,
+          "sl": 131,
+          "expired": 13,
+          "resolved": 170,
+          "tp3_rate_pct": 22.94,
+          "sl_distance_pct_median": 0.819,
+          "tp3_distance_pct_median": 3.2759
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 46.43,
+      "passes_holdout": true
+    },
+    "lower_half_0_50": {
+      "all": {
+        "signals": 568,
+        "tp3": 124,
+        "sl": 373,
+        "expired": 71,
+        "resolved": 497,
+        "tp3_rate_pct": 24.95,
+        "sl_distance_pct_median": 1.4112,
+        "tp3_distance_pct_median": 5.645
+      },
+      "discovery": {
+        "signals": 331,
+        "tp3": 103,
+        "sl": 191,
+        "expired": 37,
+        "resolved": 294,
+        "tp3_rate_pct": 35.03,
+        "sl_distance_pct_median": 1.2601,
+        "tp3_distance_pct_median": 5.0404
+      },
+      "holdout": {
+        "signals": 237,
+        "tp3": 21,
+        "sl": 182,
+        "expired": 34,
+        "resolved": 203,
+        "tp3_rate_pct": 10.34,
+        "sl_distance_pct_median": 1.5778,
+        "tp3_distance_pct_median": 6.3111
+      },
+      "holdout_by_symbol": {
+        "AVAX/USDT:USDT": {
+          "signals": 9,
+          "tp3": 0,
+          "sl": 8,
+          "expired": 1,
+          "resolved": 8,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.1147,
+          "tp3_distance_pct_median": 8.459
+        },
+        "BNB/USDT:USDT": {
+          "signals": 45,
+          "tp3": 8,
+          "sl": 29,
+          "expired": 8,
+          "resolved": 37,
+          "tp3_rate_pct": 21.62,
+          "sl_distance_pct_median": 0.885,
+          "tp3_distance_pct_median": 3.5398
+        },
+        "ETH/USDT:USDT": {
+          "signals": 69,
+          "tp3": 0,
+          "sl": 56,
+          "expired": 13,
+          "resolved": 56,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.4084,
+          "tp3_distance_pct_median": 5.6334
+        },
+        "LINK/USDT:USDT": {
+          "signals": 24,
+          "tp3": 13,
+          "sl": 0,
+          "expired": 11,
+          "resolved": 13,
+          "tp3_rate_pct": 100.0,
+          "sl_distance_pct_median": 2.047,
+          "tp3_distance_pct_median": 8.1882
+        },
+        "LTC/USDT:USDT": {
+          "signals": 35,
+          "tp3": 0,
+          "sl": 35,
+          "expired": 0,
+          "resolved": 35,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.6965,
+          "tp3_distance_pct_median": 6.7859
+        },
+        "SOL/USDT:USDT": {
+          "signals": 43,
+          "tp3": 0,
+          "sl": 43,
+          "expired": 0,
+          "resolved": 43,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7587,
+          "tp3_distance_pct_median": 7.0348
+        },
+        "SUI/USDT:USDT": {
+          "signals": 12,
+          "tp3": 0,
+          "sl": 11,
+          "expired": 1,
+          "resolved": 11,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.4256,
+          "tp3_distance_pct_median": 9.7026
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T13:00:00+00:00",
+          "end": "2026-09-14T22:35:00+00:00",
+          "signals": 79,
+          "tp3": 8,
+          "sl": 69,
+          "expired": 2,
+          "resolved": 77,
+          "tp3_rate_pct": 10.39,
+          "sl_distance_pct_median": 1.422,
+          "tp3_distance_pct_median": 5.6879
+        },
+        "middle": {
+          "start": "2026-09-14T22:40:00+00:00",
+          "end": "2026-09-17T13:35:00+00:00",
+          "signals": 79,
+          "tp3": 5,
+          "sl": 50,
+          "expired": 24,
+          "resolved": 55,
+          "tp3_rate_pct": 9.09,
+          "sl_distance_pct_median": 1.7832,
+          "tp3_distance_pct_median": 7.133
+        },
+        "last": {
+          "start": "2026-09-17T13:40:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 79,
+          "tp3": 8,
+          "sl": 63,
+          "expired": 8,
+          "resolved": 71,
+          "tp3_rate_pct": 11.27,
+          "sl_distance_pct_median": 1.3741,
+          "tp3_distance_pct_median": 5.0098
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 61.9,
+      "passes_holdout": false
+    },
+    "lower_40": {
+      "all": {
+        "signals": 268,
+        "tp3": 30,
+        "sl": 201,
+        "expired": 37,
+        "resolved": 231,
+        "tp3_rate_pct": 12.99,
+        "sl_distance_pct_median": 1.6962,
+        "tp3_distance_pct_median": 6.7846
+      },
+      "discovery": {
+        "signals": 145,
+        "tp3": 20,
+        "sl": 100,
+        "expired": 25,
+        "resolved": 120,
+        "tp3_rate_pct": 16.67,
+        "sl_distance_pct_median": 1.6463,
+        "tp3_distance_pct_median": 6.5851
+      },
+      "holdout": {
+        "signals": 123,
+        "tp3": 10,
+        "sl": 101,
+        "expired": 12,
+        "resolved": 111,
+        "tp3_rate_pct": 9.01,
+        "sl_distance_pct_median": 1.7573,
+        "tp3_distance_pct_median": 7.0292
+      },
+      "holdout_by_symbol": {
+        "AVAX/USDT:USDT": {
+          "signals": 7,
+          "tp3": 0,
+          "sl": 7,
+          "expired": 0,
+          "resolved": 7,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.115,
+          "tp3_distance_pct_median": 8.4601
+        },
+        "BNB/USDT:USDT": {
+          "signals": 15,
+          "tp3": 0,
+          "sl": 15,
+          "expired": 0,
+          "resolved": 15,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.0639,
+          "tp3_distance_pct_median": 4.2558
+        },
+        "ETH/USDT:USDT": {
+          "signals": 23,
+          "tp3": 0,
+          "sl": 23,
+          "expired": 0,
+          "resolved": 23,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.4072,
+          "tp3_distance_pct_median": 5.6287
+        },
+        "LINK/USDT:USDT": {
+          "signals": 21,
+          "tp3": 10,
+          "sl": 0,
+          "expired": 11,
+          "resolved": 10,
+          "tp3_rate_pct": 100.0,
+          "sl_distance_pct_median": 2.0556,
+          "tp3_distance_pct_median": 8.2222
+        },
+        "LTC/USDT:USDT": {
+          "signals": 32,
+          "tp3": 0,
+          "sl": 32,
+          "expired": 0,
+          "resolved": 32,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.6968,
+          "tp3_distance_pct_median": 6.7872
+        },
+        "SOL/USDT:USDT": {
+          "signals": 13,
+          "tp3": 0,
+          "sl": 13,
+          "expired": 0,
+          "resolved": 13,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7598,
+          "tp3_distance_pct_median": 7.0391
+        },
+        "SUI/USDT:USDT": {
+          "signals": 12,
+          "tp3": 0,
+          "sl": 11,
+          "expired": 1,
+          "resolved": 11,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.4256,
+          "tp3_distance_pct_median": 9.7026
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T16:00:00+00:00",
+          "end": "2026-09-14T22:55:00+00:00",
+          "signals": 41,
+          "tp3": 9,
+          "sl": 31,
+          "expired": 1,
+          "resolved": 40,
+          "tp3_rate_pct": 22.5,
+          "sl_distance_pct_median": 2.0391,
+          "tp3_distance_pct_median": 8.1563
+        },
+        "middle": {
+          "start": "2026-09-14T23:00:00+00:00",
+          "end": "2026-09-17T10:40:00+00:00",
+          "signals": 41,
+          "tp3": 1,
+          "sl": 29,
+          "expired": 11,
+          "resolved": 30,
+          "tp3_rate_pct": 3.33,
+          "sl_distance_pct_median": 1.7816,
+          "tp3_distance_pct_median": 7.1262
+        },
+        "last": {
+          "start": "2026-09-17T10:40:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 41,
+          "tp3": 0,
+          "sl": 41,
+          "expired": 0,
+          "resolved": 41,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.4105,
+          "tp3_distance_pct_median": 5.6418
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 100.0,
+      "passes_holdout": false
+    },
+    "rsi_50_55": {
+      "all": {
+        "signals": 582,
+        "tp3": 34,
+        "sl": 472,
+        "expired": 76,
+        "resolved": 506,
+        "tp3_rate_pct": 6.72,
+        "sl_distance_pct_median": 1.3875,
+        "tp3_distance_pct_median": 5.5486
+      },
+      "discovery": {
+        "signals": 439,
+        "tp3": 26,
+        "sl": 373,
+        "expired": 40,
+        "resolved": 399,
+        "tp3_rate_pct": 6.52,
+        "sl_distance_pct_median": 1.3844,
+        "tp3_distance_pct_median": 5.5376
+      },
+      "holdout": {
+        "signals": 143,
+        "tp3": 8,
+        "sl": 99,
+        "expired": 36,
+        "resolved": 107,
+        "tp3_rate_pct": 7.48,
+        "sl_distance_pct_median": 1.4203,
+        "tp3_distance_pct_median": 5.6811
+      },
+      "holdout_by_symbol": {
+        "AVAX/USDT:USDT": {
+          "signals": 15,
+          "tp3": 0,
+          "sl": 15,
+          "expired": 0,
+          "resolved": 15,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 3.7148,
+          "tp3_distance_pct_median": 14.8591
+        },
+        "BNB/USDT:USDT": {
+          "signals": 39,
+          "tp3": 8,
+          "sl": 18,
+          "expired": 13,
+          "resolved": 26,
+          "tp3_rate_pct": 30.77,
+          "sl_distance_pct_median": 0.8801,
+          "tp3_distance_pct_median": 3.5204
+        },
+        "ETH/USDT:USDT": {
+          "signals": 65,
+          "tp3": 0,
+          "sl": 42,
+          "expired": 23,
+          "resolved": 42,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7989,
+          "tp3_distance_pct_median": 7.1954
+        },
+        "SOL/USDT:USDT": {
+          "signals": 24,
+          "tp3": 0,
+          "sl": 24,
+          "expired": 0,
+          "resolved": 24,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.3787,
+          "tp3_distance_pct_median": 5.5148
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T13:00:00+00:00",
+          "end": "2026-09-24T16:00:00+00:00",
+          "signals": 48,
+          "tp3": 0,
+          "sl": 36,
+          "expired": 12,
+          "resolved": 36,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.4155,
+          "tp3_distance_pct_median": 5.6622
+        },
+        "middle": {
+          "start": "2026-09-24T16:05:00+00:00",
+          "end": "2026-09-25T13:40:00+00:00",
+          "signals": 48,
+          "tp3": 0,
+          "sl": 39,
+          "expired": 9,
+          "resolved": 39,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.9608,
+          "tp3_distance_pct_median": 7.8431
+        },
+        "last": {
+          "start": "2026-09-25T13:45:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 47,
+          "tp3": 8,
+          "sl": 24,
+          "expired": 15,
+          "resolved": 32,
+          "tp3_rate_pct": 25.0,
+          "sl_distance_pct_median": 0.8834,
+          "tp3_distance_pct_median": 3.5334
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 100.0,
+      "passes_holdout": false
+    },
+    "adx4h_lt15": {
+      "all": {
+        "signals": 562,
+        "tp3": 175,
+        "sl": 383,
+        "expired": 4,
+        "resolved": 558,
+        "tp3_rate_pct": 31.36,
+        "sl_distance_pct_median": 1.2637,
+        "tp3_distance_pct_median": 5.0547
+      },
+      "discovery": {
+        "signals": 427,
+        "tp3": 136,
+        "sl": 287,
+        "expired": 4,
+        "resolved": 423,
+        "tp3_rate_pct": 32.15,
+        "sl_distance_pct_median": 1.3511,
+        "tp3_distance_pct_median": 5.4046
+      },
+      "holdout": {
+        "signals": 135,
+        "tp3": 39,
+        "sl": 96,
+        "expired": 0,
+        "resolved": 135,
+        "tp3_rate_pct": 28.89,
+        "sl_distance_pct_median": 0.7085,
+        "tp3_distance_pct_median": 2.8339
+      },
+      "holdout_by_symbol": {
+        "BNB/USDT:USDT": {
+          "signals": 108,
+          "tp3": 39,
+          "sl": 69,
+          "expired": 0,
+          "resolved": 108,
+          "tp3_rate_pct": 36.11,
+          "sl_distance_pct_median": 0.6778,
+          "tp3_distance_pct_median": 2.7113
+        },
+        "XRP/USDT:USDT": {
+          "signals": 27,
+          "tp3": 0,
+          "sl": 27,
+          "expired": 0,
+          "resolved": 27,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7834,
+          "tp3_distance_pct_median": 7.1335
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T13:45:00+00:00",
+          "end": "2026-09-27T08:25:00+00:00",
+          "signals": 45,
+          "tp3": 0,
+          "sl": 45,
+          "expired": 0,
+          "resolved": 45,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7749,
+          "tp3_distance_pct_median": 7.0994
+        },
+        "middle": {
+          "start": "2026-09-27T08:30:00+00:00",
+          "end": "2026-09-27T13:10:00+00:00",
+          "signals": 45,
+          "tp3": 22,
+          "sl": 23,
+          "expired": 0,
+          "resolved": 45,
+          "tp3_rate_pct": 48.89,
+          "sl_distance_pct_median": 0.6686,
+          "tp3_distance_pct_median": 2.6744
+        },
+        "last": {
+          "start": "2026-09-27T13:15:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 45,
+          "tp3": 17,
+          "sl": 28,
+          "expired": 0,
+          "resolved": 45,
+          "tp3_rate_pct": 37.78,
+          "sl_distance_pct_median": 0.7619,
+          "tp3_distance_pct_median": 3.0476
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 100.0,
+      "passes_holdout": false
+    },
+    "rsi15_lt55": {
+      "all": {
+        "signals": 832,
+        "tp3": 108,
+        "sl": 614,
+        "expired": 110,
+        "resolved": 722,
+        "tp3_rate_pct": 14.96,
+        "sl_distance_pct_median": 1.4327,
+        "tp3_distance_pct_median": 5.731
+      },
+      "discovery": {
+        "signals": 568,
+        "tp3": 66,
+        "sl": 444,
+        "expired": 58,
+        "resolved": 510,
+        "tp3_rate_pct": 12.94,
+        "sl_distance_pct_median": 1.387,
+        "tp3_distance_pct_median": 5.548
+      },
+      "holdout": {
+        "signals": 264,
+        "tp3": 42,
+        "sl": 170,
+        "expired": 52,
+        "resolved": 212,
+        "tp3_rate_pct": 19.81,
+        "sl_distance_pct_median": 1.5818,
+        "tp3_distance_pct_median": 6.3273
+      },
+      "holdout_by_symbol": {
+        "AVAX/USDT:USDT": {
+          "signals": 10,
+          "tp3": 0,
+          "sl": 10,
+          "expired": 0,
+          "resolved": 10,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.1154,
+          "tp3_distance_pct_median": 8.4617
+        },
+        "BNB/USDT:USDT": {
+          "signals": 87,
+          "tp3": 12,
+          "sl": 62,
+          "expired": 13,
+          "resolved": 74,
+          "tp3_rate_pct": 16.22,
+          "sl_distance_pct_median": 0.8834,
+          "tp3_distance_pct_median": 3.5334
+        },
+        "ETH/USDT:USDT": {
+          "signals": 62,
+          "tp3": 8,
+          "sl": 26,
+          "expired": 28,
+          "resolved": 34,
+          "tp3_rate_pct": 23.53,
+          "sl_distance_pct_median": 1.7784,
+          "tp3_distance_pct_median": 7.1134
+        },
+        "LINK/USDT:USDT": {
+          "signals": 24,
+          "tp3": 13,
+          "sl": 0,
+          "expired": 11,
+          "resolved": 13,
+          "tp3_rate_pct": 100.0,
+          "sl_distance_pct_median": 2.047,
+          "tp3_distance_pct_median": 8.1882
+        },
+        "LTC/USDT:USDT": {
+          "signals": 3,
+          "tp3": 0,
+          "sl": 3,
+          "expired": 0,
+          "resolved": 3,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.5811,
+          "tp3_distance_pct_median": 6.3243
+        },
+        "SOL/USDT:USDT": {
+          "signals": 54,
+          "tp3": 9,
+          "sl": 45,
+          "expired": 0,
+          "resolved": 54,
+          "tp3_rate_pct": 16.67,
+          "sl_distance_pct_median": 1.5286,
+          "tp3_distance_pct_median": 6.1144
+        },
+        "SUI/USDT:USDT": {
+          "signals": 9,
+          "tp3": 0,
+          "sl": 9,
+          "expired": 0,
+          "resolved": 9,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.429,
+          "tp3_distance_pct_median": 9.7158
+        },
+        "XRP/USDT:USDT": {
+          "signals": 15,
+          "tp3": 0,
+          "sl": 15,
+          "expired": 0,
+          "resolved": 15,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7834,
+          "tp3_distance_pct_median": 7.1335
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T13:00:00+00:00",
+          "end": "2026-09-14T22:30:00+00:00",
+          "signals": 88,
+          "tp3": 18,
+          "sl": 70,
+          "expired": 0,
+          "resolved": 88,
+          "tp3_rate_pct": 20.45,
+          "sl_distance_pct_median": 1.681,
+          "tp3_distance_pct_median": 6.7239
+        },
+        "middle": {
+          "start": "2026-09-14T22:35:00+00:00",
+          "end": "2026-09-24T17:45:00+00:00",
+          "signals": 88,
+          "tp3": 12,
+          "sl": 49,
+          "expired": 27,
+          "resolved": 61,
+          "tp3_rate_pct": 19.67,
+          "sl_distance_pct_median": 1.7821,
+          "tp3_distance_pct_median": 7.1284
+        },
+        "last": {
+          "start": "2026-09-24T17:45:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 88,
+          "tp3": 12,
+          "sl": 51,
+          "expired": 25,
+          "resolved": 63,
+          "tp3_rate_pct": 19.05,
+          "sl_distance_pct_median": 0.8842,
+          "tp3_distance_pct_median": 3.5366
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 30.95,
+      "passes_holdout": true
+    },
+    "macd15_nonpositive": {
+      "all": {
+        "signals": 857,
+        "tp3": 133,
+        "sl": 611,
+        "expired": 113,
+        "resolved": 744,
+        "tp3_rate_pct": 17.88,
+        "sl_distance_pct_median": 1.4973,
+        "tp3_distance_pct_median": 5.9891
+      },
+      "discovery": {
+        "signals": 565,
+        "tp3": 86,
+        "sl": 419,
+        "expired": 60,
+        "resolved": 505,
+        "tp3_rate_pct": 17.03,
+        "sl_distance_pct_median": 1.3865,
+        "tp3_distance_pct_median": 5.5458
+      },
+      "holdout": {
+        "signals": 292,
+        "tp3": 47,
+        "sl": 192,
+        "expired": 53,
+        "resolved": 239,
+        "tp3_rate_pct": 19.67,
+        "sl_distance_pct_median": 1.6848,
+        "tp3_distance_pct_median": 6.7392
+      },
+      "holdout_by_symbol": {
+        "AVAX/USDT:USDT": {
+          "signals": 9,
+          "tp3": 0,
+          "sl": 8,
+          "expired": 1,
+          "resolved": 8,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.1147,
+          "tp3_distance_pct_median": 8.459
+        },
+        "BNB/USDT:USDT": {
+          "signals": 81,
+          "tp3": 14,
+          "sl": 54,
+          "expired": 13,
+          "resolved": 68,
+          "tp3_rate_pct": 20.59,
+          "sl_distance_pct_median": 0.7632,
+          "tp3_distance_pct_median": 3.0528
+        },
+        "ETH/USDT:USDT": {
+          "signals": 53,
+          "tp3": 8,
+          "sl": 17,
+          "expired": 28,
+          "resolved": 25,
+          "tp3_rate_pct": 32.0,
+          "sl_distance_pct_median": 1.7778,
+          "tp3_distance_pct_median": 7.1114
+        },
+        "LINK/USDT:USDT": {
+          "signals": 24,
+          "tp3": 13,
+          "sl": 0,
+          "expired": 11,
+          "resolved": 13,
+          "tp3_rate_pct": 100.0,
+          "sl_distance_pct_median": 2.047,
+          "tp3_distance_pct_median": 8.1882
+        },
+        "LTC/USDT:USDT": {
+          "signals": 21,
+          "tp3": 0,
+          "sl": 21,
+          "expired": 0,
+          "resolved": 21,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.6945,
+          "tp3_distance_pct_median": 6.7782
+        },
+        "SOL/USDT:USDT": {
+          "signals": 62,
+          "tp3": 12,
+          "sl": 50,
+          "expired": 0,
+          "resolved": 62,
+          "tp3_rate_pct": 19.35,
+          "sl_distance_pct_median": 1.6176,
+          "tp3_distance_pct_median": 6.4704
+        },
+        "SUI/USDT:USDT": {
+          "signals": 9,
+          "tp3": 0,
+          "sl": 9,
+          "expired": 0,
+          "resolved": 9,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.429,
+          "tp3_distance_pct_median": 9.7158
+        },
+        "XRP/USDT:USDT": {
+          "signals": 33,
+          "tp3": 0,
+          "sl": 33,
+          "expired": 0,
+          "resolved": 33,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7864,
+          "tp3_distance_pct_median": 7.1456
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T10:35:00+00:00",
+          "end": "2026-09-14T22:20:00+00:00",
+          "signals": 98,
+          "tp3": 14,
+          "sl": 83,
+          "expired": 1,
+          "resolved": 97,
+          "tp3_rate_pct": 14.43,
+          "sl_distance_pct_median": 1.7756,
+          "tp3_distance_pct_median": 7.1025
+        },
+        "middle": {
+          "start": "2026-09-14T22:20:00+00:00",
+          "end": "2026-09-17T15:50:00+00:00",
+          "signals": 98,
+          "tp3": 19,
+          "sl": 52,
+          "expired": 27,
+          "resolved": 71,
+          "tp3_rate_pct": 26.76,
+          "sl_distance_pct_median": 1.7692,
+          "tp3_distance_pct_median": 7.077
+        },
+        "last": {
+          "start": "2026-09-17T15:55:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 96,
+          "tp3": 14,
+          "sl": 57,
+          "expired": 25,
+          "resolved": 71,
+          "tp3_rate_pct": 19.72,
+          "sl_distance_pct_median": 0.8509,
+          "tp3_distance_pct_median": 3.4037
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 29.79,
+      "passes_holdout": true
+    },
+    "below_ema200_1h": {
+      "all": {
+        "signals": 120,
+        "tp3": 13,
+        "sl": 95,
+        "expired": 12,
+        "resolved": 108,
+        "tp3_rate_pct": 12.04,
+        "sl_distance_pct_median": 1.815,
+        "tp3_distance_pct_median": 7.2598
+      },
+      "discovery": {
+        "signals": 35,
+        "tp3": 0,
+        "sl": 35,
+        "expired": 0,
+        "resolved": 35,
+        "tp3_rate_pct": 0.0,
+        "sl_distance_pct_median": 1.8713,
+        "tp3_distance_pct_median": 7.4851
+      },
+      "holdout": {
+        "signals": 85,
+        "tp3": 13,
+        "sl": 60,
+        "expired": 12,
+        "resolved": 73,
+        "tp3_rate_pct": 17.81,
+        "sl_distance_pct_median": 1.7598,
+        "tp3_distance_pct_median": 7.0391
+      },
+      "holdout_by_symbol": {
+        "LINK/USDT:USDT": {
+          "signals": 24,
+          "tp3": 13,
+          "sl": 0,
+          "expired": 11,
+          "resolved": 13,
+          "tp3_rate_pct": 100.0,
+          "sl_distance_pct_median": 2.047,
+          "tp3_distance_pct_median": 8.1882
+        },
+        "SOL/USDT:USDT": {
+          "signals": 48,
+          "tp3": 0,
+          "sl": 48,
+          "expired": 0,
+          "resolved": 48,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.4248,
+          "tp3_distance_pct_median": 5.699
+        },
+        "SUI/USDT:USDT": {
+          "signals": 13,
+          "tp3": 0,
+          "sl": 12,
+          "expired": 1,
+          "resolved": 12,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.425,
+          "tp3_distance_pct_median": 9.6999
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T13:00:00+00:00",
+          "end": "2026-09-14T15:20:00+00:00",
+          "signals": 29,
+          "tp3": 0,
+          "sl": 29,
+          "expired": 0,
+          "resolved": 29,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.4158,
+          "tp3_distance_pct_median": 5.6633
+        },
+        "middle": {
+          "start": "2026-09-14T15:25:00+00:00",
+          "end": "2026-09-14T22:45:00+00:00",
+          "signals": 29,
+          "tp3": 10,
+          "sl": 18,
+          "expired": 1,
+          "resolved": 28,
+          "tp3_rate_pct": 35.71,
+          "sl_distance_pct_median": 2.0361,
+          "tp3_distance_pct_median": 8.1443
+        },
+        "last": {
+          "start": "2026-09-14T22:50:00+00:00",
+          "end": "2026-09-17T13:40:00+00:00",
+          "signals": 27,
+          "tp3": 3,
+          "sl": 13,
+          "expired": 11,
+          "resolved": 16,
+          "tp3_rate_pct": 18.75,
+          "sl_distance_pct_median": 2.0399,
+          "tp3_distance_pct_median": 8.1598
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 100.0,
+      "passes_holdout": false
+    },
+    "atr_050_080": {
+      "all": {
+        "signals": 957,
+        "tp3": 168,
+        "sl": 704,
+        "expired": 85,
+        "resolved": 872,
+        "tp3_rate_pct": 19.27,
+        "sl_distance_pct_median": 1.3217,
+        "tp3_distance_pct_median": 5.2777
+      },
+      "discovery": {
+        "signals": 713,
+        "tp3": 156,
+        "sl": 485,
+        "expired": 72,
+        "resolved": 641,
+        "tp3_rate_pct": 24.34,
+        "sl_distance_pct_median": 1.2809,
+        "tp3_distance_pct_median": 5.1238
+      },
+      "holdout": {
+        "signals": 244,
+        "tp3": 12,
+        "sl": 219,
+        "expired": 13,
+        "resolved": 231,
+        "tp3_rate_pct": 5.19,
+        "sl_distance_pct_median": 1.375,
+        "tp3_distance_pct_median": 5.4974
+      },
+      "holdout_by_symbol": {
+        "BNB/USDT:USDT": {
+          "signals": 91,
+          "tp3": 0,
+          "sl": 78,
+          "expired": 13,
+          "resolved": 78,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.2322,
+          "tp3_distance_pct_median": 4.8787
+        },
+        "ETH/USDT:USDT": {
+          "signals": 64,
+          "tp3": 0,
+          "sl": 64,
+          "expired": 0,
+          "resolved": 64,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.4003,
+          "tp3_distance_pct_median": 5.6013
+        },
+        "LTC/USDT:USDT": {
+          "signals": 8,
+          "tp3": 0,
+          "sl": 8,
+          "expired": 0,
+          "resolved": 8,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.5808,
+          "tp3_distance_pct_median": 6.3231
+        },
+        "SOL/USDT:USDT": {
+          "signals": 81,
+          "tp3": 12,
+          "sl": 69,
+          "expired": 0,
+          "resolved": 81,
+          "tp3_rate_pct": 14.81,
+          "sl_distance_pct_median": 1.4385,
+          "tp3_distance_pct_median": 5.7542
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T10:35:00+00:00",
+          "end": "2026-09-14T17:45:00+00:00",
+          "signals": 82,
+          "tp3": 0,
+          "sl": 82,
+          "expired": 0,
+          "resolved": 82,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.4285,
+          "tp3_distance_pct_median": 5.7139
+        },
+        "middle": {
+          "start": "2026-09-14T17:45:00+00:00",
+          "end": "2026-09-17T13:40:00+00:00",
+          "signals": 82,
+          "tp3": 12,
+          "sl": 70,
+          "expired": 0,
+          "resolved": 82,
+          "tp3_rate_pct": 14.63,
+          "sl_distance_pct_median": 1.3708,
+          "tp3_distance_pct_median": 5.4834
+        },
+        "last": {
+          "start": "2026-09-17T13:40:00+00:00",
+          "end": "2026-09-25T15:15:00+00:00",
+          "signals": 80,
+          "tp3": 0,
+          "sl": 67,
+          "expired": 13,
+          "resolved": 67,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.2514,
+          "tp3_distance_pct_median": 5.0008
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 100.0,
+      "passes_holdout": false
+    },
+    "di_not_bearish": {
+      "all": {
+        "signals": 1599,
+        "tp3": 282,
+        "sl": 1161,
+        "expired": 156,
+        "resolved": 1443,
+        "tp3_rate_pct": 19.54,
+        "sl_distance_pct_median": 1.4112,
+        "tp3_distance_pct_median": 5.6446
+      },
+      "discovery": {
+        "signals": 1025,
+        "tp3": 198,
+        "sl": 725,
+        "expired": 102,
+        "resolved": 923,
+        "tp3_rate_pct": 21.45,
+        "sl_distance_pct_median": 1.3629,
+        "tp3_distance_pct_median": 5.4514
+      },
+      "holdout": {
+        "signals": 574,
+        "tp3": 84,
+        "sl": 436,
+        "expired": 54,
+        "resolved": 520,
+        "tp3_rate_pct": 16.15,
+        "sl_distance_pct_median": 1.4885,
+        "tp3_distance_pct_median": 5.9541
+      },
+      "holdout_by_symbol": {
+        "AVAX/USDT:USDT": {
+          "signals": 25,
+          "tp3": 0,
+          "sl": 24,
+          "expired": 1,
+          "resolved": 24,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 3.6009,
+          "tp3_distance_pct_median": 14.4036
+        },
+        "BNB/USDT:USDT": {
+          "signals": 187,
+          "tp3": 39,
+          "sl": 135,
+          "expired": 13,
+          "resolved": 174,
+          "tp3_rate_pct": 22.41,
+          "sl_distance_pct_median": 0.8793,
+          "tp3_distance_pct_median": 3.5172
+        },
+        "ETH/USDT:USDT": {
+          "signals": 122,
+          "tp3": 8,
+          "sl": 86,
+          "expired": 28,
+          "resolved": 94,
+          "tp3_rate_pct": 8.51,
+          "sl_distance_pct_median": 1.6196,
+          "tp3_distance_pct_median": 6.4786
+        },
+        "LINK/USDT:USDT": {
+          "signals": 24,
+          "tp3": 13,
+          "sl": 0,
+          "expired": 11,
+          "resolved": 13,
+          "tp3_rate_pct": 100.0,
+          "sl_distance_pct_median": 2.047,
+          "tp3_distance_pct_median": 8.1882
+        },
+        "LTC/USDT:USDT": {
+          "signals": 36,
+          "tp3": 0,
+          "sl": 36,
+          "expired": 0,
+          "resolved": 36,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.6965,
+          "tp3_distance_pct_median": 6.7859
+        },
+        "SOL/USDT:USDT": {
+          "signals": 128,
+          "tp3": 24,
+          "sl": 104,
+          "expired": 0,
+          "resolved": 128,
+          "tp3_rate_pct": 18.75,
+          "sl_distance_pct_median": 1.6176,
+          "tp3_distance_pct_median": 6.4704
+        },
+        "SUI/USDT:USDT": {
+          "signals": 13,
+          "tp3": 0,
+          "sl": 12,
+          "expired": 1,
+          "resolved": 12,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.425,
+          "tp3_distance_pct_median": 9.6999
+        },
+        "XRP/USDT:USDT": {
+          "signals": 39,
+          "tp3": 0,
+          "sl": 39,
+          "expired": 0,
+          "resolved": 39,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7865,
+          "tp3_distance_pct_median": 7.1461
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T10:35:00+00:00",
+          "end": "2026-09-14T23:05:00+00:00",
+          "signals": 192,
+          "tp3": 45,
+          "sl": 139,
+          "expired": 8,
+          "resolved": 184,
+          "tp3_rate_pct": 24.46,
+          "sl_distance_pct_median": 1.6825,
+          "tp3_distance_pct_median": 6.7301
+        },
+        "middle": {
+          "start": "2026-09-14T23:05:00+00:00",
+          "end": "2026-09-18T04:45:00+00:00",
+          "signals": 192,
+          "tp3": 0,
+          "sl": 171,
+          "expired": 21,
+          "resolved": 171,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.6211,
+          "tp3_distance_pct_median": 6.4844
+        },
+        "last": {
+          "start": "2026-09-18T04:50:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 190,
+          "tp3": 39,
+          "sl": 126,
+          "expired": 25,
+          "resolved": 165,
+          "tp3_rate_pct": 23.64,
+          "sl_distance_pct_median": 0.8793,
+          "tp3_distance_pct_median": 3.5173
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 46.43,
+      "passes_holdout": true
+    },
+    "inside_plus_macd15": {
+      "all": {
+        "signals": 790,
+        "tp3": 133,
+        "sl": 574,
+        "expired": 83,
+        "resolved": 707,
+        "tp3_rate_pct": 18.81,
+        "sl_distance_pct_median": 1.4144,
+        "tp3_distance_pct_median": 5.6574
+      },
+      "discovery": {
+        "signals": 521,
+        "tp3": 86,
+        "sl": 393,
+        "expired": 42,
+        "resolved": 479,
+        "tp3_rate_pct": 17.95,
+        "sl_distance_pct_median": 1.373,
+        "tp3_distance_pct_median": 5.4921
+      },
+      "holdout": {
+        "signals": 269,
+        "tp3": 47,
+        "sl": 181,
+        "expired": 41,
+        "resolved": 228,
+        "tp3_rate_pct": 20.61,
+        "sl_distance_pct_median": 1.6828,
+        "tp3_distance_pct_median": 6.731
+      },
+      "holdout_by_symbol": {
+        "AVAX/USDT:USDT": {
+          "signals": 9,
+          "tp3": 0,
+          "sl": 8,
+          "expired": 1,
+          "resolved": 8,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.1147,
+          "tp3_distance_pct_median": 8.459
+        },
+        "BNB/USDT:USDT": {
+          "signals": 81,
+          "tp3": 14,
+          "sl": 54,
+          "expired": 13,
+          "resolved": 68,
+          "tp3_rate_pct": 20.59,
+          "sl_distance_pct_median": 0.7632,
+          "tp3_distance_pct_median": 3.0528
+        },
+        "ETH/USDT:USDT": {
+          "signals": 30,
+          "tp3": 8,
+          "sl": 6,
+          "expired": 16,
+          "resolved": 14,
+          "tp3_rate_pct": 57.14,
+          "sl_distance_pct_median": 1.7824,
+          "tp3_distance_pct_median": 7.1297
+        },
+        "LINK/USDT:USDT": {
+          "signals": 24,
+          "tp3": 13,
+          "sl": 0,
+          "expired": 11,
+          "resolved": 13,
+          "tp3_rate_pct": 100.0,
+          "sl_distance_pct_median": 2.047,
+          "tp3_distance_pct_median": 8.1882
+        },
+        "LTC/USDT:USDT": {
+          "signals": 21,
+          "tp3": 0,
+          "sl": 21,
+          "expired": 0,
+          "resolved": 21,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.6945,
+          "tp3_distance_pct_median": 6.7782
+        },
+        "SOL/USDT:USDT": {
+          "signals": 62,
+          "tp3": 12,
+          "sl": 50,
+          "expired": 0,
+          "resolved": 62,
+          "tp3_rate_pct": 19.35,
+          "sl_distance_pct_median": 1.6176,
+          "tp3_distance_pct_median": 6.4704
+        },
+        "SUI/USDT:USDT": {
+          "signals": 9,
+          "tp3": 0,
+          "sl": 9,
+          "expired": 0,
+          "resolved": 9,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.429,
+          "tp3_distance_pct_median": 9.7158
+        },
+        "XRP/USDT:USDT": {
+          "signals": 33,
+          "tp3": 0,
+          "sl": 33,
+          "expired": 0,
+          "resolved": 33,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7864,
+          "tp3_distance_pct_median": 7.1456
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T10:35:00+00:00",
+          "end": "2026-09-14T22:10:00+00:00",
+          "signals": 90,
+          "tp3": 7,
+          "sl": 83,
+          "expired": 0,
+          "resolved": 90,
+          "tp3_rate_pct": 7.78,
+          "sl_distance_pct_median": 1.7747,
+          "tp3_distance_pct_median": 7.0987
+        },
+        "middle": {
+          "start": "2026-09-14T22:10:00+00:00",
+          "end": "2026-09-17T13:55:00+00:00",
+          "signals": 90,
+          "tp3": 26,
+          "sl": 36,
+          "expired": 28,
+          "resolved": 62,
+          "tp3_rate_pct": 41.94,
+          "sl_distance_pct_median": 1.7824,
+          "tp3_distance_pct_median": 7.1297
+        },
+        "last": {
+          "start": "2026-09-17T13:55:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 89,
+          "tp3": 14,
+          "sl": 62,
+          "expired": 13,
+          "resolved": 76,
+          "tp3_rate_pct": 18.42,
+          "sl_distance_pct_median": 0.7642,
+          "tp3_distance_pct_median": 3.0567
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 29.79,
+      "passes_holdout": true
+    },
+    "lower40_plus_macd15": {
+      "all": {
+        "signals": 160,
+        "tp3": 30,
+        "sl": 107,
+        "expired": 23,
+        "resolved": 137,
+        "tp3_rate_pct": 21.9,
+        "sl_distance_pct_median": 1.6978,
+        "tp3_distance_pct_median": 6.7911
+      },
+      "discovery": {
+        "signals": 76,
+        "tp3": 20,
+        "sl": 44,
+        "expired": 12,
+        "resolved": 64,
+        "tp3_rate_pct": 31.25,
+        "sl_distance_pct_median": 1.0731,
+        "tp3_distance_pct_median": 4.2925
+      },
+      "holdout": {
+        "signals": 84,
+        "tp3": 10,
+        "sl": 63,
+        "expired": 11,
+        "resolved": 73,
+        "tp3_rate_pct": 13.7,
+        "sl_distance_pct_median": 1.7599,
+        "tp3_distance_pct_median": 7.0394
+      },
+      "holdout_by_symbol": {
+        "AVAX/USDT:USDT": {
+          "signals": 7,
+          "tp3": 0,
+          "sl": 7,
+          "expired": 0,
+          "resolved": 7,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.115,
+          "tp3_distance_pct_median": 8.4601
+        },
+        "BNB/USDT:USDT": {
+          "signals": 12,
+          "tp3": 0,
+          "sl": 12,
+          "expired": 0,
+          "resolved": 12,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.0647,
+          "tp3_distance_pct_median": 4.2589
+        },
+        "ETH/USDT:USDT": {
+          "signals": 6,
+          "tp3": 0,
+          "sl": 6,
+          "expired": 0,
+          "resolved": 6,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 0.8188,
+          "tp3_distance_pct_median": 3.275
+        },
+        "LINK/USDT:USDT": {
+          "signals": 21,
+          "tp3": 10,
+          "sl": 0,
+          "expired": 11,
+          "resolved": 10,
+          "tp3_rate_pct": 100.0,
+          "sl_distance_pct_median": 2.0556,
+          "tp3_distance_pct_median": 8.2222
+        },
+        "LTC/USDT:USDT": {
+          "signals": 20,
+          "tp3": 0,
+          "sl": 20,
+          "expired": 0,
+          "resolved": 20,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.6945,
+          "tp3_distance_pct_median": 6.7782
+        },
+        "SOL/USDT:USDT": {
+          "signals": 9,
+          "tp3": 0,
+          "sl": 9,
+          "expired": 0,
+          "resolved": 9,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7599,
+          "tp3_distance_pct_median": 7.0398
+        },
+        "SUI/USDT:USDT": {
+          "signals": 9,
+          "tp3": 0,
+          "sl": 9,
+          "expired": 0,
+          "resolved": 9,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.429,
+          "tp3_distance_pct_median": 9.7158
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T21:15:00+00:00",
+          "end": "2026-09-14T22:40:00+00:00",
+          "signals": 28,
+          "tp3": 5,
+          "sl": 23,
+          "expired": 0,
+          "resolved": 28,
+          "tp3_rate_pct": 17.86,
+          "sl_distance_pct_median": 2.0745,
+          "tp3_distance_pct_median": 8.2981
+        },
+        "middle": {
+          "start": "2026-09-14T22:40:00+00:00",
+          "end": "2026-09-17T10:30:00+00:00",
+          "signals": 28,
+          "tp3": 5,
+          "sl": 12,
+          "expired": 11,
+          "resolved": 17,
+          "tp3_rate_pct": 29.41,
+          "sl_distance_pct_median": 2.047,
+          "tp3_distance_pct_median": 8.1882
+        },
+        "last": {
+          "start": "2026-09-17T10:30:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 28,
+          "tp3": 0,
+          "sl": 28,
+          "expired": 0,
+          "resolved": 28,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.5814,
+          "tp3_distance_pct_median": 6.3255
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 100.0,
+      "passes_holdout": false
+    },
+    "inside_plus_rsi15": {
+      "all": {
+        "signals": 761,
+        "tp3": 108,
+        "sl": 565,
+        "expired": 88,
+        "resolved": 673,
+        "tp3_rate_pct": 16.05,
+        "sl_distance_pct_median": 1.384,
+        "tp3_distance_pct_median": 5.5349
+      },
+      "discovery": {
+        "signals": 528,
+        "tp3": 66,
+        "sl": 414,
+        "expired": 48,
+        "resolved": 480,
+        "tp3_rate_pct": 13.75,
+        "sl_distance_pct_median": 1.3823,
+        "tp3_distance_pct_median": 5.5291
+      },
+      "holdout": {
+        "signals": 233,
+        "tp3": 42,
+        "sl": 151,
+        "expired": 40,
+        "resolved": 193,
+        "tp3_rate_pct": 21.76,
+        "sl_distance_pct_median": 1.4203,
+        "tp3_distance_pct_median": 5.6811
+      },
+      "holdout_by_symbol": {
+        "AVAX/USDT:USDT": {
+          "signals": 7,
+          "tp3": 0,
+          "sl": 7,
+          "expired": 0,
+          "resolved": 7,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.115,
+          "tp3_distance_pct_median": 8.4601
+        },
+        "BNB/USDT:USDT": {
+          "signals": 87,
+          "tp3": 12,
+          "sl": 62,
+          "expired": 13,
+          "resolved": 74,
+          "tp3_rate_pct": 16.22,
+          "sl_distance_pct_median": 0.8834,
+          "tp3_distance_pct_median": 3.5334
+        },
+        "ETH/USDT:USDT": {
+          "signals": 34,
+          "tp3": 8,
+          "sl": 10,
+          "expired": 16,
+          "resolved": 18,
+          "tp3_rate_pct": 44.44,
+          "sl_distance_pct_median": 1.7802,
+          "tp3_distance_pct_median": 7.121
+        },
+        "LINK/USDT:USDT": {
+          "signals": 24,
+          "tp3": 13,
+          "sl": 0,
+          "expired": 11,
+          "resolved": 13,
+          "tp3_rate_pct": 100.0,
+          "sl_distance_pct_median": 2.047,
+          "tp3_distance_pct_median": 8.1882
+        },
+        "LTC/USDT:USDT": {
+          "signals": 3,
+          "tp3": 0,
+          "sl": 3,
+          "expired": 0,
+          "resolved": 3,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.5811,
+          "tp3_distance_pct_median": 6.3243
+        },
+        "SOL/USDT:USDT": {
+          "signals": 54,
+          "tp3": 9,
+          "sl": 45,
+          "expired": 0,
+          "resolved": 54,
+          "tp3_rate_pct": 16.67,
+          "sl_distance_pct_median": 1.5286,
+          "tp3_distance_pct_median": 6.1144
+        },
+        "SUI/USDT:USDT": {
+          "signals": 9,
+          "tp3": 0,
+          "sl": 9,
+          "expired": 0,
+          "resolved": 9,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.429,
+          "tp3_distance_pct_median": 9.7158
+        },
+        "XRP/USDT:USDT": {
+          "signals": 15,
+          "tp3": 0,
+          "sl": 15,
+          "expired": 0,
+          "resolved": 15,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7834,
+          "tp3_distance_pct_median": 7.1335
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T13:00:00+00:00",
+          "end": "2026-09-14T22:10:00+00:00",
+          "signals": 78,
+          "tp3": 8,
+          "sl": 70,
+          "expired": 0,
+          "resolved": 78,
+          "tp3_rate_pct": 10.26,
+          "sl_distance_pct_median": 1.4327,
+          "tp3_distance_pct_median": 5.731
+        },
+        "middle": {
+          "start": "2026-09-14T22:10:00+00:00",
+          "end": "2026-09-17T14:00:00+00:00",
+          "signals": 78,
+          "tp3": 22,
+          "sl": 29,
+          "expired": 27,
+          "resolved": 51,
+          "tp3_rate_pct": 43.14,
+          "sl_distance_pct_median": 1.7881,
+          "tp3_distance_pct_median": 7.1526
+        },
+        "last": {
+          "start": "2026-09-17T14:05:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 77,
+          "tp3": 12,
+          "sl": 52,
+          "expired": 13,
+          "resolved": 64,
+          "tp3_rate_pct": 18.75,
+          "sl_distance_pct_median": 0.8789,
+          "tp3_distance_pct_median": 3.5155
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 30.95,
+      "passes_holdout": true
+    },
+    "lower40_plus_rsi15": {
+      "all": {
+        "signals": 159,
+        "tp3": 21,
+        "sl": 115,
+        "expired": 23,
+        "resolved": 136,
+        "tp3_rate_pct": 15.44,
+        "sl_distance_pct_median": 1.7613,
+        "tp3_distance_pct_median": 7.0452
+      },
+      "discovery": {
+        "signals": 87,
+        "tp3": 11,
+        "sl": 64,
+        "expired": 12,
+        "resolved": 75,
+        "tp3_rate_pct": 14.67,
+        "sl_distance_pct_median": 1.6549,
+        "tp3_distance_pct_median": 6.6196
+      },
+      "holdout": {
+        "signals": 72,
+        "tp3": 10,
+        "sl": 51,
+        "expired": 11,
+        "resolved": 61,
+        "tp3_rate_pct": 16.39,
+        "sl_distance_pct_median": 1.9116,
+        "tp3_distance_pct_median": 7.6462
+      },
+      "holdout_by_symbol": {
+        "AVAX/USDT:USDT": {
+          "signals": 6,
+          "tp3": 0,
+          "sl": 6,
+          "expired": 0,
+          "resolved": 6,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.1152,
+          "tp3_distance_pct_median": 8.4606
+        },
+        "BNB/USDT:USDT": {
+          "signals": 15,
+          "tp3": 0,
+          "sl": 15,
+          "expired": 0,
+          "resolved": 15,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.0639,
+          "tp3_distance_pct_median": 4.2558
+        },
+        "ETH/USDT:USDT": {
+          "signals": 8,
+          "tp3": 0,
+          "sl": 8,
+          "expired": 0,
+          "resolved": 8,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 0.8189,
+          "tp3_distance_pct_median": 3.2757
+        },
+        "LINK/USDT:USDT": {
+          "signals": 21,
+          "tp3": 10,
+          "sl": 0,
+          "expired": 11,
+          "resolved": 10,
+          "tp3_rate_pct": 100.0,
+          "sl_distance_pct_median": 2.0556,
+          "tp3_distance_pct_median": 8.2222
+        },
+        "LTC/USDT:USDT": {
+          "signals": 3,
+          "tp3": 0,
+          "sl": 3,
+          "expired": 0,
+          "resolved": 3,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.5811,
+          "tp3_distance_pct_median": 6.3243
+        },
+        "SOL/USDT:USDT": {
+          "signals": 10,
+          "tp3": 0,
+          "sl": 10,
+          "expired": 0,
+          "resolved": 10,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7599,
+          "tp3_distance_pct_median": 7.0398
+        },
+        "SUI/USDT:USDT": {
+          "signals": 9,
+          "tp3": 0,
+          "sl": 9,
+          "expired": 0,
+          "resolved": 9,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 2.429,
+          "tp3_distance_pct_median": 9.7158
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T16:00:00+00:00",
+          "end": "2026-09-14T22:05:00+00:00",
+          "signals": 24,
+          "tp3": 0,
+          "sl": 24,
+          "expired": 0,
+          "resolved": 24,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.3604,
+          "tp3_distance_pct_median": 5.4417
+        },
+        "middle": {
+          "start": "2026-09-14T22:05:00+00:00",
+          "end": "2026-09-14T23:50:00+00:00",
+          "signals": 24,
+          "tp3": 10,
+          "sl": 4,
+          "expired": 10,
+          "resolved": 14,
+          "tp3_rate_pct": 71.43,
+          "sl_distance_pct_median": 2.0568,
+          "tp3_distance_pct_median": 8.2272
+        },
+        "last": {
+          "start": "2026-09-14T23:55:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 24,
+          "tp3": 0,
+          "sl": 23,
+          "expired": 1,
+          "resolved": 23,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.5818,
+          "tp3_distance_pct_median": 6.3273
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 100.0,
+      "passes_holdout": false
+    },
+    "inside_plus_adx4": {
+      "all": {
+        "signals": 562,
+        "tp3": 175,
+        "sl": 383,
+        "expired": 4,
+        "resolved": 558,
+        "tp3_rate_pct": 31.36,
+        "sl_distance_pct_median": 1.2637,
+        "tp3_distance_pct_median": 5.0547
+      },
+      "discovery": {
+        "signals": 427,
+        "tp3": 136,
+        "sl": 287,
+        "expired": 4,
+        "resolved": 423,
+        "tp3_rate_pct": 32.15,
+        "sl_distance_pct_median": 1.3511,
+        "tp3_distance_pct_median": 5.4046
+      },
+      "holdout": {
+        "signals": 135,
+        "tp3": 39,
+        "sl": 96,
+        "expired": 0,
+        "resolved": 135,
+        "tp3_rate_pct": 28.89,
+        "sl_distance_pct_median": 0.7085,
+        "tp3_distance_pct_median": 2.8339
+      },
+      "holdout_by_symbol": {
+        "BNB/USDT:USDT": {
+          "signals": 108,
+          "tp3": 39,
+          "sl": 69,
+          "expired": 0,
+          "resolved": 108,
+          "tp3_rate_pct": 36.11,
+          "sl_distance_pct_median": 0.6778,
+          "tp3_distance_pct_median": 2.7113
+        },
+        "XRP/USDT:USDT": {
+          "signals": 27,
+          "tp3": 0,
+          "sl": 27,
+          "expired": 0,
+          "resolved": 27,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7834,
+          "tp3_distance_pct_median": 7.1335
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T13:45:00+00:00",
+          "end": "2026-09-27T08:25:00+00:00",
+          "signals": 45,
+          "tp3": 0,
+          "sl": 45,
+          "expired": 0,
+          "resolved": 45,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7749,
+          "tp3_distance_pct_median": 7.0994
+        },
+        "middle": {
+          "start": "2026-09-27T08:30:00+00:00",
+          "end": "2026-09-27T13:10:00+00:00",
+          "signals": 45,
+          "tp3": 22,
+          "sl": 23,
+          "expired": 0,
+          "resolved": 45,
+          "tp3_rate_pct": 48.89,
+          "sl_distance_pct_median": 0.6686,
+          "tp3_distance_pct_median": 2.6744
+        },
+        "last": {
+          "start": "2026-09-27T13:15:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 45,
+          "tp3": 17,
+          "sl": 28,
+          "expired": 0,
+          "resolved": 45,
+          "tp3_rate_pct": 37.78,
+          "sl_distance_pct_median": 0.7619,
+          "tp3_distance_pct_median": 3.0476
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 100.0,
+      "passes_holdout": false
+    },
+    "lower40_plus_adx4": {
+      "all": {
+        "signals": 76,
+        "tp3": 0,
+        "sl": 72,
+        "expired": 4,
+        "resolved": 72,
+        "tp3_rate_pct": 0.0,
+        "sl_distance_pct_median": 1.8908,
+        "tp3_distance_pct_median": 7.5632
+      },
+      "discovery": {
+        "signals": 61,
+        "tp3": 0,
+        "sl": 57,
+        "expired": 4,
+        "resolved": 57,
+        "tp3_rate_pct": 0.0,
+        "sl_distance_pct_median": 1.9914,
+        "tp3_distance_pct_median": 7.9656
+      },
+      "holdout": {
+        "signals": 15,
+        "tp3": 0,
+        "sl": 15,
+        "expired": 0,
+        "resolved": 15,
+        "tp3_rate_pct": 0.0,
+        "sl_distance_pct_median": 1.0639,
+        "tp3_distance_pct_median": 4.2558
+      },
+      "holdout_by_symbol": {
+        "BNB/USDT:USDT": {
+          "signals": 15,
+          "tp3": 0,
+          "sl": 15,
+          "expired": 0,
+          "resolved": 15,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.0639,
+          "tp3_distance_pct_median": 4.2558
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T21:05:00+00:00",
+          "end": "2026-09-14T21:25:00+00:00",
+          "signals": 5,
+          "tp3": 0,
+          "sl": 5,
+          "expired": 0,
+          "resolved": 5,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.0638,
+          "tp3_distance_pct_median": 4.2552
+        },
+        "middle": {
+          "start": "2026-09-14T21:30:00+00:00",
+          "end": "2026-09-14T21:50:00+00:00",
+          "signals": 5,
+          "tp3": 0,
+          "sl": 5,
+          "expired": 0,
+          "resolved": 5,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.0655,
+          "tp3_distance_pct_median": 4.262
+        },
+        "last": {
+          "start": "2026-09-14T21:55:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 5,
+          "tp3": 0,
+          "sl": 5,
+          "expired": 0,
+          "resolved": 5,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 0.8834,
+          "tp3_distance_pct_median": 3.5334
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 0,
+      "passes_holdout": false
+    },
+    "inside_plus_macd15_adx4": {
+      "all": {
+        "signals": 234,
+        "tp3": 75,
+        "sl": 155,
+        "expired": 4,
+        "resolved": 230,
+        "tp3_rate_pct": 32.61,
+        "sl_distance_pct_median": 1.285,
+        "tp3_distance_pct_median": 5.14
+      },
+      "discovery": {
+        "signals": 153,
+        "tp3": 61,
+        "sl": 88,
+        "expired": 4,
+        "resolved": 149,
+        "tp3_rate_pct": 40.94,
+        "sl_distance_pct_median": 1.3508,
+        "tp3_distance_pct_median": 5.4033
+      },
+      "holdout": {
+        "signals": 81,
+        "tp3": 14,
+        "sl": 67,
+        "expired": 0,
+        "resolved": 81,
+        "tp3_rate_pct": 17.28,
+        "sl_distance_pct_median": 0.7635,
+        "tp3_distance_pct_median": 3.0541
+      },
+      "holdout_by_symbol": {
+        "BNB/USDT:USDT": {
+          "signals": 54,
+          "tp3": 14,
+          "sl": 40,
+          "expired": 0,
+          "resolved": 54,
+          "tp3_rate_pct": 25.93,
+          "sl_distance_pct_median": 0.7089,
+          "tp3_distance_pct_median": 2.8358
+        },
+        "XRP/USDT:USDT": {
+          "signals": 27,
+          "tp3": 0,
+          "sl": 27,
+          "expired": 0,
+          "resolved": 27,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7834,
+          "tp3_distance_pct_median": 7.1335
+        }
+      },
+      "holdout_by_third": {
+        "first": {
+          "start": "2026-09-14T13:45:00+00:00",
+          "end": "2026-09-14T15:55:00+00:00",
+          "signals": 27,
+          "tp3": 0,
+          "sl": 27,
+          "expired": 0,
+          "resolved": 27,
+          "tp3_rate_pct": 0.0,
+          "sl_distance_pct_median": 1.7834,
+          "tp3_distance_pct_median": 7.1335
+        },
+        "middle": {
+          "start": "2026-09-14T21:15:00+00:00",
+          "end": "2026-09-27T13:55:00+00:00",
+          "signals": 27,
+          "tp3": 9,
+          "sl": 18,
+          "expired": 0,
+          "resolved": 27,
+          "tp3_rate_pct": 33.33,
+          "sl_distance_pct_median": 0.6704,
+          "tp3_distance_pct_median": 2.6815
+        },
+        "last": {
+          "start": "2026-09-27T14:00:00+00:00",
+          "end": "2026-09-28T01:55:00+00:00",
+          "signals": 27,
+          "tp3": 5,
+          "sl": 22,
+          "expired": 0,
+          "resolved": 27,
+          "tp3_rate_pct": 18.52,
+          "sl_distance_pct_median": 0.7619,
+          "tp3_distance_pct_median": 3.0476
+        }
+      },
+      "largest_holdout_symbol_tp3_share_pct": 100.0,
+      "passes_holdout": false
+    }
+  },
+  "approved_candidate": null,
+  "decision": "NO CANDIDATE APPROVED. The final chronological segment contains no TP3; any threshold that looks strong in discovery is regime-overfit and must not be promoted.",
+  "next_step": "Freeze no production change. Run a separate offset-60 30-day replay, then evaluate these same fixed structural families without retuning."
+}

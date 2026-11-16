@@ -1,0 +1,1654 @@
+{
+  "research_only": true,
+  "production_strategy_changed": false,
+  "long_logic_changed": false,
+  "risk_or_sl_tp_geometry_changed": false,
+  "rrce_gate_changed": false,
+  "decision": "NO_CANDIDATE_APPROVED",
+  "approved_candidates": [],
+  "method": {
+    "population": "SHORT rows that reached RRCE stage 3 confirmation",
+    "event_features": [
+      "4H range width relative to initial SL distance",
+      "1H sweep depth relative to swept pool",
+      "15M CHOCH displacement relative to entry",
+      "15M FVG width relative to entry"
+    ],
+    "fresh_window": "30d",
+    "dependence_control": [
+      "Repeated 5-minute scans are grouped by symbol + RRCE sweep time + CHOCH break time + execution zone.",
+      "Row-level TP3 remains visible, but approval additionally requires at least 20 independent RRCE episodes.",
+      "Episode first-entry and any-TP3 rates are reported separately.",
+      "Mixed outcomes inside one structural episode are reported instead of silently deduplicated."
+    ],
+    "approval_requirements": [
+      "TP3 rate strictly improves in 120d, 90d, 60d, and fresh 30d",
+      "median and P75 initial SL distance do not worsen in every window",
+      "at least 20 resolved selected trades per window",
+      "at least 3 symbols contribute selected trades",
+      "no single symbol contributes 60% or more of selected TP3 outcomes",
+      "at least 20 independent RRCE episodes per window",
+      "no single symbol contributes 60% or more of first-entry episode TP3 outcomes"
+    ]
+  },
+  "candidates": {
+    "range_width_to_initial_sl_ge_5": {
+      "windows": {
+        "120": {
+          "baseline": {
+            "signals": 195,
+            "tp3": 36,
+            "sl": 143,
+            "expired": 16,
+            "resolved": 179,
+            "tp3_rate_pct": 20.112,
+            "median_sl_distance_pct": 1.44084,
+            "p75_sl_distance_pct": 1.59997
+          },
+          "selected": {
+            "signals": 134,
+            "tp3": 30,
+            "sl": 101,
+            "expired": 3,
+            "resolved": 131,
+            "tp3_rate_pct": 22.901,
+            "median_sl_distance_pct": 1.06042,
+            "p75_sl_distance_pct": 1.51871
+          },
+          "retention_pct": 68.72,
+          "symbol_concentration": {
+            "symbol_count": 6,
+            "largest_symbol_tp3_share_pct": 50.0,
+            "tp3_by_symbol": {
+              "AVAX/USDT:USDT": 15,
+              "BNB/USDT:USDT": 4,
+              "ETH/USDT:USDT": 0,
+              "LINK/USDT:USDT": 0,
+              "SOL/USDT:USDT": 11,
+              "XRP/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 134,
+            "independent_rrce_episodes": 14,
+            "mean_rows_per_episode": 9.571,
+            "max_rows_per_episode": 23,
+            "effective_sample_size": 10.513,
+            "outcome_conflict_episode_count": 4,
+            "first_entry_resolved_episodes": 13,
+            "first_entry_tp3_rate_pct": 23.077,
+            "episode_any_tp3_rate_pct": 28.571,
+            "first_entry_tp3_symbol_concentration_pct": 66.67,
+            "any_tp3_symbol_concentration_pct": 50.0,
+            "episode_symbol_count": 6
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 44,
+              "tp3": 10,
+              "sl": 34,
+              "expired": 0,
+              "resolved": 44,
+              "tp3_rate_pct": 22.727,
+              "median_sl_distance_pct": 0.80512,
+              "p75_sl_distance_pct": 0.96862
+            },
+            "middle": {
+              "signals": 45,
+              "tp3": 0,
+              "sl": 42,
+              "expired": 3,
+              "resolved": 42,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.5986,
+              "p75_sl_distance_pct": 1.76003
+            },
+            "last": {
+              "signals": 45,
+              "tp3": 20,
+              "sl": 25,
+              "expired": 0,
+              "resolved": 45,
+              "tp3_rate_pct": 44.444,
+              "median_sl_distance_pct": 1.05959,
+              "p75_sl_distance_pct": 1.51022
+            }
+          }
+        },
+        "90": {
+          "baseline": {
+            "signals": 75,
+            "tp3": 0,
+            "sl": 52,
+            "expired": 23,
+            "resolved": 52,
+            "tp3_rate_pct": 0.0,
+            "median_sl_distance_pct": 0.54929,
+            "p75_sl_distance_pct": 1.1728
+          },
+          "selected": {
+            "signals": 72,
+            "tp3": 0,
+            "sl": 49,
+            "expired": 23,
+            "resolved": 49,
+            "tp3_rate_pct": 0.0,
+            "median_sl_distance_pct": 0.54926,
+            "p75_sl_distance_pct": 1.1728
+          },
+          "retention_pct": 96.0,
+          "symbol_concentration": {
+            "symbol_count": 5,
+            "largest_symbol_tp3_share_pct": 0.0,
+            "tp3_by_symbol": {
+              "BNB/USDT:USDT": 0,
+              "ETH/USDT:USDT": 0,
+              "LINK/USDT:USDT": 0,
+              "LTC/USDT:USDT": 0,
+              "SUI/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 72,
+            "independent_rrce_episodes": 8,
+            "mean_rows_per_episode": 9.0,
+            "max_rows_per_episode": 14,
+            "effective_sample_size": 7.063,
+            "outcome_conflict_episode_count": 2,
+            "first_entry_resolved_episodes": 5,
+            "first_entry_tp3_rate_pct": 0.0,
+            "episode_any_tp3_rate_pct": 0.0,
+            "first_entry_tp3_symbol_concentration_pct": 0.0,
+            "any_tp3_symbol_concentration_pct": 0.0,
+            "episode_symbol_count": 5
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 24,
+              "tp3": 0,
+              "sl": 7,
+              "expired": 17,
+              "resolved": 7,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.1728,
+              "p75_sl_distance_pct": 1.26233
+            },
+            "middle": {
+              "signals": 24,
+              "tp3": 0,
+              "sl": 24,
+              "expired": 0,
+              "resolved": 24,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.54062,
+              "p75_sl_distance_pct": 0.54936
+            },
+            "last": {
+              "signals": 24,
+              "tp3": 0,
+              "sl": 18,
+              "expired": 6,
+              "resolved": 18,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.41524,
+              "p75_sl_distance_pct": 0.60452
+            }
+          }
+        },
+        "60": {
+          "baseline": {
+            "signals": 69,
+            "tp3": 3,
+            "sl": 63,
+            "expired": 3,
+            "resolved": 66,
+            "tp3_rate_pct": 4.545,
+            "median_sl_distance_pct": 1.16522,
+            "p75_sl_distance_pct": 1.23122
+          },
+          "selected": {
+            "signals": 39,
+            "tp3": 3,
+            "sl": 33,
+            "expired": 3,
+            "resolved": 36,
+            "tp3_rate_pct": 8.333,
+            "median_sl_distance_pct": 1.02141,
+            "p75_sl_distance_pct": 1.02299
+          },
+          "retention_pct": 56.52,
+          "symbol_concentration": {
+            "symbol_count": 2,
+            "largest_symbol_tp3_share_pct": 100.0,
+            "tp3_by_symbol": {
+              "BNB/USDT:USDT": 0,
+              "SOL/USDT:USDT": 3
+            }
+          },
+          "episode_dependence": {
+            "rows": 39,
+            "independent_rrce_episodes": 4,
+            "mean_rows_per_episode": 9.75,
+            "max_rows_per_episode": 24,
+            "effective_sample_size": 2.315,
+            "outcome_conflict_episode_count": 1,
+            "first_entry_resolved_episodes": 3,
+            "first_entry_tp3_rate_pct": 33.333,
+            "episode_any_tp3_rate_pct": 25.0,
+            "first_entry_tp3_symbol_concentration_pct": 100.0,
+            "any_tp3_symbol_concentration_pct": 100.0,
+            "episode_symbol_count": 2
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 13,
+              "tp3": 0,
+              "sl": 13,
+              "expired": 0,
+              "resolved": 13,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.01726,
+              "p75_sl_distance_pct": 1.0184
+            },
+            "middle": {
+              "signals": 13,
+              "tp3": 2,
+              "sl": 11,
+              "expired": 0,
+              "resolved": 13,
+              "tp3_rate_pct": 15.385,
+              "median_sl_distance_pct": 1.02228,
+              "p75_sl_distance_pct": 1.02299
+            },
+            "last": {
+              "signals": 13,
+              "tp3": 1,
+              "sl": 9,
+              "expired": 3,
+              "resolved": 10,
+              "tp3_rate_pct": 10.0,
+              "median_sl_distance_pct": 1.35338,
+              "p75_sl_distance_pct": 1.49007
+            }
+          }
+        },
+        "30": {
+          "baseline": {
+            "signals": 122,
+            "tp3": 16,
+            "sl": 106,
+            "expired": 0,
+            "resolved": 122,
+            "tp3_rate_pct": 13.115,
+            "median_sl_distance_pct": 1.289,
+            "p75_sl_distance_pct": 1.34162
+          },
+          "selected": {
+            "signals": 77,
+            "tp3": 13,
+            "sl": 64,
+            "expired": 0,
+            "resolved": 77,
+            "tp3_rate_pct": 16.883,
+            "median_sl_distance_pct": 1.2864,
+            "p75_sl_distance_pct": 1.29087
+          },
+          "retention_pct": 63.11,
+          "symbol_concentration": {
+            "symbol_count": 4,
+            "largest_symbol_tp3_share_pct": 76.92,
+            "tp3_by_symbol": {
+              "ETH/USDT:USDT": 0,
+              "LINK/USDT:USDT": 10,
+              "SOL/USDT:USDT": 3,
+              "XRP/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 77,
+            "independent_rrce_episodes": 4,
+            "mean_rows_per_episode": 19.25,
+            "max_rows_per_episode": 33,
+            "effective_sample_size": 3.02,
+            "outcome_conflict_episode_count": 1,
+            "first_entry_resolved_episodes": 4,
+            "first_entry_tp3_rate_pct": 25.0,
+            "episode_any_tp3_rate_pct": 50.0,
+            "first_entry_tp3_symbol_concentration_pct": 100.0,
+            "any_tp3_symbol_concentration_pct": 50.0,
+            "episode_symbol_count": 4
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 25,
+              "tp3": 0,
+              "sl": 25,
+              "expired": 0,
+              "resolved": 25,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.14011,
+              "p75_sl_distance_pct": 0.80666
+            },
+            "middle": {
+              "signals": 26,
+              "tp3": 10,
+              "sl": 16,
+              "expired": 0,
+              "resolved": 26,
+              "tp3_rate_pct": 38.462,
+              "median_sl_distance_pct": 1.30354,
+              "p75_sl_distance_pct": 1.30806
+            },
+            "last": {
+              "signals": 26,
+              "tp3": 3,
+              "sl": 23,
+              "expired": 0,
+              "resolved": 26,
+              "tp3_rate_pct": 11.538,
+              "median_sl_distance_pct": 1.28946,
+              "p75_sl_distance_pct": 1.2903
+            }
+          }
+        }
+      },
+      "approved_for_research": false
+    },
+    "range_width_to_initial_sl_ge_6": {
+      "windows": {
+        "120": {
+          "baseline": {
+            "signals": 195,
+            "tp3": 36,
+            "sl": 143,
+            "expired": 16,
+            "resolved": 179,
+            "tp3_rate_pct": 20.112,
+            "median_sl_distance_pct": 1.44084,
+            "p75_sl_distance_pct": 1.59997
+          },
+          "selected": {
+            "signals": 99,
+            "tp3": 30,
+            "sl": 69,
+            "expired": 0,
+            "resolved": 99,
+            "tp3_rate_pct": 30.303,
+            "median_sl_distance_pct": 0.89369,
+            "p75_sl_distance_pct": 1.30515
+          },
+          "retention_pct": 50.77,
+          "symbol_concentration": {
+            "symbol_count": 6,
+            "largest_symbol_tp3_share_pct": 50.0,
+            "tp3_by_symbol": {
+              "AVAX/USDT:USDT": 15,
+              "BNB/USDT:USDT": 4,
+              "ETH/USDT:USDT": 0,
+              "LINK/USDT:USDT": 0,
+              "SOL/USDT:USDT": 11,
+              "XRP/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 99,
+            "independent_rrce_episodes": 11,
+            "mean_rows_per_episode": 9.0,
+            "max_rows_per_episode": 17,
+            "effective_sample_size": 8.545,
+            "outcome_conflict_episode_count": 3,
+            "first_entry_resolved_episodes": 11,
+            "first_entry_tp3_rate_pct": 27.273,
+            "episode_any_tp3_rate_pct": 36.364,
+            "first_entry_tp3_symbol_concentration_pct": 66.67,
+            "any_tp3_symbol_concentration_pct": 50.0,
+            "episode_symbol_count": 6
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 33,
+              "tp3": 7,
+              "sl": 26,
+              "expired": 0,
+              "resolved": 33,
+              "tp3_rate_pct": 21.212,
+              "median_sl_distance_pct": 0.36176,
+              "p75_sl_distance_pct": 0.91116
+            },
+            "middle": {
+              "signals": 33,
+              "tp3": 3,
+              "sl": 30,
+              "expired": 0,
+              "resolved": 33,
+              "tp3_rate_pct": 9.091,
+              "median_sl_distance_pct": 1.43671,
+              "p75_sl_distance_pct": 1.44655
+            },
+            "last": {
+              "signals": 33,
+              "tp3": 20,
+              "sl": 13,
+              "expired": 0,
+              "resolved": 33,
+              "tp3_rate_pct": 60.606,
+              "median_sl_distance_pct": 1.05821,
+              "p75_sl_distance_pct": 1.17859
+            }
+          }
+        },
+        "90": {
+          "baseline": {
+            "signals": 75,
+            "tp3": 0,
+            "sl": 52,
+            "expired": 23,
+            "resolved": 52,
+            "tp3_rate_pct": 0.0,
+            "median_sl_distance_pct": 0.54929,
+            "p75_sl_distance_pct": 1.1728
+          },
+          "selected": {
+            "signals": 51,
+            "tp3": 0,
+            "sl": 45,
+            "expired": 6,
+            "resolved": 45,
+            "tp3_rate_pct": 0.0,
+            "median_sl_distance_pct": 0.4853,
+            "p75_sl_distance_pct": 0.54929
+          },
+          "retention_pct": 68.0,
+          "symbol_concentration": {
+            "symbol_count": 4,
+            "largest_symbol_tp3_share_pct": 0.0,
+            "tp3_by_symbol": {
+              "BNB/USDT:USDT": 0,
+              "ETH/USDT:USDT": 0,
+              "LINK/USDT:USDT": 0,
+              "SUI/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 51,
+            "independent_rrce_episodes": 7,
+            "mean_rows_per_episode": 7.286,
+            "max_rows_per_episode": 14,
+            "effective_sample_size": 5.667,
+            "outcome_conflict_episode_count": 0,
+            "first_entry_resolved_episodes": 6,
+            "first_entry_tp3_rate_pct": 0.0,
+            "episode_any_tp3_rate_pct": 0.0,
+            "first_entry_tp3_symbol_concentration_pct": 0.0,
+            "any_tp3_symbol_concentration_pct": 0.0,
+            "episode_symbol_count": 4
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 17,
+              "tp3": 0,
+              "sl": 17,
+              "expired": 0,
+              "resolved": 17,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.52368,
+              "p75_sl_distance_pct": 0.54927
+            },
+            "middle": {
+              "signals": 17,
+              "tp3": 0,
+              "sl": 17,
+              "expired": 0,
+              "resolved": 17,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.45696,
+              "p75_sl_distance_pct": 0.53206
+            },
+            "last": {
+              "signals": 17,
+              "tp3": 0,
+              "sl": 11,
+              "expired": 6,
+              "resolved": 11,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.2178,
+              "p75_sl_distance_pct": 2.2062
+            }
+          }
+        },
+        "60": {
+          "baseline": {
+            "signals": 69,
+            "tp3": 3,
+            "sl": 63,
+            "expired": 3,
+            "resolved": 66,
+            "tp3_rate_pct": 4.545,
+            "median_sl_distance_pct": 1.16522,
+            "p75_sl_distance_pct": 1.23122
+          },
+          "selected": {
+            "signals": 15,
+            "tp3": 3,
+            "sl": 9,
+            "expired": 3,
+            "resolved": 12,
+            "tp3_rate_pct": 25.0,
+            "median_sl_distance_pct": 1.40951,
+            "p75_sl_distance_pct": 1.48692
+          },
+          "retention_pct": 21.74,
+          "symbol_concentration": {
+            "symbol_count": 2,
+            "largest_symbol_tp3_share_pct": 100.0,
+            "tp3_by_symbol": {
+              "BNB/USDT:USDT": 0,
+              "SOL/USDT:USDT": 3
+            }
+          },
+          "episode_dependence": {
+            "rows": 15,
+            "independent_rrce_episodes": 3,
+            "mean_rows_per_episode": 5.0,
+            "max_rows_per_episode": 6,
+            "effective_sample_size": 2.778,
+            "outcome_conflict_episode_count": 1,
+            "first_entry_resolved_episodes": 2,
+            "first_entry_tp3_rate_pct": 50.0,
+            "episode_any_tp3_rate_pct": 33.333,
+            "first_entry_tp3_symbol_concentration_pct": 100.0,
+            "any_tp3_symbol_concentration_pct": 100.0,
+            "episode_symbol_count": 2
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 5,
+              "tp3": 3,
+              "sl": 2,
+              "expired": 0,
+              "resolved": 5,
+              "tp3_rate_pct": 60.0,
+              "median_sl_distance_pct": 1.49007,
+              "p75_sl_distance_pct": 1.49568
+            },
+            "middle": {
+              "signals": 5,
+              "tp3": 0,
+              "sl": 5,
+              "expired": 0,
+              "resolved": 5,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.25326,
+              "p75_sl_distance_pct": 0.36953
+            },
+            "last": {
+              "signals": 5,
+              "tp3": 0,
+              "sl": 2,
+              "expired": 3,
+              "resolved": 2,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.35338,
+              "p75_sl_distance_pct": 1.40951
+            }
+          }
+        },
+        "30": {
+          "baseline": {
+            "signals": 122,
+            "tp3": 16,
+            "sl": 106,
+            "expired": 0,
+            "resolved": 122,
+            "tp3_rate_pct": 13.115,
+            "median_sl_distance_pct": 1.289,
+            "p75_sl_distance_pct": 1.34162
+          },
+          "selected": {
+            "signals": 66,
+            "tp3": 10,
+            "sl": 56,
+            "expired": 0,
+            "resolved": 66,
+            "tp3_rate_pct": 15.152,
+            "median_sl_distance_pct": 0.80752,
+            "p75_sl_distance_pct": 1.2896
+          },
+          "retention_pct": 54.1,
+          "symbol_concentration": {
+            "symbol_count": 3,
+            "largest_symbol_tp3_share_pct": 100.0,
+            "tp3_by_symbol": {
+              "ETH/USDT:USDT": 0,
+              "LINK/USDT:USDT": 10,
+              "XRP/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 66,
+            "independent_rrce_episodes": 3,
+            "mean_rows_per_episode": 22.0,
+            "max_rows_per_episode": 25,
+            "effective_sample_size": 2.923,
+            "outcome_conflict_episode_count": 1,
+            "first_entry_resolved_episodes": 3,
+            "first_entry_tp3_rate_pct": 0.0,
+            "episode_any_tp3_rate_pct": 33.333,
+            "first_entry_tp3_symbol_concentration_pct": 0.0,
+            "any_tp3_symbol_concentration_pct": 100.0,
+            "episode_symbol_count": 3
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 22,
+              "tp3": 0,
+              "sl": 22,
+              "expired": 0,
+              "resolved": 22,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.1366,
+              "p75_sl_distance_pct": 0.24675
+            },
+            "middle": {
+              "signals": 22,
+              "tp3": 10,
+              "sl": 12,
+              "expired": 0,
+              "resolved": 22,
+              "tp3_rate_pct": 45.455,
+              "median_sl_distance_pct": 0.41203,
+              "p75_sl_distance_pct": 1.29218
+            },
+            "last": {
+              "signals": 22,
+              "tp3": 0,
+              "sl": 22,
+              "expired": 0,
+              "resolved": 22,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.28946,
+              "p75_sl_distance_pct": 1.29025
+            }
+          }
+        }
+      },
+      "approved_for_research": false
+    },
+    "sweep_depth_le_0_15pct": {
+      "windows": {
+        "120": {
+          "baseline": {
+            "signals": 195,
+            "tp3": 36,
+            "sl": 143,
+            "expired": 16,
+            "resolved": 179,
+            "tp3_rate_pct": 20.112,
+            "median_sl_distance_pct": 1.44084,
+            "p75_sl_distance_pct": 1.59997
+          },
+          "selected": {
+            "signals": 105,
+            "tp3": 32,
+            "sl": 70,
+            "expired": 3,
+            "resolved": 102,
+            "tp3_rate_pct": 31.373,
+            "median_sl_distance_pct": 1.17813,
+            "p75_sl_distance_pct": 1.59756
+          },
+          "retention_pct": 53.85,
+          "symbol_concentration": {
+            "symbol_count": 4,
+            "largest_symbol_tp3_share_pct": 65.62,
+            "tp3_by_symbol": {
+              "AVAX/USDT:USDT": 21,
+              "BNB/USDT:USDT": 0,
+              "SOL/USDT:USDT": 11,
+              "XRP/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 105,
+            "independent_rrce_episodes": 9,
+            "mean_rows_per_episode": 11.667,
+            "max_rows_per_episode": 24,
+            "effective_sample_size": 6.034,
+            "outcome_conflict_episode_count": 3,
+            "first_entry_resolved_episodes": 8,
+            "first_entry_tp3_rate_pct": 37.5,
+            "episode_any_tp3_rate_pct": 33.333,
+            "first_entry_tp3_symbol_concentration_pct": 66.67,
+            "any_tp3_symbol_concentration_pct": 66.67,
+            "episode_symbol_count": 4
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 35,
+              "tp3": 6,
+              "sl": 29,
+              "expired": 0,
+              "resolved": 35,
+              "tp3_rate_pct": 17.143,
+              "median_sl_distance_pct": 1.5952,
+              "p75_sl_distance_pct": 1.59957
+            },
+            "middle": {
+              "signals": 35,
+              "tp3": 0,
+              "sl": 32,
+              "expired": 3,
+              "resolved": 32,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.58232,
+              "p75_sl_distance_pct": 1.76003
+            },
+            "last": {
+              "signals": 35,
+              "tp3": 26,
+              "sl": 9,
+              "expired": 0,
+              "resolved": 35,
+              "tp3_rate_pct": 74.286,
+              "median_sl_distance_pct": 1.06125,
+              "p75_sl_distance_pct": 1.1888
+            }
+          }
+        },
+        "90": {
+          "baseline": {
+            "signals": 75,
+            "tp3": 0,
+            "sl": 52,
+            "expired": 23,
+            "resolved": 52,
+            "tp3_rate_pct": 0.0,
+            "median_sl_distance_pct": 0.54929,
+            "p75_sl_distance_pct": 1.1728
+          },
+          "selected": {
+            "signals": 43,
+            "tp3": 0,
+            "sl": 33,
+            "expired": 10,
+            "resolved": 33,
+            "tp3_rate_pct": 0.0,
+            "median_sl_distance_pct": 0.54936,
+            "p75_sl_distance_pct": 1.041
+          },
+          "retention_pct": 57.33,
+          "symbol_concentration": {
+            "symbol_count": 3,
+            "largest_symbol_tp3_share_pct": 0.0,
+            "tp3_by_symbol": {
+              "ETH/USDT:USDT": 0,
+              "LTC/USDT:USDT": 0,
+              "SUI/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 43,
+            "independent_rrce_episodes": 5,
+            "mean_rows_per_episode": 8.6,
+            "max_rows_per_episode": 12,
+            "effective_sample_size": 4.392,
+            "outcome_conflict_episode_count": 1,
+            "first_entry_resolved_episodes": 4,
+            "first_entry_tp3_rate_pct": 0.0,
+            "episode_any_tp3_rate_pct": 0.0,
+            "first_entry_tp3_symbol_concentration_pct": 0.0,
+            "any_tp3_symbol_concentration_pct": 0.0,
+            "episode_symbol_count": 3
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 14,
+              "tp3": 0,
+              "sl": 4,
+              "expired": 10,
+              "resolved": 4,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.26223,
+              "p75_sl_distance_pct": 1.26287
+            },
+            "middle": {
+              "signals": 14,
+              "tp3": 0,
+              "sl": 14,
+              "expired": 0,
+              "resolved": 14,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.54926,
+              "p75_sl_distance_pct": 0.54936
+            },
+            "last": {
+              "signals": 15,
+              "tp3": 0,
+              "sl": 15,
+              "expired": 0,
+              "resolved": 15,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.18951,
+              "p75_sl_distance_pct": 0.50248
+            }
+          }
+        },
+        "60": {
+          "baseline": {
+            "signals": 69,
+            "tp3": 3,
+            "sl": 63,
+            "expired": 3,
+            "resolved": 66,
+            "tp3_rate_pct": 4.545,
+            "median_sl_distance_pct": 1.16522,
+            "p75_sl_distance_pct": 1.23122
+          },
+          "selected": {
+            "signals": 63,
+            "tp3": 0,
+            "sl": 60,
+            "expired": 3,
+            "resolved": 60,
+            "tp3_rate_pct": 0.0,
+            "median_sl_distance_pct": 1.16367,
+            "p75_sl_distance_pct": 1.2179
+          },
+          "retention_pct": 91.3,
+          "symbol_concentration": {
+            "symbol_count": 1,
+            "largest_symbol_tp3_share_pct": 0.0,
+            "tp3_by_symbol": {
+              "BNB/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 63,
+            "independent_rrce_episodes": 3,
+            "mean_rows_per_episode": 21.0,
+            "max_rows_per_episode": 36,
+            "effective_sample_size": 2.11,
+            "outcome_conflict_episode_count": 0,
+            "first_entry_resolved_episodes": 2,
+            "first_entry_tp3_rate_pct": 0.0,
+            "episode_any_tp3_rate_pct": 0.0,
+            "first_entry_tp3_symbol_concentration_pct": 0.0,
+            "any_tp3_symbol_concentration_pct": 0.0,
+            "episode_symbol_count": 1
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 21,
+              "tp3": 0,
+              "sl": 21,
+              "expired": 0,
+              "resolved": 21,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.01846,
+              "p75_sl_distance_pct": 1.02159
+            },
+            "middle": {
+              "signals": 21,
+              "tp3": 0,
+              "sl": 21,
+              "expired": 0,
+              "resolved": 21,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.16522,
+              "p75_sl_distance_pct": 1.16852
+            },
+            "last": {
+              "signals": 21,
+              "tp3": 0,
+              "sl": 18,
+              "expired": 3,
+              "resolved": 18,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.23175,
+              "p75_sl_distance_pct": 1.23531
+            }
+          }
+        },
+        "30": {
+          "baseline": {
+            "signals": 122,
+            "tp3": 16,
+            "sl": 106,
+            "expired": 0,
+            "resolved": 122,
+            "tp3_rate_pct": 13.115,
+            "median_sl_distance_pct": 1.289,
+            "p75_sl_distance_pct": 1.34162
+          },
+          "selected": {
+            "signals": 92,
+            "tp3": 16,
+            "sl": 76,
+            "expired": 0,
+            "resolved": 92,
+            "tp3_rate_pct": 17.391,
+            "median_sl_distance_pct": 1.29783,
+            "p75_sl_distance_pct": 1.37864
+          },
+          "retention_pct": 75.41,
+          "symbol_concentration": {
+            "symbol_count": 3,
+            "largest_symbol_tp3_share_pct": 62.5,
+            "tp3_by_symbol": {
+              "ETH/USDT:USDT": 0,
+              "LINK/USDT:USDT": 10,
+              "SOL/USDT:USDT": 6
+            }
+          },
+          "episode_dependence": {
+            "rows": 92,
+            "independent_rrce_episodes": 4,
+            "mean_rows_per_episode": 23.0,
+            "max_rows_per_episode": 36,
+            "effective_sample_size": 3.123,
+            "outcome_conflict_episode_count": 1,
+            "first_entry_resolved_episodes": 4,
+            "first_entry_tp3_rate_pct": 25.0,
+            "episode_any_tp3_rate_pct": 50.0,
+            "first_entry_tp3_symbol_concentration_pct": 100.0,
+            "any_tp3_symbol_concentration_pct": 50.0,
+            "episode_symbol_count": 3
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 30,
+              "tp3": 0,
+              "sl": 30,
+              "expired": 0,
+              "resolved": 30,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.34257,
+              "p75_sl_distance_pct": 1.3832
+            },
+            "middle": {
+              "signals": 31,
+              "tp3": 10,
+              "sl": 21,
+              "expired": 0,
+              "resolved": 31,
+              "tp3_rate_pct": 32.258,
+              "median_sl_distance_pct": 1.30348,
+              "p75_sl_distance_pct": 1.38637
+            },
+            "last": {
+              "signals": 31,
+              "tp3": 6,
+              "sl": 25,
+              "expired": 0,
+              "resolved": 31,
+              "tp3_rate_pct": 19.355,
+              "median_sl_distance_pct": 1.28991,
+              "p75_sl_distance_pct": 1.29118
+            }
+          }
+        }
+      },
+      "approved_for_research": false
+    },
+    "choch_displacement_le_0_40pct": {
+      "windows": {
+        "120": {
+          "baseline": {
+            "signals": 195,
+            "tp3": 36,
+            "sl": 143,
+            "expired": 16,
+            "resolved": 179,
+            "tp3_rate_pct": 20.112,
+            "median_sl_distance_pct": 1.44084,
+            "p75_sl_distance_pct": 1.59997
+          },
+          "selected": {
+            "signals": 82,
+            "tp3": 26,
+            "sl": 56,
+            "expired": 0,
+            "resolved": 82,
+            "tp3_rate_pct": 31.707,
+            "median_sl_distance_pct": 0.89371,
+            "p75_sl_distance_pct": 1.27992
+          },
+          "retention_pct": 42.05,
+          "symbol_concentration": {
+            "symbol_count": 5,
+            "largest_symbol_tp3_share_pct": 73.08,
+            "tp3_by_symbol": {
+              "AVAX/USDT:USDT": 19,
+              "BNB/USDT:USDT": 4,
+              "LINK/USDT:USDT": 0,
+              "SOL/USDT:USDT": 3,
+              "XRP/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 82,
+            "independent_rrce_episodes": 13,
+            "mean_rows_per_episode": 6.308,
+            "max_rows_per_episode": 16,
+            "effective_sample_size": 8.824,
+            "outcome_conflict_episode_count": 3,
+            "first_entry_resolved_episodes": 13,
+            "first_entry_tp3_rate_pct": 23.077,
+            "episode_any_tp3_rate_pct": 30.769,
+            "first_entry_tp3_symbol_concentration_pct": 66.67,
+            "any_tp3_symbol_concentration_pct": 50.0,
+            "episode_symbol_count": 5
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 27,
+              "tp3": 8,
+              "sl": 19,
+              "expired": 0,
+              "resolved": 27,
+              "tp3_rate_pct": 29.63,
+              "median_sl_distance_pct": 0.83117,
+              "p75_sl_distance_pct": 0.91984
+            },
+            "middle": {
+              "signals": 27,
+              "tp3": 0,
+              "sl": 27,
+              "expired": 0,
+              "resolved": 27,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.27958,
+              "p75_sl_distance_pct": 1.43534
+            },
+            "last": {
+              "signals": 28,
+              "tp3": 18,
+              "sl": 10,
+              "expired": 0,
+              "resolved": 28,
+              "tp3_rate_pct": 64.286,
+              "median_sl_distance_pct": 0.9671,
+              "p75_sl_distance_pct": 1.18367
+            }
+          }
+        },
+        "90": {
+          "baseline": {
+            "signals": 75,
+            "tp3": 0,
+            "sl": 52,
+            "expired": 23,
+            "resolved": 52,
+            "tp3_rate_pct": 0.0,
+            "median_sl_distance_pct": 0.54929,
+            "p75_sl_distance_pct": 1.1728
+          },
+          "selected": {
+            "signals": 43,
+            "tp3": 0,
+            "sl": 37,
+            "expired": 6,
+            "resolved": 37,
+            "tp3_rate_pct": 0.0,
+            "median_sl_distance_pct": 0.51712,
+            "p75_sl_distance_pct": 0.58384
+          },
+          "retention_pct": 57.33,
+          "symbol_concentration": {
+            "symbol_count": 5,
+            "largest_symbol_tp3_share_pct": 0.0,
+            "tp3_by_symbol": {
+              "BNB/USDT:USDT": 0,
+              "ETH/USDT:USDT": 0,
+              "LINK/USDT:USDT": 0,
+              "LTC/USDT:USDT": 0,
+              "SUI/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 43,
+            "independent_rrce_episodes": 7,
+            "mean_rows_per_episode": 6.143,
+            "max_rows_per_episode": 14,
+            "effective_sample_size": 5.329,
+            "outcome_conflict_episode_count": 0,
+            "first_entry_resolved_episodes": 6,
+            "first_entry_tp3_rate_pct": 0.0,
+            "episode_any_tp3_rate_pct": 0.0,
+            "first_entry_tp3_symbol_concentration_pct": 0.0,
+            "any_tp3_symbol_concentration_pct": 0.0,
+            "episode_symbol_count": 5
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 14,
+              "tp3": 0,
+              "sl": 14,
+              "expired": 0,
+              "resolved": 14,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.54924,
+              "p75_sl_distance_pct": 0.54929
+            },
+            "middle": {
+              "signals": 14,
+              "tp3": 0,
+              "sl": 14,
+              "expired": 0,
+              "resolved": 14,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.50284,
+              "p75_sl_distance_pct": 0.53206
+            },
+            "last": {
+              "signals": 15,
+              "tp3": 0,
+              "sl": 9,
+              "expired": 6,
+              "resolved": 9,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.50248,
+              "p75_sl_distance_pct": 2.2062
+            }
+          }
+        },
+        "60": {
+          "baseline": {
+            "signals": 69,
+            "tp3": 3,
+            "sl": 63,
+            "expired": 3,
+            "resolved": 66,
+            "tp3_rate_pct": 4.545,
+            "median_sl_distance_pct": 1.16522,
+            "p75_sl_distance_pct": 1.23122
+          },
+          "selected": {
+            "signals": 10,
+            "tp3": 2,
+            "sl": 5,
+            "expired": 3,
+            "resolved": 7,
+            "tp3_rate_pct": 28.571,
+            "median_sl_distance_pct": 0.86146,
+            "p75_sl_distance_pct": 1.40951
+          },
+          "retention_pct": 14.49,
+          "symbol_concentration": {
+            "symbol_count": 2,
+            "largest_symbol_tp3_share_pct": 100.0,
+            "tp3_by_symbol": {
+              "BNB/USDT:USDT": 0,
+              "SOL/USDT:USDT": 2
+            }
+          },
+          "episode_dependence": {
+            "rows": 10,
+            "independent_rrce_episodes": 3,
+            "mean_rows_per_episode": 3.333,
+            "max_rows_per_episode": 5,
+            "effective_sample_size": 2.632,
+            "outcome_conflict_episode_count": 0,
+            "first_entry_resolved_episodes": 2,
+            "first_entry_tp3_rate_pct": 50.0,
+            "episode_any_tp3_rate_pct": 33.333,
+            "first_entry_tp3_symbol_concentration_pct": 100.0,
+            "any_tp3_symbol_concentration_pct": 100.0,
+            "episode_symbol_count": 2
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 3,
+              "tp3": 2,
+              "sl": 1,
+              "expired": 0,
+              "resolved": 3,
+              "tp3_rate_pct": 66.667,
+              "median_sl_distance_pct": 1.48607,
+              "p75_sl_distance_pct": 1.48607
+            },
+            "middle": {
+              "signals": 3,
+              "tp3": 0,
+              "sl": 3,
+              "expired": 0,
+              "resolved": 3,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.18134,
+              "p75_sl_distance_pct": 0.18134
+            },
+            "last": {
+              "signals": 4,
+              "tp3": 0,
+              "sl": 1,
+              "expired": 3,
+              "resolved": 1,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.38145,
+              "p75_sl_distance_pct": 1.40951
+            }
+          }
+        },
+        "30": {
+          "baseline": {
+            "signals": 122,
+            "tp3": 16,
+            "sl": 106,
+            "expired": 0,
+            "resolved": 122,
+            "tp3_rate_pct": 13.115,
+            "median_sl_distance_pct": 1.289,
+            "p75_sl_distance_pct": 1.34162
+          },
+          "selected": {
+            "signals": 50,
+            "tp3": 2,
+            "sl": 48,
+            "expired": 0,
+            "resolved": 50,
+            "tp3_rate_pct": 4.0,
+            "median_sl_distance_pct": 0.95941,
+            "p75_sl_distance_pct": 1.30659
+          },
+          "retention_pct": 40.98,
+          "symbol_concentration": {
+            "symbol_count": 4,
+            "largest_symbol_tp3_share_pct": 100.0,
+            "tp3_by_symbol": {
+              "BNB/USDT:USDT": 0,
+              "ETH/USDT:USDT": 0,
+              "SOL/USDT:USDT": 2,
+              "XRP/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 50,
+            "independent_rrce_episodes": 5,
+            "mean_rows_per_episode": 10.0,
+            "max_rows_per_episode": 24,
+            "effective_sample_size": 3.205,
+            "outcome_conflict_episode_count": 0,
+            "first_entry_resolved_episodes": 5,
+            "first_entry_tp3_rate_pct": 20.0,
+            "episode_any_tp3_rate_pct": 20.0,
+            "first_entry_tp3_symbol_concentration_pct": 100.0,
+            "any_tp3_symbol_concentration_pct": 100.0,
+            "episode_symbol_count": 4
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 16,
+              "tp3": 0,
+              "sl": 16,
+              "expired": 0,
+              "resolved": 16,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.24165,
+              "p75_sl_distance_pct": 1.38506
+            },
+            "middle": {
+              "signals": 17,
+              "tp3": 0,
+              "sl": 17,
+              "expired": 0,
+              "resolved": 17,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.13309,
+              "p75_sl_distance_pct": 0.80666
+            },
+            "last": {
+              "signals": 17,
+              "tp3": 2,
+              "sl": 15,
+              "expired": 0,
+              "resolved": 17,
+              "tp3_rate_pct": 11.765,
+              "median_sl_distance_pct": 1.30348,
+              "p75_sl_distance_pct": 1.30735
+            }
+          }
+        }
+      },
+      "approved_for_research": false
+    },
+    "fvg_width_le_0_10pct": {
+      "windows": {
+        "120": {
+          "baseline": {
+            "signals": 195,
+            "tp3": 36,
+            "sl": 143,
+            "expired": 16,
+            "resolved": 179,
+            "tp3_rate_pct": 20.112,
+            "median_sl_distance_pct": 1.44084,
+            "p75_sl_distance_pct": 1.59997
+          },
+          "selected": {
+            "signals": 83,
+            "tp3": 21,
+            "sl": 61,
+            "expired": 1,
+            "resolved": 82,
+            "tp3_rate_pct": 25.61,
+            "median_sl_distance_pct": 1.43125,
+            "p75_sl_distance_pct": 1.5986
+          },
+          "retention_pct": 42.56,
+          "symbol_concentration": {
+            "symbol_count": 6,
+            "largest_symbol_tp3_share_pct": 100.0,
+            "tp3_by_symbol": {
+              "AVAX/USDT:USDT": 21,
+              "BNB/USDT:USDT": 0,
+              "ETH/USDT:USDT": 0,
+              "LINK/USDT:USDT": 0,
+              "SUI/USDT:USDT": 0,
+              "XRP/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 83,
+            "independent_rrce_episodes": 11,
+            "mean_rows_per_episode": 7.545,
+            "max_rows_per_episode": 16,
+            "effective_sample_size": 7.732,
+            "outcome_conflict_episode_count": 1,
+            "first_entry_resolved_episodes": 10,
+            "first_entry_tp3_rate_pct": 20.0,
+            "episode_any_tp3_rate_pct": 18.182,
+            "first_entry_tp3_symbol_concentration_pct": 100.0,
+            "any_tp3_symbol_concentration_pct": 100.0,
+            "episode_symbol_count": 6
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 27,
+              "tp3": 6,
+              "sl": 21,
+              "expired": 0,
+              "resolved": 27,
+              "tp3_rate_pct": 22.222,
+              "median_sl_distance_pct": 1.5992,
+              "p75_sl_distance_pct": 2.03157
+            },
+            "middle": {
+              "signals": 28,
+              "tp3": 0,
+              "sl": 27,
+              "expired": 1,
+              "resolved": 27,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.35576,
+              "p75_sl_distance_pct": 1.44464
+            },
+            "last": {
+              "signals": 28,
+              "tp3": 15,
+              "sl": 13,
+              "expired": 0,
+              "resolved": 28,
+              "tp3_rate_pct": 53.571,
+              "median_sl_distance_pct": 0.9671,
+              "p75_sl_distance_pct": 1.44655
+            }
+          }
+        },
+        "90": {
+          "baseline": {
+            "signals": 75,
+            "tp3": 0,
+            "sl": 52,
+            "expired": 23,
+            "resolved": 52,
+            "tp3_rate_pct": 0.0,
+            "median_sl_distance_pct": 0.54929,
+            "p75_sl_distance_pct": 1.1728
+          },
+          "selected": {
+            "signals": 56,
+            "tp3": 0,
+            "sl": 39,
+            "expired": 17,
+            "resolved": 39,
+            "tp3_rate_pct": 0.0,
+            "median_sl_distance_pct": 0.54924,
+            "p75_sl_distance_pct": 1.1723
+          },
+          "retention_pct": 74.67,
+          "symbol_concentration": {
+            "symbol_count": 3,
+            "largest_symbol_tp3_share_pct": 0.0,
+            "tp3_by_symbol": {
+              "BNB/USDT:USDT": 0,
+              "ETH/USDT:USDT": 0,
+              "SUI/USDT:USDT": 0
+            }
+          },
+          "episode_dependence": {
+            "rows": 56,
+            "independent_rrce_episodes": 5,
+            "mean_rows_per_episode": 11.2,
+            "max_rows_per_episode": 14,
+            "effective_sample_size": 4.723,
+            "outcome_conflict_episode_count": 2,
+            "first_entry_resolved_episodes": 3,
+            "first_entry_tp3_rate_pct": 0.0,
+            "episode_any_tp3_rate_pct": 0.0,
+            "first_entry_tp3_symbol_concentration_pct": 0.0,
+            "any_tp3_symbol_concentration_pct": 0.0,
+            "episode_symbol_count": 3
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 18,
+              "tp3": 0,
+              "sl": 6,
+              "expired": 12,
+              "resolved": 6,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.17255,
+              "p75_sl_distance_pct": 1.17297
+            },
+            "middle": {
+              "signals": 19,
+              "tp3": 0,
+              "sl": 14,
+              "expired": 5,
+              "resolved": 14,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.54926,
+              "p75_sl_distance_pct": 0.60947
+            },
+            "last": {
+              "signals": 19,
+              "tp3": 0,
+              "sl": 19,
+              "expired": 0,
+              "resolved": 19,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 0.40701,
+              "p75_sl_distance_pct": 0.53206
+            }
+          }
+        },
+        "60": {
+          "baseline": {
+            "signals": 69,
+            "tp3": 3,
+            "sl": 63,
+            "expired": 3,
+            "resolved": 66,
+            "tp3_rate_pct": 4.545,
+            "median_sl_distance_pct": 1.16522,
+            "p75_sl_distance_pct": 1.23122
+          },
+          "selected": {
+            "signals": 66,
+            "tp3": 3,
+            "sl": 63,
+            "expired": 0,
+            "resolved": 66,
+            "tp3_rate_pct": 4.545,
+            "median_sl_distance_pct": 1.16508,
+            "p75_sl_distance_pct": 1.21911
+          },
+          "retention_pct": 95.65,
+          "symbol_concentration": {
+            "symbol_count": 2,
+            "largest_symbol_tp3_share_pct": 100.0,
+            "tp3_by_symbol": {
+              "BNB/USDT:USDT": 0,
+              "SOL/USDT:USDT": 3
+            }
+          },
+          "episode_dependence": {
+            "rows": 66,
+            "independent_rrce_episodes": 3,
+            "mean_rows_per_episode": 22.0,
+            "max_rows_per_episode": 36,
+            "effective_sample_size": 2.283,
+            "outcome_conflict_episode_count": 1,
+            "first_entry_resolved_episodes": 3,
+            "first_entry_tp3_rate_pct": 33.333,
+            "episode_any_tp3_rate_pct": 33.333,
+            "first_entry_tp3_symbol_concentration_pct": 100.0,
+            "any_tp3_symbol_concentration_pct": 100.0,
+            "episode_symbol_count": 2
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 22,
+              "tp3": 0,
+              "sl": 22,
+              "expired": 0,
+              "resolved": 22,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.01859,
+              "p75_sl_distance_pct": 1.02156
+            },
+            "middle": {
+              "signals": 22,
+              "tp3": 3,
+              "sl": 19,
+              "expired": 0,
+              "resolved": 22,
+              "tp3_rate_pct": 13.636,
+              "median_sl_distance_pct": 1.16562,
+              "p75_sl_distance_pct": 1.21767
+            },
+            "last": {
+              "signals": 22,
+              "tp3": 0,
+              "sl": 22,
+              "expired": 0,
+              "resolved": 22,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.21918,
+              "p75_sl_distance_pct": 1.2322
+            }
+          }
+        },
+        "30": {
+          "baseline": {
+            "signals": 122,
+            "tp3": 16,
+            "sl": 106,
+            "expired": 0,
+            "resolved": 122,
+            "tp3_rate_pct": 13.115,
+            "median_sl_distance_pct": 1.289,
+            "p75_sl_distance_pct": 1.34162
+          },
+          "selected": {
+            "signals": 56,
+            "tp3": 10,
+            "sl": 46,
+            "expired": 0,
+            "resolved": 56,
+            "tp3_rate_pct": 17.857,
+            "median_sl_distance_pct": 1.28908,
+            "p75_sl_distance_pct": 1.29218
+          },
+          "retention_pct": 45.9,
+          "symbol_concentration": {
+            "symbol_count": 3,
+            "largest_symbol_tp3_share_pct": 100.0,
+            "tp3_by_symbol": {
+              "BNB/USDT:USDT": 0,
+              "ETH/USDT:USDT": 0,
+              "LINK/USDT:USDT": 10
+            }
+          },
+          "episode_dependence": {
+            "rows": 56,
+            "independent_rrce_episodes": 3,
+            "mean_rows_per_episode": 18.667,
+            "max_rows_per_episode": 33,
+            "effective_sample_size": 2.218,
+            "outcome_conflict_episode_count": 1,
+            "first_entry_resolved_episodes": 3,
+            "first_entry_tp3_rate_pct": 0.0,
+            "episode_any_tp3_rate_pct": 33.333,
+            "first_entry_tp3_symbol_concentration_pct": 0.0,
+            "any_tp3_symbol_concentration_pct": 100.0,
+            "episode_symbol_count": 3
+          },
+          "passes_window": false,
+          "chronological_thirds": {
+            "first": {
+              "signals": 18,
+              "tp3": 5,
+              "sl": 13,
+              "expired": 0,
+              "resolved": 18,
+              "tp3_rate_pct": 27.778,
+              "median_sl_distance_pct": 1.09771,
+              "p75_sl_distance_pct": 1.09895
+            },
+            "middle": {
+              "signals": 19,
+              "tp3": 5,
+              "sl": 14,
+              "expired": 0,
+              "resolved": 19,
+              "tp3_rate_pct": 26.316,
+              "median_sl_distance_pct": 1.29218,
+              "p75_sl_distance_pct": 1.30659
+            },
+            "last": {
+              "signals": 19,
+              "tp3": 0,
+              "sl": 19,
+              "expired": 0,
+              "resolved": 19,
+              "tp3_rate_pct": 0.0,
+              "median_sl_distance_pct": 1.28981,
+              "p75_sl_distance_pct": 1.2903
+            }
+          }
+        }
+      },
+      "approved_for_research": false
+    }
+  }
+}

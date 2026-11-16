@@ -1,0 +1,173 @@
+{
+  "research_only": true,
+  "production_strategy_changed": false,
+  "long_logic_changed": false,
+  "risk_or_sl_tp_geometry_changed": false,
+  "rrce_gate_changed": false,
+  "decision": "NOT_VALIDATED",
+  "method": {
+    "description": "Frozen RRCE-aligned indicator ranking with a fixed moderate planned-SL penalty.",
+    "features": {
+      "adx_4h": "adx_4h",
+      "macd_hist_15m": "macd_hist_15m",
+      "macd_hist_1h": "macd_hist",
+      "support_distance_pct": "support_distance_pct"
+    },
+    "sl_penalty_weight": 0.3,
+    "selection_rule": "top half by frozen score; threshold is the pooled discovery median.",
+    "weights_fit_only_from": [
+      "120d discovery",
+      "90d discovery",
+      "60d discovery"
+    ],
+    "fresh_validation_window": "30d"
+  },
+  "discovery_auc_median": {
+    "adx_4h": 0.441318894520114,
+    "macd_hist_15m": 0.5144559708584099,
+    "macd_hist_1h": 0.41390266370270673,
+    "support_distance_pct": 0.4141198704103672
+  },
+  "discovery_auc_by_window": {
+    "adx_4h": [
+      0.49604727076379346,
+      0.441318894520114,
+      0.3998449988692088
+    ],
+    "macd_hist_15m": [
+      0.5219836049479678,
+      0.5144559708584099,
+      0.4534638064085521
+    ],
+    "macd_hist_1h": [
+      0.31644045749067345,
+      0.5004137630662021,
+      0.41390266370270673
+    ],
+    "support_distance_pct": [
+      0.4141198704103672,
+      0.5425720620842572,
+      0.3475169480773792
+    ]
+  },
+  "derived_weights": {
+    "adx_4h": -1.0
+  },
+  "pooled_discovery_threshold": -0.145925325,
+  "windows": {
+    "short_window_120": {
+      "role": "historical_holdout_check",
+      "holdout": {
+        "signals": 1164,
+        "tp3": 237,
+        "sl": 820,
+        "expired": 107,
+        "resolved": 1057,
+        "tp3_rate_pct": 22.42,
+        "median_sl_distance_pct": 1.07921,
+        "p75_sl_distance_pct": 1.5173
+      },
+      "scored": 1164,
+      "score_coverage_pct": 100.0,
+      "selected": {
+        "signals": 754,
+        "tp3": 203,
+        "sl": 469,
+        "expired": 82,
+        "resolved": 672,
+        "tp3_rate_pct": 30.21,
+        "median_sl_distance_pct": 0.97385,
+        "p75_sl_distance_pct": 1.44774
+      },
+      "selected_retention_pct": 64.78,
+      "approval_check": true
+    },
+    "short_window_90": {
+      "role": "historical_holdout_check",
+      "holdout": {
+        "signals": 1014,
+        "tp3": 73,
+        "sl": 562,
+        "expired": 379,
+        "resolved": 635,
+        "tp3_rate_pct": 11.5,
+        "median_sl_distance_pct": 1.06534,
+        "p75_sl_distance_pct": 1.38798
+      },
+      "scored": 1014,
+      "score_coverage_pct": 100.0,
+      "selected": {
+        "signals": 432,
+        "tp3": 63,
+        "sl": 289,
+        "expired": 80,
+        "resolved": 352,
+        "tp3_rate_pct": 17.9,
+        "median_sl_distance_pct": 1.27926,
+        "p75_sl_distance_pct": 1.36913
+      },
+      "selected_retention_pct": 42.6,
+      "approval_check": false
+    },
+    "short_window_60": {
+      "role": "historical_holdout_check",
+      "holdout": {
+        "signals": 609,
+        "tp3": 84,
+        "sl": 471,
+        "expired": 54,
+        "resolved": 555,
+        "tp3_rate_pct": 15.14,
+        "median_sl_distance_pct": 1.45843,
+        "p75_sl_distance_pct": 1.78531
+      },
+      "scored": 609,
+      "score_coverage_pct": 100.0,
+      "selected": {
+        "signals": 189,
+        "tp3": 50,
+        "sl": 139,
+        "expired": 0,
+        "resolved": 189,
+        "tp3_rate_pct": 26.46,
+        "median_sl_distance_pct": 0.87934,
+        "p75_sl_distance_pct": 1.44876
+      },
+      "selected_retention_pct": 31.03,
+      "approval_check": true
+    },
+    "short_window_30": {
+      "role": "fresh_validation",
+      "holdout": {
+        "signals": 679,
+        "tp3": 132,
+        "sl": 493,
+        "expired": 54,
+        "resolved": 625,
+        "tp3_rate_pct": 21.12,
+        "median_sl_distance_pct": 1.30659,
+        "p75_sl_distance_pct": 1.72446
+      },
+      "scored": 679,
+      "score_coverage_pct": 100.0,
+      "selected": {
+        "signals": 133,
+        "tp3": 0,
+        "sl": 133,
+        "expired": 0,
+        "resolved": 133,
+        "tp3_rate_pct": 0.0,
+        "median_sl_distance_pct": 1.17209,
+        "p75_sl_distance_pct": 1.26777
+      },
+      "selected_retention_pct": 19.59,
+      "approval_check": false
+    }
+  },
+  "approval_checks": {
+    "short_window_120": true,
+    "short_window_90": false,
+    "short_window_60": true,
+    "short_window_30": false
+  }
+}
