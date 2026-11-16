@@ -2,8 +2,8 @@
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-16T13:00:21.228237+00:00",
-    "last_seen": "2026-11-16T13:50:20.357271+00:00",
-    "observations": 11,
+    "last_seen": "2026-11-16T13:55:21.886525+00:00",
+    "observations": 12,
     "pool_level": 1.0004,
     "range_high": 1.0008,
     "range_low": 0.9994,
