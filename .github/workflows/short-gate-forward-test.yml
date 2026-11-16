@@ -1,0 +1,103 @@
+name: SHORT 4H gate forward test (isolated)
+
+# Isolation guarantees:
+#  - runs the RESEARCH code of this branch, never main
+#  - no Telegram: BOT_TOKEN / CHAT_ID are blank, so no alert can be sent
+#  - starts from CLEAN state (no cooldown / circuit-breaker / signals carried from main)
+#  - writes state ONLY to branch forward-test/short-gate-data, never to main
+# Trigger: push that changes forward_test/request.json (cron cannot run from a non-default branch).
+on:
+  push:
+    branches: [research/short-gate-forward-test]
+    paths: [forward_test/request.json]
+
+concurrency:
+  group: short-gate-forward-test
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  forward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      PYTHONUNBUFFERED: "1"
+      LONG_SIGNALS_ENABLED: "false"
+      BOT_TOKEN: ""
+      CHAT_ID: ""
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run isolated forward test
+        run: |
+          set -u
+          DATA="forward-test/short-gate-data"
+          REPO_URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          ITER=$(python -c "import json;print(int(json.load(open('forward_test/request.json'))['iterations']))")
+          INTERVAL=$(python -c "import json;print(int(json.load(open('forward_test/request.json'))['interval_minutes']))")
+          echo "iterations=$ITER interval=${INTERVAL}min sha=$GITHUB_SHA"
+          echo "BOT_TOKEN set? [${BOT_TOKEN:+yes}${BOT_TOKEN:-no}]  CHAT_ID set? [${CHAT_ID:+yes}${CHAT_ID:-no}]"
+
+          # clean state: nothing inherited from the repo checkout
+          rm -f storage/signals.csv storage/cooldown.json storage/circuit_breaker.json \
+                storage/rrce_watchlist.json storage/scan_debug_log.jsonl storage/symbol_trace_log.jsonl
+
+          rm -rf /tmp/datarepo
+          if git ls-remote --exit-code --heads "$REPO_URL" "$DATA" >/dev/null 2>&1; then
+            git clone -q --depth=1 --branch "$DATA" "$REPO_URL" /tmp/datarepo
+            for f in signals.csv cooldown.json circuit_breaker.json rrce_watchlist.json; do
+              [ -f "/tmp/datarepo/state/$f" ] && cp "/tmp/datarepo/state/$f" "storage/$f"
+            done
+            echo "restored state from $DATA"
+          else
+            git init -q /tmp/datarepo
+            git -C /tmp/datarepo checkout -q -b "$DATA"
+            git -C /tmp/datarepo remote add origin "$REPO_URL"
+            echo "no data branch yet: starting from empty state"
+          fi
+          git -C /tmp/datarepo config user.name "forward-test-bot"
+          git -C /tmp/datarepo config user.email "forward-test-bot@users.noreply.github.com"
+
+          save_state() {
+            mkdir -p /tmp/datarepo/state
+            for f in signals.csv cooldown.json circuit_breaker.json rrce_watchlist.json; do
+              [ -f "storage/$f" ] && cp "storage/$f" "/tmp/datarepo/state/$f"
+            done
+            echo "iteration $1 sha=$GITHUB_SHA utc=$(date -u +%FT%TZ)" >> /tmp/datarepo/state/runs.log
+            git -C /tmp/datarepo add state
+            git -C /tmp/datarepo commit -q -m "forward-test state: iteration $1 ($GITHUB_SHA)" || return 0
+            git -C /tmp/datarepo push -q origin "HEAD:refs/heads/$DATA"
+          }
+
+          for i in $(seq 1 "$ITER"); do
+            start=$(date +%s)
+            echo "=================== iteration $i/$ITER $(date -u) ==================="
+            python scanner_v5.py || echo "scanner exited non-zero: $?"
+            save_state "$i"
+            elapsed=$(( $(date +%s) - start ))
+            wait=$(( INTERVAL * 60 - elapsed ))
+            if [ "$i" -lt "$ITER" ] && [ "$wait" -gt 0 ]; then sleep "$wait"; fi
+          done
+      - name: Summary of gated SHORT signals
+        if: always()
+        run: |
+          python - <<'P'
+          import pandas as pd, os
+          f="/tmp/datarepo/state/signals.csv"
+          if not os.path.exists(f): print("no signals.csv"); raise SystemExit
+          d=pd.read_csv(f,low_memory=False); s=d[d.direction=="SHORT"].copy()
+          r=pd.to_numeric(s.get("rsi_4h"),errors="coerce")
+          print("rows",len(d),"| SHORT",len(s),"| status",dict(s.status.value_counts()))
+          print("rsi_4h: missing",int(r.isna().sum()),"| min",r.min(),"| below 50:",int((r<50).sum()))
+          print("1H rsi range:",pd.to_numeric(s.rsi,errors="coerce").min(),pd.to_numeric(s.rsi,errors="coerce").max())
+          P
