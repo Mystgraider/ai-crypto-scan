@@ -1,1 +1,1 @@
-{"iterations": 3, "interval_minutes": 5, "note": "smoke run"}
+{"iterations": 55, "interval_minutes": 5, "note": "long forward run (~4.6h), isolated"}
