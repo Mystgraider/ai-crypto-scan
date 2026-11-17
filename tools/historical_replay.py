@@ -789,7 +789,8 @@ def run():
             raise RuntimeError(f"symbol_five_minute_coverage_failed:{symbol}:{exc}") from exc
 
     original_long_signals_enabled = os.environ.get("LONG_SIGNALS_ENABLED")
-    os.environ["LONG_SIGNALS_ENABLED"] = "false"
+    backtest_long_enabled = os.environ.get("BACKTEST_LONG_SIGNALS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    os.environ["LONG_SIGNALS_ENABLED"] = "true" if backtest_long_enabled else "false"
 
     original = {
         "MarketDataLoader": scanner.MarketDataLoader,
