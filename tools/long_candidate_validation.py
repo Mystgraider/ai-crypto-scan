@@ -76,16 +76,24 @@ def val(r, field):
 
 def main():
     payload = json.loads(PATH.read_text(encoding="utf-8"))
-    rows = [
+    all_rows = [
         r for r in payload.get("results", [])
         if r.get("direction") == "LONG"
         and r.get("outcome") in {"TP3_HIT", "SL_HIT", "EXPIRED"}
     ]
-    rows.sort(key=lambda r: r.get("replay_time", ""))
-    if not rows:
+    all_rows.sort(key=lambda r: r.get("replay_time", ""))
+    if not all_rows:
         raise SystemExit("No LONG replay rows found")
 
-    baseline = [r for r in rows if r.get("outcome") in {"TP3_HIT", "SL_HIT"}]
+    # Chronological validation is defined over resolved observations only.
+    # EXPIRED rows remain part of the overall signal-count diagnostics but must
+    # not shift the date boundaries used to compare TP3/SL rates.
+    baseline = [
+        r for r in all_rows
+        if r.get("outcome") in {"TP3_HIT", "SL_HIT"}
+    ]
+    if not baseline:
+        raise SystemExit("No resolved LONG replay rows found")
 
     # Fixed hypotheses chosen from the prior diagnostic discovery. They are
     # intentionally broad and are not optimized against the validation window.
@@ -119,13 +127,27 @@ def main():
         ),
     }
 
+    feature_fields = [
+        "macd_hist_15m", "rsi_15m", "support_distance_pct",
+        "price_to_ema20_pct", "ema20_ema50_gap_pct",
+        "rsi_4h", "stoch_k_4h",
+    ]
+    feature_coverage = {
+        field: round(
+            100 * sum(val(r, field) is not None for r in baseline) / len(baseline), 2
+        )
+        for field in feature_fields
+    }
+
     result = {
         "research_only": True,
         "production_strategy_changed": False,
         "purpose": "Independent chronological validation of LONG candidate hypotheses.",
         "warning": "No candidate is approved for production from this report alone.",
         "metadata": payload.get("metadata", {}),
-        "baseline": stats(baseline),
+        "baseline": {**stats(baseline), **geometry(baseline)},
+        "all_long_signal_diagnostics": stats(all_rows),
+        "feature_coverage_pct": feature_coverage,
         "candidates": {},
         "chronological_thirds": {},
     }
@@ -133,15 +155,15 @@ def main():
     for name, predicate in candidates.items():
         result["candidates"][name] = evaluate(name, baseline, predicate, baseline)[name]
 
-    n = len(rows)
+    n = len(baseline)
     cuts = [0, n // 3, (2 * n) // 3, n]
     labels = ["first_third", "middle_third", "last_third"]
     for label, start, end in zip(labels, cuts[:-1], cuts[1:]):
         chunk = [r for r in rows[start:end] if r.get("outcome") in {"TP3_HIT", "SL_HIT"}]
         base = stats(chunk)
         result["chronological_thirds"][label] = {
-            "start": rows[start].get("replay_time") if start < n else None,
-            "end": rows[end - 1].get("replay_time") if end else None,
+            "start": baseline[start].get("replay_time") if start < n else None,
+            "end": baseline[end - 1].get("replay_time") if end else None,
             "baseline": base,
             "candidates": {},
         }
