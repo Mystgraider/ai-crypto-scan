@@ -1,48 +1,36 @@
 {
-  "CKB/USDT:USDT|SHORT": {
+  "ATOM/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-16T18:51:37.359915+00:00",
-    "last_seen": "2026-11-16T18:51:37.359915+00:00",
+    "first_seen": "2026-11-17T02:08:35.098370+00:00",
+    "last_seen": "2026-11-17T02:08:35.098370+00:00",
     "observations": 1,
-    "pool_level": 0.000853,
-    "range_high": 0.000966,
-    "range_low": 0.000783,
+    "pool_level": 1.3246,
+    "range_high": 1.4418,
+    "range_low": 1.2155,
     "regime": "RANGE",
-    "sweep_extreme": 0.000855,
-    "symbol": "CKB/USDT:USDT"
+    "sweep_extreme": 1.3361,
+    "symbol": "ATOM/USDT:USDT"
   },
-  "GALA/USDT:USDT|SHORT": {
+  "GMX/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-16T18:50:18.459133+00:00",
-    "last_seen": "2026-11-16T18:50:18.459133+00:00",
+    "first_seen": "2026-11-17T02:09:48.710514+00:00",
+    "last_seen": "2026-11-17T02:09:48.710514+00:00",
     "observations": 1,
-    "pool_level": 0.001371,
-    "range_high": 0.001579,
-    "range_low": 0.001256,
+    "pool_level": 7.369,
+    "range_high": 7.769,
+    "range_low": 6.847,
     "regime": "RANGE",
-    "sweep_extreme": 0.001382,
-    "symbol": "GALA/USDT:USDT"
-  },
-  "GRT/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-11-16T18:51:04.084113+00:00",
-    "last_seen": "2026-11-16T18:51:04.084113+00:00",
-    "observations": 1,
-    "pool_level": 0.01695,
-    "range_high": 0.01826,
-    "range_low": 0.01551,
-    "regime": "RANGE",
-    "sweep_extreme": 0.017,
-    "symbol": "GRT/USDT:USDT"
+    "sweep_extreme": 7.503,
+    "symbol": "GMX/USDT:USDT"
   },
   "USDC/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-16T18:51:25.665183+00:00",
-    "last_seen": "2026-11-16T18:51:25.665183+00:00",
+    "first_seen": "2026-11-17T02:09:55.808702+00:00",
+    "last_seen": "2026-11-17T02:09:55.808702+00:00",
     "observations": 1,
     "pool_level": 1.0004,
     "range_high": 1.0008,
-    "range_low": 0.9994,
+    "range_low": 0.9991,
     "regime": "RANGE",
     "sweep_extreme": 1.0005,
     "symbol": "USDC/USDT:USDT"
