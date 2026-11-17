@@ -28,6 +28,19 @@ CONFIG = {
     "short_adx_max": 20.0,
     "short_require_15m_not_bearish": True,
 
+    # Research LONG setup gate. This is intentionally a different regime from
+    # SHORT: LONG seeks confirmed continuation (moderate trend strength,
+    # positive DI, healthy RSI, and no bearish 15m confirmation). It is only
+    # evaluated when LONG_SIGNALS_ENABLED=true and remains research-branch-only
+    # until chronological holdout evidence proves it improves TP/SL/TP3.
+    "long_rsi_floor": 50.0,
+    "long_rsi_ceiling": 65.0,
+    "long_adx_min": 20.0,
+    "long_adx_max": 35.0,
+    "long_require_positive_di": True,
+    "long_require_15m_not_bearish": True,
+    "long_max_price_to_ema20_pct": 2.0,
+
     # BTC is market context/safety, not the source of coin direction.
     "btc_symbol": "BTC/USDT:USDT",
     "btc_filter_enabled": True,
