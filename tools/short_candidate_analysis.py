@@ -576,3 +576,136 @@ analysis["multi_feature_candidate_discovery"] = {
 payload.setdefault("summary", {})["short_rsi_adx_research"] = analysis
 path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
 print(json.dumps(analysis["multi_feature_candidate_discovery"], indent=2))
+
+
+# ---------------------------------------------------------------------------
+# Direction-specific LONG continuation analysis (research-only).
+# LONG is intentionally not evaluated with the SHORT RSI/ADX setup. The
+# candidate family below tests a continuation regime: RSI 50-65, ADX 20-35,
+# positive DI spread, non-bearish 15m context, and limited extension above
+# EMA20. These are fixed hypothesis bands, not optimized production cutoffs.
+# ---------------------------------------------------------------------------
+longs = [row for row in rows if row.get("direction") == "LONG"]
+
+def long_counts(items):
+    return counts(items)
+
+def long_subset(source, rsi_min=None, rsi_max=None, adx_min=None, adx_max=None,
+                require_positive_di=False, max_price_to_ema20=None,
+                reject_15m_bearish=False):
+    result = []
+    for row in source:
+        rsi, adx = num(row.get("rsi")), num(row.get("adx"))
+        if rsi is None or adx is None:
+            continue
+        if rsi_min is not None and rsi < rsi_min:
+            continue
+        if rsi_max is not None and rsi > rsi_max:
+            continue
+        if adx_min is not None and adx < adx_min:
+            continue
+        if adx_max is not None and adx >= adx_max:
+            continue
+        if require_positive_di:
+            plus_di, minus_di = num(row.get("plus_di")), num(row.get("minus_di"))
+            if plus_di is None or minus_di is None or plus_di <= minus_di:
+                continue
+        if max_price_to_ema20 is not None:
+            distance = num(row.get("price_to_ema20_pct"))
+            if distance is None or distance > max_price_to_ema20:
+                continue
+        if reject_15m_bearish:
+            # The replay result stores the 15m indicator values, not the
+            # categorical MTF label, so use the same directional evidence:
+            # 15m EMA20 >= EMA50 is treated as not-bearish when both exist.
+            e20, e50 = num(row.get("ema20_15m")), num(row.get("ema50_15m"))
+            if e20 is None or e50 is None or e20 < e50:
+                continue
+        result.append(row)
+    return result
+
+long_hypotheses = {
+    "baseline": lambda source: list(source),
+    "continuation_core": lambda source: long_subset(
+        source, rsi_min=50, rsi_max=65, adx_min=20, adx_max=35,
+        require_positive_di=True, max_price_to_ema20=2.0,
+        reject_15m_bearish=True,
+    ),
+    "rsi_50_65_adx_20_35": lambda source: long_subset(
+        source, rsi_min=50, rsi_max=65, adx_min=20, adx_max=35),
+    "rsi_50_65_positive_di": lambda source: long_subset(
+        source, rsi_min=50, rsi_max=65, require_positive_di=True),
+    "rsi_50_65_adx_20_35_positive_di": lambda source: long_subset(
+        source, rsi_min=50, rsi_max=65, adx_min=20, adx_max=35,
+        require_positive_di=True),
+    "core_without_ema_extension": lambda source: long_subset(
+        source, rsi_min=50, rsi_max=65, adx_min=20, adx_max=35,
+        require_positive_di=True, reject_15m_bearish=True),
+    "core_without_15m_filter": lambda source: long_subset(
+        source, rsi_min=50, rsi_max=65, adx_min=20, adx_max=35,
+        require_positive_di=True, max_price_to_ema20=2.0),
+}
+
+def long_candidate_stats(chosen, baseline):
+    result = counts(chosen)
+    base_tp3 = sum(row.get("outcome") == "TP3_HIT" for row in baseline)
+    base_sl = sum(row.get("outcome") == "SL_HIT" for row in baseline)
+    result["signal_retention_pct"] = round(100 * len(chosen) / len(baseline), 2) if baseline else None
+    result["tp3_retention_pct"] = round(100 * result["tp3"] / base_tp3, 2) if base_tp3 else None
+    result["sl_reduction_pct"] = round(100 * (1 - result["sl"] / base_sl), 2) if base_sl else None
+    g = geometry(chosen)
+    result["sl_distance_pct_median"] = g["sl_distance_pct_median"]
+    result["tp3_distance_pct_median"] = g["tp3_distance_pct_median"]
+    return result
+
+long_analysis = {
+    "research_only": True,
+    "production_strategy_changed": False,
+    "baseline": counts(longs),
+    "hypotheses": {},
+    "directional_difference": {
+        "short_setup": "RSI 50-70 + ADX <20 + resistance + 15m not bearish",
+        "long_setup": "RSI 50-65 + ADX 20-35 + positive DI + 15m not bearish + <=2% above EMA20",
+        "reason": "SHORT is treated as a lower-ADX reversal/location setup; LONG is treated as a moderate-trend continuation setup. The two directions must be validated independently.",
+    },
+}
+for name, predicate in long_hypotheses.items():
+    chosen = predicate(longs)
+    long_analysis["hypotheses"][name] = long_candidate_stats(chosen, longs)
+
+# Chronological stability of the proposed LONG core setup.
+long_dated = sorted((row for row in longs if row.get("replay_time")), key=lambda row: row["replay_time"])
+if long_dated:
+    chunk = max(1, (len(long_dated) + 2) // 3)
+    thirds = {}
+    core = long_hypotheses["continuation_core"]
+    for idx, label in enumerate(("first_third", "middle_third", "last_third")):
+        part = long_dated[idx * chunk:(idx + 1) * chunk]
+        if not part:
+            continue
+        chosen = core(part)
+        thirds[label] = {
+            "start": part[0]["replay_time"],
+            "end": part[-1]["replay_time"],
+            "baseline": counts(part),
+            "core": long_candidate_stats(chosen, part),
+        }
+    long_analysis["chronological_thirds"] = thirds
+else:
+    long_analysis["chronological_thirds"] = {}
+
+# Explicit gate diagnostics identify which component removes the most LONG
+# signals. This prevents silently stacking filters that kill coverage.
+core_rows = long_hypotheses["continuation_core"](longs)
+long_analysis["gate_components"] = {
+    "rsi_50_65": counts(long_subset(longs, rsi_min=50, rsi_max=65)),
+    "adx_20_35": counts(long_subset(longs, adx_min=20, adx_max=35)),
+    "positive_di": counts(long_subset(longs, require_positive_di=True)),
+    "ema20_extension_le_2pct": counts(long_subset(longs, max_price_to_ema20=2.0)),
+    "15m_not_bearish": counts(long_subset(longs, reject_15m_bearish=True)),
+    "combined_core": counts(core_rows),
+}
+analysis["long_continuation_research"] = long_analysis
+payload.setdefault("summary", {})["long_continuation_research"] = long_analysis
+path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+print(json.dumps(long_analysis, indent=2))
