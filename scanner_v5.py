@@ -1022,6 +1022,69 @@ def main():
                         _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="mtf")
                     continue
 
+                # Research direction-specific setup gates.
+                #
+                # SHORT and LONG intentionally use different market regimes.
+                # SHORT is the currently researched low-ADX / RSI 50-70
+                # reversal-at-resistance setup. LONG is a continuation setup:
+                # moderate ADX, RSI 50-65, positive DI spread, no bearish 15m
+                # confirmation, and limited distance above EMA20. Neither gate
+                # is production-approved until chronological holdout evidence
+                # supports it.
+                if direction == "LONG":
+                    long_rsi_floor = float(CONFIG.get("long_rsi_floor", 0.0))
+                    long_rsi_ceiling = float(CONFIG.get("long_rsi_ceiling", 100.0))
+                    long_adx_min = float(CONFIG.get("long_adx_min", 0.0))
+                    long_adx_max = float(CONFIG.get("long_adx_max", float("inf")))
+                    long_require_positive_di = bool(CONFIG.get("long_require_positive_di", False))
+                    long_require_15m_not_bearish = bool(CONFIG.get("long_require_15m_not_bearish", False))
+                    long_max_price_to_ema20_pct = float(CONFIG.get("long_max_price_to_ema20_pct", float("inf")))
+
+                    if rsi < long_rsi_floor:
+                        skip["long_rsi_floor"] = skip.get("long_rsi_floor", 0) + 1
+                        _trace(symbol, "long_rsi_floor_block", direction=direction,
+                               rsi=round(rsi, 2), floor=long_rsi_floor)
+                        continue
+                    if rsi > long_rsi_ceiling:
+                        skip["long_rsi_ceiling"] = skip.get("long_rsi_ceiling", 0) + 1
+                        _trace(symbol, "long_rsi_ceiling_block", direction=direction,
+                               rsi=round(rsi, 2), ceiling=long_rsi_ceiling)
+                        continue
+                    if adx < long_adx_min:
+                        skip["long_adx_min"] = skip.get("long_adx_min", 0) + 1
+                        _trace(symbol, "long_adx_min_block", direction=direction,
+                               adx=round(adx, 2), min_adx=long_adx_min)
+                        continue
+                    if adx > long_adx_max:
+                        skip["long_adx_max"] = skip.get("long_adx_max", 0) + 1
+                        _trace(symbol, "long_adx_max_block", direction=direction,
+                               adx=round(adx, 2), max_adx=long_adx_max)
+                        continue
+                    if long_require_positive_di and float(prev["plus_di_research"]) <= float(prev["minus_di_research"]):
+                        skip["long_di_not_positive"] = skip.get("long_di_not_positive", 0) + 1
+                        _trace(symbol, "long_di_not_positive_block", direction=direction,
+                               plus_di=round(float(prev["plus_di_research"]), 4),
+                               minus_di=round(float(prev["minus_di_research"]), 4))
+                        continue
+                    if long_require_15m_not_bearish and mtf_15m_dir == "UNKNOWN":
+                        skip["long_15m_unavailable"] = skip.get("long_15m_unavailable", 0) + 1
+                        _trace(symbol, "long_15m_unavailable_block", direction=direction,
+                               mtf_15m=mtf_15m_dir)
+                        continue
+                    if long_require_15m_not_bearish and mtf_15m_dir == "BEARISH":
+                        skip["long_15m_bearish"] = skip.get("long_15m_bearish", 0) + 1
+                        _trace(symbol, "long_15m_bearish_block", direction=direction,
+                               mtf_15m=mtf_15m_dir)
+                        continue
+                    if long_max_price_to_ema20_pct < float("inf") and ema20 > 0:
+                        price_to_ema20_pct = ((price / ema20) - 1.0) * 100.0
+                        if price_to_ema20_pct > long_max_price_to_ema20_pct:
+                            skip["long_overextended"] = skip.get("long_overextended", 0) + 1
+                            _trace(symbol, "long_overextended_block", direction=direction,
+                                   price_to_ema20_pct=round(price_to_ema20_pct, 4),
+                                   max_pct=long_max_price_to_ema20_pct)
+                            continue
+
                 # Research SHORT setup gate.
                 #
                 # Run #168 discovery identified RSI 50-70 with ADX <20 as
