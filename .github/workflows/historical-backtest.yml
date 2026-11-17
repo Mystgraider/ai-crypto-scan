@@ -171,7 +171,7 @@ jobs:
           done
           find replay-chunks -maxdepth 2 -type f -print
 
-      - name: Merge chunks into one 30-day offset-90 artifact
+      - name: Merge chunks into one 30-day offset-60 artifact
         run: |
           set -euo pipefail
           python tools/merge_backtest_chunks.py             replay-chunks             --expected-offset-days 60             --expected-days 30             --output backtest_results.json
