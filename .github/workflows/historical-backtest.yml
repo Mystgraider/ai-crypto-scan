@@ -80,6 +80,7 @@ jobs:
         env:
           BACKTEST_DAYS: "10"
           BACKTEST_OFFSET_DAYS: ${{ matrix.offset_days }}
+          BACKTEST_LONG_SIGNALS_ENABLED: "true"
         run: |
           set -euo pipefail
           python tools/historical_replay.py
