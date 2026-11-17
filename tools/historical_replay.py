@@ -747,6 +747,15 @@ def summarize(rows: list[dict]) -> dict:
     }
 
 
+def allow_long_research() -> bool:
+    """Opt-in research switch. Default (unset) keeps LONG disabled, as before."""
+    return os.getenv("BACKTEST_ALLOW_LONG", "").strip().lower() in {"1", "true", "yes"}
+
+
+def replay_direction_policy(allow_long: bool) -> list:
+    return ["LONG", "SHORT"] if allow_long else ["SHORT"]
+
+
 def run():
     import scanner_v5 as scanner
 
@@ -800,8 +809,9 @@ def run():
         except RuntimeError as exc:
             raise RuntimeError(f"symbol_five_minute_coverage_failed:{symbol}:{exc}") from exc
 
+    allow_long = allow_long_research()
     original_long_signals_enabled = os.environ.get("LONG_SIGNALS_ENABLED")
-    os.environ["LONG_SIGNALS_ENABLED"] = "false"
+    os.environ["LONG_SIGNALS_ENABLED"] = "true" if allow_long else "false"
 
     original = {
         "MarketDataLoader": scanner.MarketDataLoader,
@@ -996,8 +1006,8 @@ def run():
             "lookahead_policy": "outcome candles open at or after replay timestamp; no candle data before the signal timestamp is scored",
             "same_candle_conflict_policy": "SL first, matching SignalTracker",
             "production_code_modified": False,
-            "long_signals_enabled": False,
-            "replay_direction_policy": ["SHORT"],
+            "long_signals_enabled": allow_long,
+            "replay_direction_policy": replay_direction_policy(allow_long),
             "harness_mode": "scanner_v5.main historical injection",
             "scan_cadence": "5m (matches .github/workflows/scanner.yml cron */5)",
             "forming_candle_policy": "reconstruct 1h/4h/15m in-progress candles from completed 5m bars before the boundary plus boundary 5m open only; no post-boundary OHLCV is exposed",
