@@ -2,7 +2,7 @@ name: Historical Backtest
 
 # Research-only validation workflow.
 # A push to the research branch runs three contiguous 10-day chunks:
-# offsets 90, 80, 70 -> merged into one chronological 30-day / offset-90 artifact.
+# offsets 60, 50, 40 -> merged into one chronological 30-day / offset-60 artifact.
 on:
   push:
     branches:
@@ -10,6 +10,7 @@ on:
     paths:
       - "tools/historical_replay.py"
       - "tools/short_candidate_analysis.py"
+      - "tools/long_candidate_validation.py"
       - "tools/merge_backtest_chunks.py"
       - "tests/test_historical_replay_data_integrity.py"
       - "scanner_v5.py"
@@ -20,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: "Type RUN to start the fixed 30-day / offset-90 research replay"
+        description: "Type RUN to start the fixed 30-day / offset-60 research replay"
         required: true
         default: "RUN"
         type: string
@@ -34,7 +35,7 @@ jobs:
       fail-fast: false
       max-parallel: 3
       matrix:
-        offset_days: [90, 80, 70]
+        offset_days: [60, 50, 40]
     timeout-minutes: 360
     steps:
       - name: Require the research branch
@@ -135,7 +136,7 @@ jobs:
           retention-days: 14
 
   analyze:
-    name: Merge 30-day replay and run SHORT analysis
+    name: Merge 30-day replay and run LONG + SHORT research analysis
     if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirm == 'RUN') }}
     needs: replay
     runs-on: ubuntu-latest
@@ -165,7 +166,7 @@ jobs:
       - name: Verify all three chunks exist
         run: |
           set -euo pipefail
-          for offset in 70 80 90; do
+          for offset in 40 50 60; do
             test -f "replay-chunks/historical-backtest-chunk-$offset/backtest_results.json"
           done
           find replay-chunks -maxdepth 2 -type f -print
@@ -173,17 +174,24 @@ jobs:
       - name: Merge chunks into one 30-day offset-90 artifact
         run: |
           set -euo pipefail
-          python tools/merge_backtest_chunks.py             replay-chunks             --expected-offset-days 90             --expected-days 30             --output backtest_results.json
+          python tools/merge_backtest_chunks.py             replay-chunks             --expected-offset-days 60             --expected-days 30             --output backtest_results.json
 
       - name: Run full SHORT candidate analysis on merged result
         run: |
           set -euo pipefail
           python tools/short_candidate_analysis.py
 
+      - name: Run independent LONG candidate validation
+        run: |
+          set -euo pipefail
+          python tools/long_candidate_validation.py
+
       - name: Upload merged 30-day result
         uses: actions/upload-artifact@v4
         with:
           name: historical-backtest-result
-          path: backtest_results.json
+          path: |
+            backtest_results.json
+            long_candidate_validation.json
           if-no-files-found: error
           retention-days: 30
