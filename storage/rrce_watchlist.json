@@ -1,38 +1,62 @@
 {
   "ATOM/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-17T02:08:35.098370+00:00",
-    "last_seen": "2026-11-17T02:08:35.098370+00:00",
+    "first_seen": "2026-11-17T10:38:12.891573+00:00",
+    "last_seen": "2026-11-17T10:38:12.891573+00:00",
     "observations": 1,
     "pool_level": 1.3246,
     "range_high": 1.4418,
     "range_low": 1.2155,
     "regime": "RANGE",
-    "sweep_extreme": 1.3361,
+    "sweep_extreme": 1.3266,
     "symbol": "ATOM/USDT:USDT"
   },
   "GMX/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-17T02:09:48.710514+00:00",
-    "last_seen": "2026-11-17T02:09:48.710514+00:00",
+    "first_seen": "2026-11-17T10:39:24.729737+00:00",
+    "last_seen": "2026-11-17T10:39:24.729737+00:00",
     "observations": 1,
     "pool_level": 7.369,
     "range_high": 7.769,
     "range_low": 6.847,
     "regime": "RANGE",
-    "sweep_extreme": 7.503,
+    "sweep_extreme": 7.39,
     "symbol": "GMX/USDT:USDT"
   },
-  "USDC/USDT:USDT|SHORT": {
+  "GRT/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-17T02:09:55.808702+00:00",
-    "last_seen": "2026-11-17T02:09:55.808702+00:00",
+    "first_seen": "2026-11-17T10:39:08.021949+00:00",
+    "last_seen": "2026-11-17T10:39:08.021949+00:00",
     "observations": 1,
-    "pool_level": 1.0004,
-    "range_high": 1.0008,
-    "range_low": 0.9991,
+    "pool_level": 0.01695,
+    "range_high": 0.01826,
+    "range_low": 0.01551,
     "regime": "RANGE",
-    "sweep_extreme": 1.0005,
-    "symbol": "USDC/USDT:USDT"
+    "sweep_extreme": 0.01702,
+    "symbol": "GRT/USDT:USDT"
+  },
+  "RUNE/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-11-17T10:38:41.322004+00:00",
+    "last_seen": "2026-11-17T10:38:41.322004+00:00",
+    "observations": 1,
+    "pool_level": 0.5223,
+    "range_high": 0.6119,
+    "range_low": 0.4898,
+    "regime": "RANGE",
+    "sweep_extreme": 0.5224,
+    "symbol": "RUNE/USDT:USDT"
+  },
+  "VET/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-11-17T10:39:38.146920+00:00",
+    "last_seen": "2026-11-17T10:39:38.146920+00:00",
+    "observations": 1,
+    "pool_level": 0.004929,
+    "range_high": 0.005325,
+    "range_low": 0.004439,
+    "regime": "RANGE",
+    "sweep_extreme": 0.004951,
+    "symbol": "VET/USDT:USDT"
   }
 }
