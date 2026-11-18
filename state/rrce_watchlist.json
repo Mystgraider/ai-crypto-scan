@@ -14,8 +14,8 @@
   "GRT/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-18T22:49:09.879211+00:00",
-    "last_seen": "2026-11-18T22:54:07.996179+00:00",
-    "observations": 2,
+    "last_seen": "2026-11-18T22:59:06.822318+00:00",
+    "observations": 3,
     "pool_level": 0.01709,
     "range_high": 0.01826,
     "range_low": 0.01551,
