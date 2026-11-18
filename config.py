@@ -33,13 +33,19 @@ CONFIG = {
     # positive DI, healthy RSI, and no bearish 15m confirmation). It is only
     # evaluated when LONG_SIGNALS_ENABLED=true and remains research-branch-only
     # until chronological holdout evidence proves it improves TP/SL/TP3.
-    "long_rsi_floor": 50.0,
+    "long_rsi_floor": 60.0,
     "long_rsi_ceiling": 65.0,
-    "long_adx_min": 20.0,
-    "long_adx_max": 35.0,
-    "long_require_positive_di": True,
-    "long_require_15m_not_bearish": True,
-    "long_max_price_to_ema20_pct": 2.0,
+    "long_adx_min": 0.0,
+    "long_adx_max": 100.0,
+    "long_require_positive_di": False,
+    "long_require_15m_not_bearish": False,
+    "long_max_price_to_ema20_pct": 100.0,
+    "long_ema20_ema50_gap_floor_pct": 0.15,
+    "long_ema20_ema50_gap_ceiling_pct": 1.0,
+    "long_atr_floor_pct": 0.80,
+    "long_atr_ceiling_pct": 1.30,
+    "long_bb_pct_b_floor": 0.65,
+    "long_bb_pct_b_ceiling": 0.90,
 
     # BTC is market context/safety, not the source of coin direction.
     "btc_symbol": "BTC/USDT:USDT",
