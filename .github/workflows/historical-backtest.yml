@@ -2,7 +2,7 @@ name: Historical Backtest
 
 # Research-only validation workflow.
 # A push to the research branch runs three contiguous 10-day chunks:
-# offsets 60, 50, 40 -> merged into one chronological 30-day / offset-60 artifact.
+# offsets 30, 20, 10 -> merged into one chronological 30-day / offset-30 artifact.
 on:
   push:
     branches:
@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: "Type RUN to start the fixed 30-day / offset-60 research replay"
+        description: "Type RUN to start the fixed 30-day / offset-30 research replay"
         required: true
         default: "RUN"
         type: string
@@ -35,7 +35,7 @@ jobs:
       fail-fast: false
       max-parallel: 3
       matrix:
-        offset_days: [60, 50, 40]
+        offset_days: [30, 20, 10]
     timeout-minutes: 360
     steps:
       - name: Require the research branch
@@ -171,10 +171,10 @@ jobs:
           done
           find replay-chunks -maxdepth 2 -type f -print
 
-      - name: Merge chunks into one 30-day offset-60 artifact
+      - name: Merge chunks into one 30-day offset-30 artifact
         run: |
           set -euo pipefail
-          python tools/merge_backtest_chunks.py             replay-chunks             --expected-offset-days 60             --expected-days 30             --output backtest_results.json
+          python tools/merge_backtest_chunks.py             replay-chunks             --expected-offset-days 30             --expected-days 30             --output backtest_results.json
 
       - name: Run full SHORT candidate analysis on merged result
         run: |
