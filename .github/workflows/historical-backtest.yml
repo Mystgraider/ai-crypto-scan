@@ -3,6 +3,7 @@ name: Historical Backtest
 # Research-only validation workflow.
 # A push to the research branch runs three contiguous 10-day chunks:
 # offsets 30, 20, 10 -> merged into one chronological 30-day / offset-30 artifact.
+# Trigger-only revision: rerun the corrected holdout verification.
 on:
   push:
     branches:
