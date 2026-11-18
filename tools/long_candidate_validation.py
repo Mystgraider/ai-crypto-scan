@@ -117,6 +117,16 @@ def main():
             and val(r, "macd_hist_15m") is not None
             and val(r, "macd_hist_15m") > 0
         ),
+        "long_regime_v2": lambda r: (
+            val(r, "rsi") is not None
+            and 60 <= val(r, "rsi") <= 65
+            and val(r, "ema20_ema50_gap_pct") is not None
+            and 0.15 <= val(r, "ema20_ema50_gap_pct") <= 1.0
+            and val(r, "atr_pct") is not None
+            and 0.80 <= val(r, "atr_pct") <= 1.30
+            and val(r, "bb_pct_b") is not None
+            and 0.65 <= val(r, "bb_pct_b") <= 0.90
+        ),
         "continuation_confirmation": lambda r: (
             val(r, "macd_hist_15m") is not None
             and val(r, "macd_hist_15m") > 0
@@ -129,7 +139,7 @@ def main():
 
     feature_fields = [
         "macd_hist_15m", "rsi_15m", "support_distance_pct",
-        "price_to_ema20_pct", "ema20_ema50_gap_pct",
+        "price_to_ema20_pct", "ema20_ema50_gap_pct", "atr_pct", "bb_pct_b",
         "rsi_4h", "stoch_k_4h",
     ]
     feature_coverage = {
