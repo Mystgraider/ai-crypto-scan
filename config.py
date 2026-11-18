@@ -19,7 +19,21 @@ CONFIG = {
     "require_trend_gate": False,
     "require_quality_engine": False,
     "scan_time_budget_sec": 480,
-    "adx_min": 20,
+
+    # Research SHORT setup.
+    # Keep only the evidence-backed 1H RSI band plus the independently
+    # observed 15m anti-late-entry condition. ADX/ATR/EMA20 hard thresholds
+    # are intentionally disabled: cross-window replay showed those features
+    # were unstable or added little independent discrimination after the
+    # broader setup filter. They remain available as telemetry.
+    "short_rsi_floor": 50.0,
+    "short_rsi_ceiling": 70.0,
+    "short_require_15m_not_bearish": True,
+    # Closed-candle 4H RSI floor for SHORT only (engines/short_gate.py). Replay
+    # evidence: held in discovery, development and an untouched holdout and stays
+    # significant after controlling for 1H RSI/ADX. Modest effect; needs forward
+    # validation. 0 disables. Fails closed when 4H RSI is unavailable.
+    "short_rsi_4h_floor": 50.0,
 
     # BTC is market context/safety, not the source of coin direction.
     "btc_symbol": "BTC/USDT:USDT",
@@ -65,6 +79,6 @@ CONFIG = {
     "beta_short_block_above": 1.5,
     "oi_enabled": True,
     "db_version": "1.0.0",
-    "config_version": "2.2.0",
+    "config_version": "2.3.0",
     "strategy_version": "6.2.0",
 }

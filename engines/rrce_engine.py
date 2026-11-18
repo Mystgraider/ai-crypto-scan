@@ -1,27 +1,21 @@
-"""
-RRCE Engine — V6.9.24 (Multi-Timeframe, Locked)
+"""RRCE Engine — V6.9.24 (Multi-Timeframe, Locked)
 ====================================================
 Implements the complete 4-stage RRCE checklist with the production
-timeframe contract locked to 4H -> 1H -> 15m -> 5m:
+timeframe contract locked to 4H -> 1H -> 15m -> 5m.
 
-  [1. RANGE]  ->  [2. RETAIL LIQUIDITY]  ->  [3. CONFIRMATION]  ->  [4. EXECUTION]
-       (4H)              (1H)                    (15m)                 (5m)
-
-This is a strict sequential validator, not a soft bonus generator — every
-stage must pass, in order, for a setup to be considered RRCE-valid.
-Partial confluence is reported for visibility but does NOT count as a
-valid setup, and (as of V6.9.1) is a hard requirement in the scanner —
-no signal fires unless RRCE is fully valid.
+This engine is a strict sequential validator: every stage must pass, in
+order, for a result to be reported as RRCE-valid. The scanner currently
+uses modern RRCE as diagnostic/structural confluence and keeps the
+preserved V6.7.2 contribution additive; modern RRCE validity is not a
+production hard signal gate. Research replays may compare RRCE variants,
+but must not silently change production signal, LONG, risk, or SL/TP behavior.
 
 Phase 2 integrity fixes:
-  - Structure is calculated from CLOSED candles only; the live/incomplete
-    candle cannot confirm a swing used by the current decision.
-  - The Stage-3 CHOCH must occur after the Stage-2 sweep in time.
-  - The FVG must be created by the specific CHOCH break candle, rather than
-    any unrelated FVG elsewhere in the recent lookback.
-  - Stage 4 requires the exact opposite-colored candle immediately before
-    the CHOCH break as the Order Block; it no longer silently falls back to
-    an unrelated FVG entry.
+  - Structure uses CLOSED candles only.
+  - Stage-3 CHOCH must occur after the Stage-2 sweep.
+  - FVG/CHOCH timing is bounded and no-lookahead.
+  - Stage 4 maps the 15m confirmation timestamp onto the 5m execution frame.
+  - Stage 4 uses the preserved OB/FVG execution contract.
 """
 
 import pandas as pd
