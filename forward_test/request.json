@@ -1,1 +1,1 @@
-{"iterations": 55, "interval_minutes": 5, "note": "long forward run (~4.6h), isolated"}
+{"iterations": 55, "interval_minutes": 5, "note": "forward run 2: persists scan_debug_log + gate diagnostics"}

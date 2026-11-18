@@ -73,6 +73,7 @@ jobs:
             for f in signals.csv cooldown.json circuit_breaker.json rrce_watchlist.json; do
               [ -f "storage/$f" ] && cp "storage/$f" "/tmp/datarepo/state/$f"
             done
+            [ -f storage/scan_debug_log.jsonl ] && cp storage/scan_debug_log.jsonl /tmp/datarepo/state/scan_debug_log.jsonl
             echo "iteration $1 sha=$GITHUB_SHA utc=$(date -u +%FT%TZ)" >> /tmp/datarepo/state/runs.log
             git -C /tmp/datarepo add state
             git -C /tmp/datarepo commit -q -m "forward-test state: iteration $1 ($GITHUB_SHA)" || return 0
@@ -88,6 +89,29 @@ jobs:
             wait=$(( INTERVAL * 60 - elapsed ))
             if [ "$i" -lt "$ITER" ] && [ "$wait" -gt 0 ]; then sleep "$wait"; fi
           done
+      - name: Gate diagnostics from scan_debug_log
+        if: always()
+        run: |
+          python - <<'P'
+          import json, os, collections
+          f="/tmp/datarepo/state/scan_debug_log.jsonl"
+          if not os.path.exists(f): print("no debug log"); raise SystemExit
+          scans=0; cand=0; sym=0; fate=collections.Counter(); skips=collections.Counter(); keys=set()
+          for line in open(f):
+              try: r=json.loads(line)
+              except Exception: continue
+              keys|=set(r)
+              if "symbols_scanned" in r: scans+=1; sym+=r.get("symbols_scanned") or 0; cand+=r.get("candidates") or 0
+              for k,v in (r.get("candidate_fate_counts") or {}).items(): fate[k]+=v
+              for k,v in r.items():
+                  if isinstance(v,dict) and any(t in k for t in ("skip","reject","block")):
+                      for kk,vv in v.items():
+                          if isinstance(vv,(int,float)): skips[f"{k}.{kk}"]+=vv
+          print("scans logged:",scans,"| symbols scanned total:",sym,"| candidates:",cand)
+          print("candidate fates:",dict(fate))
+          print("skip/reject/block counters:",dict(skips.most_common(30)))
+          print("short_rsi_4h related:",{k:v for k,v in skips.items() if "rsi_4h" in k})
+          P
       - name: Summary of gated SHORT signals
         if: always()
         run: |
