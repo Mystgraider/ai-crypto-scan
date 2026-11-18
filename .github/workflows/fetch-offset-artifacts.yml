@@ -16,26 +16,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download merged multi-window audit result
+      - name: Their offset-60 result BEFORE tuning (8644654)
         uses: actions/download-artifact@v4
         with:
-          name: short-multi-window-audit-result
-          run-id: 43676323191
+          name: historical-backtest-result
+          run-id: 44215688781
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: replay-artifacts/run-43676323191/merged
-      - name: Download per-chunk replay results (windows 30/60/90/120)
+          path: replay-artifacts/other-ai/run-44215688781
+      - name: Their offset-60 result AFTER tuning (86ec9f7)
         uses: actions/download-artifact@v4
         with:
-          pattern: short-holdout-window-*
-          run-id: 43676323191
+          name: historical-backtest-result
+          run-id: 44237118919
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: replay-artifacts/run-43676323191/chunks
+          path: replay-artifacts/other-ai/run-44237118919
+      - name: Their 30-day LONG holdout chunks (failed validation run)
+        uses: actions/download-artifact@v4
+        with:
+          pattern: historical-backtest-chunk-*
+          run-id: 44334294830
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: replay-artifacts/other-ai/run-44334294830
+      - name: My LONG research replay chunks (44008215684)
+        uses: actions/download-artifact@v4
+        with:
+          pattern: long-research-chunk-*
+          run-id: 44008215684
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: replay-artifacts/long-research/run-44008215684
       - name: Record checksums and commit to this branch
         run: |
-          find replay-artifacts -type f | sort | xargs sha256sum | tee replay-artifacts/SHA256.txt
-          du -sh replay-artifacts
+          find replay-artifacts/other-ai replay-artifacts/long-research -type f | sort | xargs sha256sum | tee replay-artifacts/SHA256-long.txt
           git config user.name "claude-audit"
           git config user.email "claude-audit@users.noreply.github.com"
           git add replay-artifacts
-          git commit -m "Add replay artifacts of run 43676323191 (windows 30/60/90/120) [skip ci]"
+          git commit -m "Add other-AI LONG artifacts and my LONG replay chunks [skip ci]"
           git push origin HEAD:research/fetch-offset-artifacts
