@@ -1,50 +1,38 @@
 {
-  "CKB/USDT:USDT|SHORT": {
+  "BLUR/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-16T16:00:46.601157+00:00",
-    "last_seen": "2026-11-16T16:35:47.534422+00:00",
-    "observations": 8,
-    "pool_level": 0.000853,
-    "range_high": 0.000966,
-    "range_low": 0.000783,
-    "regime": "RANGE",
-    "sweep_extreme": 0.000855,
-    "symbol": "CKB/USDT:USDT"
-  },
-  "GALA/USDT:USDT|SHORT": {
-    "direction": "SHORT",
-    "first_seen": "2026-11-16T16:04:12.389782+00:00",
-    "last_seen": "2026-11-16T16:34:10.099221+00:00",
-    "observations": 6,
-    "pool_level": 0.001371,
-    "range_high": 0.001579,
-    "range_low": 0.001256,
-    "regime": "RANGE",
-    "sweep_extreme": 0.001382,
-    "symbol": "GALA/USDT:USDT"
+    "first_seen": "2026-11-18T22:49:21.689296+00:00",
+    "last_seen": "2026-11-18T22:49:21.689296+00:00",
+    "observations": 1,
+    "pool_level": 0.0065,
+    "range_high": 0.0068,
+    "range_low": 0.00565,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.00659,
+    "symbol": "BLUR/USDT:USDT"
   },
   "GRT/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-16T16:05:10.988474+00:00",
-    "last_seen": "2026-11-16T16:35:06.887717+00:00",
-    "observations": 7,
-    "pool_level": 0.01695,
+    "first_seen": "2026-11-18T22:49:09.879211+00:00",
+    "last_seen": "2026-11-18T22:49:09.879211+00:00",
+    "observations": 1,
+    "pool_level": 0.01709,
     "range_high": 0.01826,
     "range_low": 0.01551,
-    "regime": "RANGE",
-    "sweep_extreme": 0.017,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.0171,
     "symbol": "GRT/USDT:USDT"
   },
-  "USDC/USDT:USDT|SHORT": {
+  "KNC/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-16T13:00:21.228237+00:00",
-    "last_seen": "2026-11-16T16:35:33.327002+00:00",
-    "observations": 44,
-    "pool_level": 1.0004,
-    "range_high": 1.0008,
-    "range_low": 0.9994,
-    "regime": "RANGE",
-    "sweep_extreme": 1.0005,
-    "symbol": "USDC/USDT:USDT"
+    "first_seen": "2026-11-18T22:48:35.089644+00:00",
+    "last_seen": "2026-11-18T22:48:35.089644+00:00",
+    "observations": 1,
+    "pool_level": 0.0979,
+    "range_high": 0.1063,
+    "range_low": 0.0908,
+    "regime": "BEAR_CAUTION",
+    "sweep_extreme": 0.0995,
+    "symbol": "KNC/USDT:USDT"
   }
 }
