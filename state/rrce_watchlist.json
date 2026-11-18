@@ -14,8 +14,8 @@
   "GRT/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-18T22:49:09.879211+00:00",
-    "last_seen": "2026-11-18T23:19:09.618360+00:00",
-    "observations": 7,
+    "last_seen": "2026-11-18T23:24:10.847419+00:00",
+    "observations": 8,
     "pool_level": 0.01709,
     "range_high": 0.01826,
     "range_low": 0.01551,
@@ -26,8 +26,8 @@
   "KNC/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-18T22:48:35.089644+00:00",
-    "last_seen": "2026-11-18T23:18:36.548249+00:00",
-    "observations": 3,
+    "last_seen": "2026-11-18T23:23:36.708566+00:00",
+    "observations": 4,
     "pool_level": 0.0979,
     "range_high": 0.1063,
     "range_low": 0.0908,
