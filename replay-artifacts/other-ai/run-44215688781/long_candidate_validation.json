@@ -1,0 +1,397 @@
+{
+  "research_only": true,
+  "production_strategy_changed": false,
+  "purpose": "Independent chronological validation of LONG candidate hypotheses.",
+  "warning": "No candidate is approved for production from this report alone.",
+  "metadata": {
+    "generated_at": "2026-11-18T02:19:29.626695+00:00",
+    "start": "2026-09-01T00:00:00+00:00",
+    "end": "2026-10-01T00:00:00+00:00",
+    "days": 30,
+    "offset_days": 60,
+    "chunked": true,
+    "chunk_days": 10,
+    "chunk_offsets": [
+      60,
+      50,
+      40
+    ],
+    "duplicate_boundary_rows_removed": 0,
+    "symbols": [
+      "ETH/USDT:USDT",
+      "SOL/USDT:USDT",
+      "BNB/USDT:USDT",
+      "XRP/USDT:USDT",
+      "LTC/USDT:USDT",
+      "LINK/USDT:USDT",
+      "AVAX/USDT:USDT",
+      "SUI/USDT:USDT"
+    ],
+    "timeframes": [
+      "1h",
+      "4h",
+      "15m",
+      "5m"
+    ],
+    "lookahead_policy": "outcome candles open at or after replay timestamp; no candle data before the signal timestamp is scored",
+    "same_candle_conflict_policy": "SL first, matching SignalTracker",
+    "outcome_expiry_hours": 72,
+    "outcome_candle_interval": "5m",
+    "incomplete_outcome_policy": "INCOMPLETE_DATA unless all 864 expected 5m candles from the signal timestamp through the 72h expiry are contiguous or TP/SL is reached before a gap",
+    "scan_cadence": "5m (matches .github/workflows/scanner.yml cron */5)",
+    "forming_candle_policy": "reconstruct 1h/4h/15m in-progress candles from completed 5m bars before the boundary plus boundary 5m open only; no post-boundary OHLCV is exposed",
+    "production_code_modified": false,
+    "harness_mode": "scanner_v5.main historical injection; 3-way chronological chunk merge"
+  },
+  "baseline": {
+    "signals": 5740,
+    "tp3": 1421,
+    "sl": 4319,
+    "expired": 0,
+    "resolved": 5740,
+    "tp3_rate_pct": 24.76,
+    "median_sl_distance_pct": 1.031,
+    "median_tp3_distance_pct": 6.1238
+  },
+  "all_long_signal_diagnostics": {
+    "signals": 5779,
+    "tp3": 1421,
+    "sl": 4319,
+    "expired": 39,
+    "resolved": 5740,
+    "tp3_rate_pct": 24.76
+  },
+  "feature_coverage_pct": {
+    "macd_hist_15m": 100.0,
+    "rsi_15m": 100.0,
+    "support_distance_pct": 100.0,
+    "price_to_ema20_pct": 100.0,
+    "ema20_ema50_gap_pct": 100.0,
+    "rsi_4h": 100.0,
+    "stoch_k_4h": 100.0
+  },
+  "candidates": {
+    "baseline": {
+      "signals": 5740,
+      "tp3": 1421,
+      "sl": 4319,
+      "expired": 0,
+      "resolved": 5740,
+      "tp3_rate_pct": 24.76,
+      "median_sl_distance_pct": 1.031,
+      "median_tp3_distance_pct": 6.1238,
+      "signal_retention_pct": 100.0,
+      "tp3_retention_pct": 100.0,
+      "sl_reduction_pct": 0.0
+    },
+    "continuation_momentum": {
+      "signals": 1697,
+      "tp3": 380,
+      "sl": 1317,
+      "expired": 0,
+      "resolved": 1697,
+      "tp3_rate_pct": 22.39,
+      "median_sl_distance_pct": 0.9591,
+      "median_tp3_distance_pct": 5.6529,
+      "signal_retention_pct": 29.56,
+      "tp3_retention_pct": 26.74,
+      "sl_reduction_pct": 69.51
+    },
+    "continuation_location": {
+      "signals": 3653,
+      "tp3": 772,
+      "sl": 2881,
+      "expired": 0,
+      "resolved": 3653,
+      "tp3_rate_pct": 21.13,
+      "median_sl_distance_pct": 1.0933,
+      "median_tp3_distance_pct": 6.5351,
+      "signal_retention_pct": 63.64,
+      "tp3_retention_pct": 54.33,
+      "sl_reduction_pct": 33.29
+    },
+    "continuation_trend": {
+      "signals": 2103,
+      "tp3": 453,
+      "sl": 1650,
+      "expired": 0,
+      "resolved": 2103,
+      "tp3_rate_pct": 21.54,
+      "median_sl_distance_pct": 0.9888,
+      "median_tp3_distance_pct": 5.8102,
+      "signal_retention_pct": 36.64,
+      "tp3_retention_pct": 31.88,
+      "sl_reduction_pct": 61.8
+    },
+    "continuation_confirmation": {
+      "signals": 591,
+      "tp3": 91,
+      "sl": 500,
+      "expired": 0,
+      "resolved": 591,
+      "tp3_rate_pct": 15.4,
+      "median_sl_distance_pct": 0.933,
+      "median_tp3_distance_pct": 5.3653,
+      "signal_retention_pct": 10.3,
+      "tp3_retention_pct": 6.4,
+      "sl_reduction_pct": 88.42
+    }
+  },
+  "chronological_thirds": {
+    "first_third": {
+      "start": "2026-09-01T04:00:00+00:00",
+      "end": "2026-09-11T20:15:00+00:00",
+      "baseline": {
+        "signals": 1913,
+        "tp3": 304,
+        "sl": 1609,
+        "expired": 0,
+        "resolved": 1913,
+        "tp3_rate_pct": 15.89
+      },
+      "candidates": {
+        "baseline": {
+          "signals": 1913,
+          "tp3": 304,
+          "sl": 1609,
+          "expired": 0,
+          "resolved": 1913,
+          "tp3_rate_pct": 15.89,
+          "median_sl_distance_pct": 0.9025,
+          "median_tp3_distance_pct": 5.3899,
+          "signal_retention_pct": 100.0,
+          "tp3_retention_pct": 100.0,
+          "sl_reduction_pct": 0.0
+        },
+        "continuation_momentum": {
+          "signals": 638,
+          "tp3": 153,
+          "sl": 485,
+          "expired": 0,
+          "resolved": 638,
+          "tp3_rate_pct": 23.98,
+          "median_sl_distance_pct": 0.8117,
+          "median_tp3_distance_pct": 4.7494,
+          "signal_retention_pct": 33.35,
+          "tp3_retention_pct": 50.33,
+          "sl_reduction_pct": 69.86
+        },
+        "continuation_location": {
+          "signals": 1052,
+          "tp3": 144,
+          "sl": 908,
+          "expired": 0,
+          "resolved": 1052,
+          "tp3_rate_pct": 13.69,
+          "median_sl_distance_pct": 0.9985,
+          "median_tp3_distance_pct": 5.9909,
+          "signal_retention_pct": 54.99,
+          "tp3_retention_pct": 47.37,
+          "sl_reduction_pct": 43.57
+        },
+        "continuation_trend": {
+          "signals": 905,
+          "tp3": 194,
+          "sl": 711,
+          "expired": 0,
+          "resolved": 905,
+          "tp3_rate_pct": 21.44,
+          "median_sl_distance_pct": 0.8612,
+          "median_tp3_distance_pct": 5.156,
+          "signal_retention_pct": 47.31,
+          "tp3_retention_pct": 63.82,
+          "sl_reduction_pct": 55.81
+        },
+        "continuation_confirmation": {
+          "signals": 390,
+          "tp3": 42,
+          "sl": 348,
+          "expired": 0,
+          "resolved": 390,
+          "tp3_rate_pct": 10.77,
+          "median_sl_distance_pct": 0.8782,
+          "median_tp3_distance_pct": 5.2595,
+          "signal_retention_pct": 20.39,
+          "tp3_retention_pct": 13.82,
+          "sl_reduction_pct": 78.37
+        }
+      }
+    },
+    "middle_third": {
+      "start": "2026-09-11T20:20:00+00:00",
+      "end": "2026-09-22T13:50:00+00:00",
+      "baseline": {
+        "signals": 1913,
+        "tp3": 929,
+        "sl": 984,
+        "expired": 0,
+        "resolved": 1913,
+        "tp3_rate_pct": 48.56
+      },
+      "candidates": {
+        "baseline": {
+          "signals": 1913,
+          "tp3": 929,
+          "sl": 984,
+          "expired": 0,
+          "resolved": 1913,
+          "tp3_rate_pct": 48.56,
+          "median_sl_distance_pct": 1.008,
+          "median_tp3_distance_pct": 5.939,
+          "signal_retention_pct": 100.0,
+          "tp3_retention_pct": 100.0,
+          "sl_reduction_pct": 0.0
+        },
+        "continuation_momentum": {
+          "signals": 484,
+          "tp3": 212,
+          "sl": 272,
+          "expired": 0,
+          "resolved": 484,
+          "tp3_rate_pct": 43.8,
+          "median_sl_distance_pct": 0.9629,
+          "median_tp3_distance_pct": 5.5864,
+          "signal_retention_pct": 25.3,
+          "tp3_retention_pct": 22.82,
+          "sl_reduction_pct": 72.36
+        },
+        "continuation_location": {
+          "signals": 1251,
+          "tp3": 548,
+          "sl": 703,
+          "expired": 0,
+          "resolved": 1251,
+          "tp3_rate_pct": 43.8,
+          "median_sl_distance_pct": 0.9903,
+          "median_tp3_distance_pct": 5.939,
+          "signal_retention_pct": 65.39,
+          "tp3_retention_pct": 58.99,
+          "sl_reduction_pct": 28.56
+        },
+        "continuation_trend": {
+          "signals": 571,
+          "tp3": 236,
+          "sl": 335,
+          "expired": 0,
+          "resolved": 571,
+          "tp3_rate_pct": 41.33,
+          "median_sl_distance_pct": 0.9862,
+          "median_tp3_distance_pct": 5.8043,
+          "signal_retention_pct": 29.85,
+          "tp3_retention_pct": 25.4,
+          "sl_reduction_pct": 65.96
+        },
+        "continuation_confirmation": {
+          "signals": 120,
+          "tp3": 48,
+          "sl": 72,
+          "expired": 0,
+          "resolved": 120,
+          "tp3_rate_pct": 40.0,
+          "median_sl_distance_pct": 0.9102,
+          "median_tp3_distance_pct": 4.4919,
+          "signal_retention_pct": 6.27,
+          "tp3_retention_pct": 5.17,
+          "sl_reduction_pct": 92.68
+        }
+      }
+    },
+    "last_third": {
+      "start": "2026-09-22T13:55:00+00:00",
+      "end": "2026-09-30T18:55:00+00:00",
+      "baseline": {
+        "signals": 1914,
+        "tp3": 188,
+        "sl": 1726,
+        "expired": 0,
+        "resolved": 1914,
+        "tp3_rate_pct": 9.82
+      },
+      "candidates": {
+        "baseline": {
+          "signals": 1914,
+          "tp3": 188,
+          "sl": 1726,
+          "expired": 0,
+          "resolved": 1914,
+          "tp3_rate_pct": 9.82,
+          "median_sl_distance_pct": 1.3698,
+          "median_tp3_distance_pct": 8.1949,
+          "signal_retention_pct": 100.0,
+          "tp3_retention_pct": 100.0,
+          "sl_reduction_pct": 0.0
+        },
+        "continuation_momentum": {
+          "signals": 575,
+          "tp3": 15,
+          "sl": 560,
+          "expired": 0,
+          "resolved": 575,
+          "tp3_rate_pct": 2.61,
+          "median_sl_distance_pct": 1.2102,
+          "median_tp3_distance_pct": 7.2614,
+          "signal_retention_pct": 30.04,
+          "tp3_retention_pct": 7.98,
+          "sl_reduction_pct": 67.56
+        },
+        "continuation_location": {
+          "signals": 1350,
+          "tp3": 80,
+          "sl": 1270,
+          "expired": 0,
+          "resolved": 1350,
+          "tp3_rate_pct": 5.93,
+          "median_sl_distance_pct": 1.5122,
+          "median_tp3_distance_pct": 9.0711,
+          "signal_retention_pct": 70.53,
+          "tp3_retention_pct": 42.55,
+          "sl_reduction_pct": 26.42
+        },
+        "continuation_trend": {
+          "signals": 627,
+          "tp3": 23,
+          "sl": 604,
+          "expired": 0,
+          "resolved": 627,
+          "tp3_rate_pct": 3.67,
+          "median_sl_distance_pct": 1.2582,
+          "median_tp3_distance_pct": 7.5493,
+          "signal_retention_pct": 32.76,
+          "tp3_retention_pct": 12.23,
+          "sl_reduction_pct": 65.01
+        },
+        "continuation_confirmation": {
+          "signals": 81,
+          "tp3": 1,
+          "sl": 80,
+          "expired": 0,
+          "resolved": 81,
+          "tp3_rate_pct": 1.23,
+          "median_sl_distance_pct": 1.3041,
+          "median_tp3_distance_pct": 7.8248,
+          "signal_retention_pct": 4.23,
+          "tp3_retention_pct": 0.53,
+          "sl_reduction_pct": 95.37
+        }
+      }
+    }
+  },
+  "production_approval": {
+    "continuation_momentum": {
+      "approved": false,
+      "reason": "Requires positive TP3-rate improvement in every chronological third, >=20% signal retention, and controlled SL geometry."
+    },
+    "continuation_location": {
+      "approved": false,
+      "reason": "Requires positive TP3-rate improvement in every chronological third, >=20% signal retention, and controlled SL geometry."
+    },
+    "continuation_trend": {
+      "approved": false,
+      "reason": "Requires positive TP3-rate improvement in every chronological third, >=20% signal retention, and controlled SL geometry."
+    },
+    "continuation_confirmation": {
+      "approved": false,
+      "reason": "Requires positive TP3-rate improvement in every chronological third, >=20% signal retention, and controlled SL geometry."
+    }
+  }
+}
