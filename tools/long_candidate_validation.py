@@ -159,7 +159,7 @@ def main():
     cuts = [0, n // 3, (2 * n) // 3, n]
     labels = ["first_third", "middle_third", "last_third"]
     for label, start, end in zip(labels, cuts[:-1], cuts[1:]):
-        chunk = [r for r in rows[start:end] if r.get("outcome") in {"TP3_HIT", "SL_HIT"}]
+        chunk = baseline[start:end]
         base = stats(chunk)
         result["chronological_thirds"][label] = {
             "start": baseline[start].get("replay_time") if start < n else None,
