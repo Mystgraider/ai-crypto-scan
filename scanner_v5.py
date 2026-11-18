@@ -1039,6 +1039,12 @@ def main():
                     long_require_positive_di = bool(CONFIG.get("long_require_positive_di", False))
                     long_require_15m_not_bearish = bool(CONFIG.get("long_require_15m_not_bearish", False))
                     long_max_price_to_ema20_pct = float(CONFIG.get("long_max_price_to_ema20_pct", float("inf")))
+                    long_ema20_ema50_gap_floor_pct = float(CONFIG.get("long_ema20_ema50_gap_floor_pct", float("-inf")))
+                    long_ema20_ema50_gap_ceiling_pct = float(CONFIG.get("long_ema20_ema50_gap_ceiling_pct", float("inf")))
+                    long_atr_floor_pct = float(CONFIG.get("long_atr_floor_pct", float("-inf")))
+                    long_atr_ceiling_pct = float(CONFIG.get("long_atr_ceiling_pct", float("inf")))
+                    long_bb_pct_b_floor = float(CONFIG.get("long_bb_pct_b_floor", float("-inf")))
+                    long_bb_pct_b_ceiling = float(CONFIG.get("long_bb_pct_b_ceiling", float("inf")))
 
                     if rsi < long_rsi_floor:
                         skip["long_rsi_floor"] = skip.get("long_rsi_floor", 0) + 1
@@ -1084,6 +1090,30 @@ def main():
                                    price_to_ema20_pct=round(price_to_ema20_pct, 4),
                                    max_pct=long_max_price_to_ema20_pct)
                             continue
+
+                    if not (long_ema20_ema50_gap_floor_pct <= float(prev["ema20_ema50_gap_pct"]) <= long_ema20_ema50_gap_ceiling_pct):
+                        skip["long_ema_structure"] = skip.get("long_ema_structure", 0) + 1
+                        _trace(symbol, "long_ema_structure_block", direction=direction,
+                               ema20_ema50_gap_pct=round(float(prev["ema20_ema50_gap_pct"]), 4),
+                               floor=long_ema20_ema50_gap_floor_pct,
+                               ceiling=long_ema20_ema50_gap_ceiling_pct)
+                        continue
+
+                    if not (long_atr_floor_pct <= float(prev["atr_pct"]) <= long_atr_ceiling_pct):
+                        skip["long_atr_regime"] = skip.get("long_atr_regime", 0) + 1
+                        _trace(symbol, "long_atr_regime_block", direction=direction,
+                               atr_pct=round(float(prev["atr_pct"]), 4),
+                               floor=long_atr_floor_pct,
+                               ceiling=long_atr_ceiling_pct)
+                        continue
+
+                    if not (long_bb_pct_b_floor <= float(prev["bb_pct_b"]) <= long_bb_pct_b_ceiling):
+                        skip["long_bb_location"] = skip.get("long_bb_location", 0) + 1
+                        _trace(symbol, "long_bb_location_block", direction=direction,
+                               bb_pct_b=round(float(prev["bb_pct_b"]), 4),
+                               floor=long_bb_pct_b_floor,
+                               ceiling=long_bb_pct_b_ceiling)
+                        continue
 
                 # Research SHORT setup gate.
                 #
