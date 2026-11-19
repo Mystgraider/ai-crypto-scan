@@ -342,6 +342,7 @@ def main():
             price      = float(live["close"])
             ema20      = float(prev["ema_20"])
             ema50      = float(prev["ema_50"])
+            ema20_ema50_gap_pct = ((ema20 - ema50) / ema50 * 100.0) if ema50 != 0 else 0.0
             atr        = float(prev["atr"])
             adx        = float(prev["adx"])
             rsi        = float(prev["rsi"])
@@ -1091,10 +1092,10 @@ def main():
                                    max_pct=long_max_price_to_ema20_pct)
                             continue
 
-                    if not (long_ema20_ema50_gap_floor_pct <= float(prev["ema20_ema50_gap_pct"]) <= long_ema20_ema50_gap_ceiling_pct):
+                    if not (long_ema20_ema50_gap_floor_pct <= ema20_ema50_gap_pct <= long_ema20_ema50_gap_ceiling_pct):
                         skip["long_ema_structure"] = skip.get("long_ema_structure", 0) + 1
                         _trace(symbol, "long_ema_structure_block", direction=direction,
-                               ema20_ema50_gap_pct=round(float(prev["ema20_ema50_gap_pct"]), 4),
+                               ema20_ema50_gap_pct=round(ema20_ema50_gap_pct, 4),
                                floor=long_ema20_ema50_gap_floor_pct,
                                ceiling=long_ema20_ema50_gap_ceiling_pct)
                         continue
