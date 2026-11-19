@@ -4,6 +4,7 @@ name: Historical Backtest
 # A push to the research branch runs three contiguous 10-day chunks:
 # offsets 30, 20, 10 -> merged into one chronological 30-day / offset-30 artifact.
 # Trigger-only revision: rerun the corrected holdout verification.
+# LONG replay bugfix: scanner derives EMA20/EMA50 gap before the research gate.
 on:
   push:
     branches:
