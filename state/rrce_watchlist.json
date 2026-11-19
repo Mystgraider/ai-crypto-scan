@@ -2,8 +2,8 @@
   "ANKR/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-18T23:29:30.823575+00:00",
-    "last_seen": "2026-11-19T01:29:26.454919+00:00",
-    "observations": 25,
+    "last_seen": "2026-11-19T01:34:26.855539+00:00",
+    "observations": 26,
     "pool_level": 0.003266,
     "range_high": 0.003533,
     "range_low": 0.003076,
@@ -50,8 +50,8 @@
   "KNC/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-18T22:48:35.089644+00:00",
-    "last_seen": "2026-11-19T01:28:38.828417+00:00",
-    "observations": 29,
+    "last_seen": "2026-11-19T01:33:39.575944+00:00",
+    "observations": 30,
     "pool_level": 0.0979,
     "range_high": 0.1063,
     "range_low": 0.0908,
@@ -74,8 +74,8 @@
   "ZRX/USDT:USDT|SHORT": {
     "direction": "SHORT",
     "first_seen": "2026-11-18T23:33:46.578968+00:00",
-    "last_seen": "2026-11-19T01:28:45.203401+00:00",
-    "observations": 21,
+    "last_seen": "2026-11-19T01:33:45.453287+00:00",
+    "observations": 22,
     "pool_level": 0.0814,
     "range_high": 0.0882,
     "range_low": 0.076,
