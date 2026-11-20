@@ -12,8 +12,10 @@ Replay semantics:
   next 5m candle OPEN; its future high/low/close/volume are never used.
 - Live ticker validation is replaced by that boundary 5m open price.
 - Funding/OI are historical observations at/before the replay timestamp.
-- Telegram, cooldown, circuit breaker, tracker, and persistent signal logging
-  are disabled/captured.
+- Telegram, circuit breaker, tracker, and persistent signal logging are
+  disabled/captured. Production symbol cooldown is simulated against replay
+  time using CONFIG["signal_cooldown_hours"], so repeated 5-minute scans cannot
+  create signals that production would suppress.
 - Future candles are used only after a candidate's replay timestamp to score
   TP/SL outcome.
 - If one future candle spans SL and a TP, SL wins, matching SignalTracker's
@@ -805,6 +807,8 @@ def run():
     }
 
     captured = []
+    replay_cooldown = {}
+    cooldown_hours = float(CONFIG.get("signal_cooldown_hours", 4))
 
     class ReplayAnalytics:
         def compute(self):
@@ -822,8 +826,17 @@ def run():
             return None
 
     try:
-        scanner.is_on_cooldown = lambda symbol: False
-        scanner.set_cooldown = lambda symbol: None
+        def replay_is_on_cooldown(symbol):
+            last = replay_cooldown.get(symbol)
+            if last is None:
+                return False
+            return replay_time - last < pd.Timedelta(hours=cooldown_hours)
+
+        def replay_set_cooldown(symbol):
+            replay_cooldown[symbol] = replay_time
+
+        scanner.is_on_cooldown = replay_is_on_cooldown
+        scanner.set_cooldown = replay_set_cooldown
         scanner.send_telegram_alert = lambda message: None
         scanner.circuit_check = lambda: {
             "is_tripped": False,
