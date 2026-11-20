@@ -46,6 +46,11 @@ CONFIG = {
     "long_atr_ceiling_pct": 1.30,
     "long_bb_pct_b_floor": 0.65,
     "long_bb_pct_b_ceiling": 0.90,
+    # RRCE-aligned LONG research gate: require the structural RRCE path
+    # through Stage 3 (RANGE -> LIQUIDITY -> CHOCH/CONFIRMATION) before a
+    # LONG setup can proceed. Stage 4 remains the execution/risk contract.
+    "long_require_rrce_structure": True,
+    "long_rrce_min_stage": 3,
 
     # BTC is market context/safety, not the source of coin direction.
     "btc_symbol": "BTC/USDT:USDT",
