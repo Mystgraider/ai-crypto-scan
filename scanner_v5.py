@@ -886,6 +886,31 @@ def main():
                 # structurally derived entry/SL/TP after live-price revalidation.
                 # If it fails, fall back to the historical ATR risk contract so
                 # RRCE cannot collapse signal volume to zero.
+                # Research LONG regime: align the setup itself with the RRCE
+                # structural sequence before allowing indicator/ranking logic
+                # to proceed. Stage 1-3 are setup confirmation; Stage 4 is
+                # deliberately left to the execution/risk contract below.
+                if direction == "LONG" and CONFIG.get("long_require_rrce_structure", False):
+                    _required_stage = int(CONFIG.get("long_rrce_min_stage", 3))
+                    _stage_passed = {
+                        1: bool(rrce_result and (rrce_result.get("stage1") or {}).get("passed")),
+                        2: bool(rrce_result and (rrce_result.get("stage2") or {}).get("passed")),
+                        3: bool(rrce_result and (rrce_result.get("stage3") or {}).get("passed")),
+                        4: bool(rrce_result and rrce_result.get("valid")),
+                    }
+                    if _required_stage < 1 or _required_stage > 4:
+                        raise ValueError(f"invalid_long_rrce_min_stage:{_required_stage}")
+                    if not _stage_passed[_required_stage]:
+                        skip["long_rrce_structure_block"] = skip.get("long_rrce_structure_block", 0) + 1
+                        _trace(
+                            symbol,
+                            "long_rrce_structure_block",
+                            direction=direction,
+                            required_stage=_required_stage,
+                            rrce_failed_stage=(rrce_result or {}).get("failed_at", "no_rrce_result"),
+                        )
+                        continue
+
                 rrce_execution_stage4 = None
                 rrce_live_failure_reason = None
                 if rrce_result and rrce_result.get("valid"):
