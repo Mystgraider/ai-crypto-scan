@@ -83,6 +83,7 @@ jobs:
         env:
           BACKTEST_DAYS: "10"
           BACKTEST_OFFSET_DAYS: ${{ matrix.offset_days }}
+          BACKTEST_END: "2026-11-14T00:00:00+00:00"
           BACKTEST_LONG_SIGNALS_ENABLED: "true"
         run: |
           set -euo pipefail
