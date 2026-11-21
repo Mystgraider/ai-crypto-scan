@@ -752,14 +752,23 @@ def summarize(rows: list[dict]) -> dict:
 def run():
     import scanner_v5 as scanner
 
-    now = pd.Timestamp.now(tz="UTC")
-    # Reserve the complete outcome horizon plus Binance Vision's archive
-    # publication lag. offset_days=0 means the latest fully archived,
-    # fully scoreable 30-day window, not a 60-day historical offset.
-    end = now.floor("h") - pd.Timedelta(
-        days=OFFSET_DAYS,
-        hours=OUTCOME_LOOKAHEAD_HOURS + ARCHIVE_LAG_HOURS + 1,
-    )
+    anchor_end = os.getenv("BACKTEST_END", "").strip()
+    if anchor_end:
+        end = pd.Timestamp(anchor_end)
+        if end.tzinfo is None:
+            end = end.tz_localize("UTC")
+        else:
+            end = end.tz_convert("UTC")
+        end = end.floor("h") - pd.Timedelta(days=OFFSET_DAYS)
+    else:
+        now = pd.Timestamp.now(tz="UTC")
+        # Reserve the complete outcome horizon plus Binance Vision's archive
+        # publication lag. offset_days=0 means the latest fully archived,
+        # fully scoreable 30-day window, not a 60-day historical offset.
+        end = now.floor("h") - pd.Timedelta(
+            days=OFFSET_DAYS,
+            hours=OUTCOME_LOOKAHEAD_HOURS + ARCHIVE_LAG_HOURS + 1,
+        )
     start = end - pd.Timedelta(days=DAYS)
 
     print(f"Historical replay: {start} -> {end}")
