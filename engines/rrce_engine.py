@@ -667,17 +667,52 @@ class RRCEEngine:
     def stage4_execution(self, df_exec: pd.DataFrame, direction: str,
                           fvg: dict | None, sweep_extreme: float,
                           opposite_pool_level: float, break_idx: int = None,
-                          max_rr_cap: float = 4.0) -> dict:
-        """Use FVG OR OB as the execution entry structure."""
+                          max_rr_cap: float = 4.0,
+                          reference_price: float | None = None) -> dict:
+        """Build Stage-4 risk from the best available RRCE execution zone.
+
+        The prior implementation always preferred an Order Block whenever one
+        existed, even when its midpoint was materially farther from the current
+        price than the CHOCH-linked FVG. That made a structurally valid Stage-4
+        setup fail the separate live-entry deviation contract even though a
+        closer RRCE execution zone was available.
+
+        This selection remains RRCE-native: only the CHOCH-linked FVG and the
+        opposite-colored Order Block are candidates. When a reference price is
+        available, prefer a pullback zone on the correct side of price; among
+        eligible zones choose the closest midpoint. No new indicator or
+        non-RRCE signal path is introduced.
+        """
         ob = self._order_block(df_exec, direction, break_idx=break_idx)
+        candidates = []
+
         if ob:
-            entry = (ob["top"] + ob["bottom"]) / 2.0
-            entry_zone = "OB"
-        elif fvg:
-            entry = (float(fvg["top"]) + float(fvg["bottom"])) / 2.0
-            entry_zone = "FVG"
-        else:
+            ob_entry = (ob["top"] + ob["bottom"]) / 2.0
+            candidates.append(("OB", ob_entry, ob, None))
+
+        if fvg:
+            fvg_entry = (float(fvg["top"]) + float(fvg["bottom"])) / 2.0
+            candidates.append(("FVG", fvg_entry, None, fvg))
+
+        if not candidates:
             return {"valid": False, "reason": "no_fvg_or_order_block"}
+
+        if reference_price is not None and float(reference_price) > 0:
+            ref = float(reference_price)
+            directional = [
+                item for item in candidates
+                if (
+                    (direction == "LONG" and item[1] <= ref)
+                    or (direction == "SHORT" and item[1] >= ref)
+                )
+            ]
+            pool = directional if directional else candidates
+            chosen = min(pool, key=lambda item: abs(item[1] - ref) / ref)
+        else:
+            chosen = candidates[0]
+
+        entry_zone, entry, selected_ob, selected_fvg = chosen
+
         atr = None
         if "atr" in df_exec.columns:
             atr_idx = break_idx if break_idx is not None else len(df_exec) - 2
@@ -685,11 +720,13 @@ class RRCEEngine:
                 atr_value = df_exec["atr"].iloc[atr_idx]
                 if not pd.isna(atr_value) and float(atr_value) > 0:
                     atr = float(atr_value)
+
         buffer = atr * 0.3 if atr is not None else abs(entry) * 0.003
         sl = sweep_extreme - buffer if direction == "LONG" else sweep_extreme + buffer
         risk = abs(entry - sl)
         if risk <= 0:
             return {"valid": False, "reason": "invalid_risk"}
+
         raw_tp = float(opposite_pool_level)
         if direction == "LONG":
             capped_tp = entry + max_rr_cap * risk
@@ -697,9 +734,25 @@ class RRCEEngine:
         else:
             capped_tp = entry - max_rr_cap * risk
             tp = max(raw_tp, capped_tp) if raw_tp < entry else capped_tp
-        return {"valid": True, "entry": round(entry, 8), "sl": round(sl, 8),
-                "tp": round(tp, 8), "rr": round(abs(tp - entry) / risk, 2),
-                "order_block": ob, "fvg": fvg, "entry_zone": entry_zone}
+
+        entry_distance_pct = (
+            abs(entry - float(reference_price)) / float(reference_price) * 100.0
+            if reference_price is not None and float(reference_price) > 0
+            else None
+        )
+
+        return {
+            "valid": True,
+            "entry": round(entry, 8),
+            "sl": round(sl, 8),
+            "tp": round(tp, 8),
+            "rr": round(abs(tp - entry) / risk, 2),
+            "order_block": selected_ob,
+            "fvg": selected_fvg,
+            "entry_zone": entry_zone,
+            "entry_distance_pct": round(entry_distance_pct, 4) if entry_distance_pct is not None else None,
+            "available_execution_zones": [item[0] for item in candidates],
+        }
 
 
     # ── Full sequence, strictly gated ────────────────────────────────────
@@ -794,7 +847,8 @@ class RRCEEngine:
         opposite_pool = s1["range_high"] if direction == "LONG" else s1["range_low"]
         s4 = self.stage4_execution(
             df_ltf_exec, direction, s3["fvg"], s2["sweep_extreme"],
-            opposite_pool, break_idx=exec_break_idx
+            opposite_pool, break_idx=exec_break_idx,
+            reference_price=price,
         )
         result["stage4"] = s4
         if not s4.get("valid"):
