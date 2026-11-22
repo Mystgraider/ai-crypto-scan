@@ -911,6 +911,24 @@ def main():
                         )
                         continue
 
+                # Research LONG RRCE contract: LONG signals must use a fully valid
+                # Stage-4 RRCE execution/risk path. The production fallback ATR path
+                # remains available to SHORT and to normal production behavior, but it
+                # is not accepted as a LONG research signal when this flag is enabled.
+                if (
+                    direction == "LONG"
+                    and CONFIG.get("long_require_rrce_execution", False)
+                    and not (rrce_result and rrce_result.get("valid"))
+                ):
+                    skip["long_rrce_execution_block"] = skip.get("long_rrce_execution_block", 0) + 1
+                    _trace(
+                        symbol,
+                        "long_rrce_execution_block",
+                        direction=direction,
+                        rrce_failed_stage=(rrce_result or {}).get("failed_at", "no_rrce_result"),
+                    )
+                    continue
+
                 rrce_execution_stage4 = None
                 rrce_live_failure_reason = None
                 if rrce_result and rrce_result.get("valid"):
