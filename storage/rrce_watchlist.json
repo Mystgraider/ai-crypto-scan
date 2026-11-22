@@ -1,14 +1,26 @@
 {
   "GMX/USDT:USDT|SHORT": {
     "direction": "SHORT",
-    "first_seen": "2026-11-22T16:40:59.867326+00:00",
-    "last_seen": "2026-11-22T16:40:59.867326+00:00",
+    "first_seen": "2026-11-22T22:01:34.482604+00:00",
+    "last_seen": "2026-11-22T22:01:34.482604+00:00",
     "observations": 1,
-    "pool_level": 7.377,
+    "pool_level": 7.318,
     "range_high": 7.503,
     "range_low": 7.113,
     "regime": "BULL",
-    "sweep_extreme": 7.445,
+    "sweep_extreme": 7.36,
     "symbol": "GMX/USDT:USDT"
+  },
+  "HOT/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-11-22T22:01:54.333012+00:00",
+    "last_seen": "2026-11-22T22:01:54.333012+00:00",
+    "observations": 1,
+    "pool_level": 0.0003342,
+    "range_high": 0.0003517,
+    "range_low": 0.000306,
+    "regime": "BULL",
+    "sweep_extreme": 0.0003345,
+    "symbol": "HOT/USDT:USDT"
   }
 }
