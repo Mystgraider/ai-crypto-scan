@@ -1,1 +1,14 @@
-{}
+{
+  "GMX/USDT:USDT|SHORT": {
+    "direction": "SHORT",
+    "first_seen": "2026-11-22T16:40:59.867326+00:00",
+    "last_seen": "2026-11-22T16:40:59.867326+00:00",
+    "observations": 1,
+    "pool_level": 7.377,
+    "range_high": 7.503,
+    "range_low": 7.113,
+    "regime": "BULL",
+    "sweep_extreme": 7.445,
+    "symbol": "GMX/USDT:USDT"
+  }
+}
