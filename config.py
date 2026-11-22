@@ -50,7 +50,8 @@ CONFIG = {
     # through Stage 3 (RANGE -> LIQUIDITY -> CHOCH/CONFIRMATION) before a
     # LONG setup can proceed. Stage 4 remains the execution/risk contract.
     "long_require_rrce_structure": True,
-    "long_rrce_min_stage": 3,
+    "long_rrce_min_stage": 4,
+    "long_require_rrce_execution": True,
 
     # BTC is market context/safety, not the source of coin direction.
     "btc_symbol": "BTC/USDT:USDT",
