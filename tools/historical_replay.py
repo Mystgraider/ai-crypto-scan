@@ -814,6 +814,7 @@ def run():
         "SignalTracker": scanner.SignalTracker,
         "AnalyticsEngine": scanner.AnalyticsEngine,
     }
+    research_trace = []
 
     captured = []
     replay_cooldown = {}
@@ -862,6 +863,10 @@ def run():
 
             scanner.MarketDataLoader = lambda store=store: ReplayMarketLoader(store)
             scanner.TopSymbolsLoader = lambda: ReplayTopSymbols(SYMBOLS)
+            # Research-only telemetry sink. It records every scanner fate/trace
+            # during replay so LONG RRCE bottlenecks can be measured even when
+            # a setup is rejected before save_signal().
+            scanner.CONFIG["_historical_replay_trace_sink"] = research_trace
             # Diagnostic-only RRCE shadow replays are disabled for the long replay.
             # They never change candidate gating or captured signals. Production
             # defaults are untouched; this flag is scoped to this research run.
@@ -880,6 +885,7 @@ def run():
         for name, value in original.items():
             setattr(scanner, name, value)
         scanner.CONFIG.pop("_historical_replay_fast_mode", None)
+        scanner.CONFIG.pop("_historical_replay_trace_sink", None)
         if original_long_signals_enabled is None:
             os.environ.pop("LONG_SIGNALS_ENABLED", None)
         else:
@@ -973,6 +979,25 @@ def run():
             }
         )
 
+    # Direction-specific RRCE funnel summary. Diagnostic telemetry only;
+    # it does not alter signal selection or outcome scoring.
+    rrce_funnel = {}
+    for event in research_trace:
+        direction = event.get("direction")
+        if not direction:
+            continue
+        bucket = rrce_funnel.setdefault(direction, {})
+        stage = event.get("stage", "UNKNOWN")
+        bucket[stage] = bucket.get(stage, 0) + 1
+        if stage == "RRCE_STAGE4_LIVE_REJECT":
+            reason = event.get("reason", "unknown")
+            key = f"RRCE_STAGE4_LIVE_REJECT:{reason}"
+            bucket[key] = bucket.get(key, 0) + 1
+        if stage in {"rrce_nonqualifying", "long_rrce_structure_block", "long_rrce_execution_block"}:
+            failed = event.get("failed_at", "unknown")
+            key = f"{stage}:{failed}"
+            bucket[key] = bucket.get(key, 0) + 1
+
     payload = {
         "metadata": {
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -997,6 +1022,8 @@ def run():
             "archive_lag_buffer_hours": ARCHIVE_LAG_HOURS,
             "outcome_candle_interval": "5m",
             "incomplete_outcome_policy": "INCOMPLETE_DATA unless all 864 expected 5m candles from the signal timestamp through the 72h expiry are contiguous or TP/SL is reached before a gap",
+            "research_trace_events": len(research_trace),
+            "rrce_funnel": rrce_funnel,
         },
         "summary": summarize(results),
         "results": results,
