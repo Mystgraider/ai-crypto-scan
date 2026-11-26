@@ -28,27 +28,29 @@ CONFIG = {
     "short_adx_max": 20.0,
     "short_require_15m_not_bearish": True,
 
-    # Research LONG setup gate. This is intentionally a different regime from
-    # SHORT: LONG seeks confirmed continuation (moderate trend strength,
-    # positive DI, healthy RSI, and no bearish 15m confirmation). It is only
-    # evaluated when LONG_SIGNALS_ENABLED=true and remains research-branch-only
-    # until chronological holdout evidence proves it improves TP/SL/TP3.
-    "long_rsi_floor": 60.0,
-    "long_rsi_ceiling": 65.0,
+    # Research LONG setup: RRCE is the primary structural authority.
+    # Do not hard-filter LONG on indicator thresholds before we have a
+    # sufficiently large RRCE-qualified holdout population. The previous
+    # RSI/EMA/ATR/BB regime reduced the qualified sample to only three rows
+    # and therefore could not distinguish a real setup edge from sampling
+    # noise. These broad bounds preserve feature telemetry without imposing
+    # an unvalidated indicator gate.
+    "long_rsi_floor": 0.0,
+    "long_rsi_ceiling": 100.0,
     "long_adx_min": 0.0,
     "long_adx_max": 100.0,
     "long_require_positive_di": False,
     "long_require_15m_not_bearish": False,
     "long_max_price_to_ema20_pct": 100.0,
-    "long_ema20_ema50_gap_floor_pct": 0.15,
-    "long_ema20_ema50_gap_ceiling_pct": 1.0,
-    "long_atr_floor_pct": 0.80,
-    "long_atr_ceiling_pct": 1.30,
-    "long_bb_pct_b_floor": 0.65,
-    "long_bb_pct_b_ceiling": 0.90,
-    # RRCE-aligned LONG research gate: require the structural RRCE path
-    # through Stage 3 (RANGE -> LIQUIDITY -> CHOCH/CONFIRMATION) before a
-    # LONG setup can proceed. Stage 4 remains the execution/risk contract.
+    "long_ema20_ema50_gap_floor_pct": -100.0,
+    "long_ema20_ema50_gap_ceiling_pct": 100.0,
+    "long_atr_floor_pct": -100.0,
+    "long_atr_ceiling_pct": 100.0,
+    "long_bb_pct_b_floor": -100.0,
+    "long_bb_pct_b_ceiling": 100.0,
+    # RRCE-aligned LONG research gate: require the complete structural path
+    # RANGE -> LIQUIDITY -> CHOCH/CONFIRMATION -> EXECUTION. No ATR fallback
+    # is allowed for a LONG research signal.
     "long_require_rrce_structure": True,
     "long_rrce_min_stage": 4,
     "long_require_rrce_execution": True,
