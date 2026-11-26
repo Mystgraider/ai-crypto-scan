@@ -264,9 +264,13 @@ def main():
 
     TRACE_SYMBOLS = {"ETH/USDT:USDT", "SOL/USDT:USDT", "BNB/USDT:USDT", "XRP/USDT:USDT", "LTC/USDT:USDT"}
     symbol_trace_log = []
+    _research_trace_sink = CONFIG.get("_historical_replay_trace_sink")
     def _trace(sym, stage, force=False, **extra):
+        event = {"symbol": sym, "stage": stage, **extra}
         if force or sym in TRACE_SYMBOLS:
-            symbol_trace_log.append({"symbol": sym, "stage": stage, **extra})
+            symbol_trace_log.append(event)
+        if _research_trace_sink is not None:
+            _research_trace_sink.append(event)
     skip = {
         "cooldown": 0, "dated": 0, "btc": 0, "trend": 0,
         "funding": 0, "high_beta": 0, "sr_no_ceil": 0,
