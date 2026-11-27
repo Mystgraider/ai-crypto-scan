@@ -1035,9 +1035,11 @@ def main():
                         df_4h=df_4h,
                         df_15m=df_rrce_15m,
                         live_price=price,
-                        rsi_floor=float(CONFIG.get("long_rsi_floor", 45.0)),
-                        rsi_ceiling=float(CONFIG.get("long_rsi_ceiling", 65.0)),
+                        rsi_floor=float(CONFIG.get("long_rsi_floor", 50.0)),
+                        rsi_ceiling=float(CONFIG.get("long_rsi_ceiling", 60.0)),
                         rsi_4h_ceiling=float(CONFIG.get("long_rsi_4h_ceiling", 68.0)),
+                        min_adx_1h=float(CONFIG.get("long_min_adx_1h", 30.0)),
+                        min_adx_15m=float(CONFIG.get("long_min_adx_15m", 25.0)),
                         max_atr_distance=float(CONFIG.get("long_max_atr_distance", 1.25)),
                     )
                     if not long_setup.get("valid"):
