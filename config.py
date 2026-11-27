@@ -20,6 +20,13 @@ CONFIG = {
     "require_quality_engine": False,
     "scan_time_budget_sec": 480,
 
+    # Research LONG setup: asymmetric pullback/reclaim; never mirror SHORT.
+    "long_setup_enabled": True,
+    "long_rsi_floor": 45.0,
+    "long_rsi_ceiling": 65.0,
+    "long_rsi_4h_ceiling": 68.0,
+    "long_max_atr_distance": 1.25,
+
     # Research SHORT setup.
     # Keep only the evidence-backed 1H RSI band plus the independently
     # observed 15m anti-late-entry condition. ADX/ATR/EMA20 hard thresholds
