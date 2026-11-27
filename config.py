@@ -22,9 +22,11 @@ CONFIG = {
 
     # Research LONG setup: asymmetric pullback/reclaim; never mirror SHORT.
     "long_setup_enabled": True,
-    "long_rsi_floor": 45.0,
-    "long_rsi_ceiling": 65.0,
+    "long_rsi_floor": 50.0,
+    "long_rsi_ceiling": 60.0,
     "long_rsi_4h_ceiling": 68.0,
+    "long_min_adx_1h": 30.0,
+    "long_min_adx_15m": 25.0,
     "long_max_atr_distance": 1.25,
 
     # Research SHORT setup.
