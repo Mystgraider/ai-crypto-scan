@@ -37,6 +37,61 @@ jobs:
           python -m py_compile scanner_v5.py engines/rrce_engine.py engines/live_entry_integrity.py engines/beta_filter.py engines/funding_engine.py engines/oi_engine.py engines/support_resistance.py engines/relative_strength.py tests/test_btc_fail_closed.py tests/test_direction_policy.py tests/test_scanner_direction_integration.py tests/test_trend_gate_independence.py tests/test_score_ceiling_contradiction.py tests/test_live_entry_integrity.py tests/test_rrce_strategy_integrity.py tests/test_phase2b_engines.py tests/test_sr_policy.py tests/test_phase2d_ai_integrity.py tests/test_phase2c_decision_pipeline.py tests/test_relative_strength.py tests/test_signal_tracker.py tests/test_production_risk_contract.py
           python -m pytest -q tests/test_btc_fail_closed.py tests/test_direction_policy.py tests/test_scanner_direction_integration.py tests/test_trend_gate_independence.py tests/test_score_ceiling_contradiction.py tests/test_live_entry_integrity.py tests/test_rrce_strategy_integrity.py tests/test_phase2b_engines.py tests/test_sr_policy.py tests/test_phase2d_ai_integrity.py tests/test_phase2c_decision_pipeline.py tests/test_relative_strength.py tests/test_signal_tracker.py tests/test_production_risk_contract.py
 
+  oi_fixture_differential:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 120
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout fixture PR
+        uses: actions/checkout@v4
+      - name: Checkout current main baseline
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: baseline
+      - name: Checkout PR #113 candidate snapshot
+        uses: actions/checkout@v4
+        with:
+          ref: c1640c67a3a575213b0007711dadf51b45fe2309
+          path: candidate
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run OI fixture against baseline and candidate
+        env:
+          OI_OUT_DIR: ${{ runner.temp }}/oi-results
+        run: |
+          set +e
+          python tools/oi_fixtures_v2.py "$GITHUB_WORKSPACE/baseline" main --strict-oracle
+          main_rc=$?
+          python tools/oi_fixtures_v2.py "$GITHUB_WORKSPACE/candidate" pr113 --strict-oracle
+          candidate_rc=$?
+          echo "MAIN_EXIT=$main_rc" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "PR113_EXIT=$candidate_rc" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Fixture JSON files are uploaded even when a strict comparison fails."
+          if [ "$candidate_rc" -ne 0 ]; then
+            echo "FAIL: PR #113 candidate did not match the strict oracle."
+            exit 1
+          fi
+          if [ "$main_rc" -ne 0 ]; then
+            echo "EXPECTED BASELINE DIFFERENCE: main does not match the corrected fixture oracle; candidate matches."
+          else
+            echo "NOTE: main also matched the oracle; inspect baseline/candidate artifacts for unintended changes."
+          fi
+          echo "PASS: PR #113 candidate matched all strict oracle checks."
+      - name: Upload differential results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oi-fixture-differential
+          path: ${{ runner.temp }}/oi-results/
+          if-no-files-found: warn
+
   historical_replay:
     if: github.head_ref == 'backtest/true-historical-replay'
     runs-on: ubuntu-latest
