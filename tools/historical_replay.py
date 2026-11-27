@@ -64,6 +64,9 @@ INTERVALS = {"1h": "1h", "4h": "4h", "15m": "15m", "5m": "5m"}
 INTERVAL_DELTAS = {"1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4), "15m": pd.Timedelta(minutes=15), "5m": pd.Timedelta(minutes=5)}
 DAYS = int(os.getenv("BACKTEST_DAYS", "30"))
 OFFSET_DAYS = int(os.getenv("BACKTEST_OFFSET_DAYS", "90"))
+REPLAY_DIRECTION = os.getenv("BACKTEST_DIRECTION", "SHORT").strip().upper()
+if REPLAY_DIRECTION not in {"LONG", "SHORT"}:
+    raise RuntimeError(f"invalid_backtest_direction:{REPLAY_DIRECTION}")
 # Binance Vision daily futures archives can lag recent candles. REST fallback
 # may be geo-restricted in CI, so keep the replay window behind a fixed archive
 # publication buffer and fail closed if any remaining gaps cannot be recovered.
@@ -801,7 +804,9 @@ def run():
             raise RuntimeError(f"symbol_five_minute_coverage_failed:{symbol}:{exc}") from exc
 
     original_long_signals_enabled = os.environ.get("LONG_SIGNALS_ENABLED")
-    os.environ["LONG_SIGNALS_ENABLED"] = "false"
+    original_short_signals_enabled = os.environ.get("SHORT_SIGNALS_ENABLED")
+    os.environ["LONG_SIGNALS_ENABLED"] = "true" if REPLAY_DIRECTION == "LONG" else "false"
+    os.environ["SHORT_SIGNALS_ENABLED"] = "true" if REPLAY_DIRECTION == "SHORT" else "false"
 
     original = {
         "MarketDataLoader": scanner.MarketDataLoader,
@@ -873,6 +878,10 @@ def run():
             os.environ.pop("LONG_SIGNALS_ENABLED", None)
         else:
             os.environ["LONG_SIGNALS_ENABLED"] = original_long_signals_enabled
+        if original_short_signals_enabled is None:
+            os.environ.pop("SHORT_SIGNALS_ENABLED", None)
+        else:
+            os.environ["SHORT_SIGNALS_ENABLED"] = original_short_signals_enabled
 
     results = []
     for sig in captured:
@@ -996,8 +1005,9 @@ def run():
             "lookahead_policy": "outcome candles open at or after replay timestamp; no candle data before the signal timestamp is scored",
             "same_candle_conflict_policy": "SL first, matching SignalTracker",
             "production_code_modified": False,
-            "long_signals_enabled": False,
-            "replay_direction_policy": ["SHORT"],
+            "long_signals_enabled": REPLAY_DIRECTION == "LONG",
+            "short_signals_enabled": REPLAY_DIRECTION == "SHORT",
+            "replay_direction_policy": [REPLAY_DIRECTION],
             "harness_mode": "scanner_v5.main historical injection",
             "scan_cadence": "5m (matches .github/workflows/scanner.yml cron */5)",
             "forming_candle_policy": "reconstruct 1h/4h/15m in-progress candles from completed 5m bars before the boundary plus boundary 5m open only; no post-boundary OHLCV is exposed",
