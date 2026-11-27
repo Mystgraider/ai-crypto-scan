@@ -75,16 +75,34 @@ class Indicators:
         df["atr_pct"] = (df["atr"] / c) * 100
 
         # ── ADX ────────────────────────────────────────────────────────
-        plus_dm  = h.diff().clip(lower=0)
-        minus_dm = (-l.diff()).clip(lower=0)
-        plus_dm  = plus_dm.where(plus_dm > minus_dm, 0)
-        minus_dm = minus_dm.where(minus_dm > plus_dm, 0)
+        # Preserve the existing production ADX calculation unchanged.
+        # Its values are part of the current scanner strategy and must not
+        # silently shift during a research-only diagnostic update.
+        legacy_plus_dm  = h.diff().clip(lower=0)
+        legacy_minus_dm = (-l.diff()).clip(lower=0)
+        legacy_plus_dm  = legacy_plus_dm.where(legacy_plus_dm > legacy_minus_dm, 0)
+        legacy_minus_dm = legacy_minus_dm.where(legacy_minus_dm > legacy_plus_dm, 0)
 
-        atr14    = tr.ewm(com=13, adjust=False).mean()
-        plus_di  = 100 * plus_dm.ewm(com=13,  adjust=False).mean() / atr14.replace(0, 1e-10)
-        minus_di = 100 * minus_dm.ewm(com=13, adjust=False).mean() / atr14.replace(0, 1e-10)
-        dx       = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, 1e-10)
+        atr14 = tr.ewm(com=13, adjust=False).mean()
+        legacy_plus_di = 100 * legacy_plus_dm.ewm(com=13, adjust=False).mean() / atr14.replace(0, 1e-10)
+        legacy_minus_di = 100 * legacy_minus_dm.ewm(com=13, adjust=False).mean() / atr14.replace(0, 1e-10)
+        dx = 100 * (legacy_plus_di - legacy_minus_di).abs() / (legacy_plus_di + legacy_minus_di).replace(0, 1e-10)
         df["adx"] = dx.ewm(com=13, adjust=False).mean()
+
+        # Correct Wilder directional-movement diagnostics. Compare the raw
+        # up/down moves before zeroing either side; ties must produce zero DM.
+        up_move = h.diff()
+        down_move = -l.diff()
+        research_plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
+        research_minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
+        df["plus_di_research"] = (
+            100 * research_plus_dm.ewm(com=13, adjust=False).mean()
+            / atr14.replace(0, 1e-10)
+        )
+        df["minus_di_research"] = (
+            100 * research_minus_dm.ewm(com=13, adjust=False).mean()
+            / atr14.replace(0, 1e-10)
+        )
 
         # ── ROC ────────────────────────────────────────────────────────
         df["roc"] = c.pct_change(periods=10) * 100
