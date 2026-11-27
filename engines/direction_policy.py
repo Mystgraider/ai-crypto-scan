@@ -1,22 +1,26 @@
 """Direction discovery policy for scanner orchestration.
 
 BTC is market context, not a direction generator. Direction enablement can be
-controlled by LONG_SIGNALS_ENABLED in the production workflow environment.
-Set it to "false" to temporarily suppress all LONG candidates while preserving
-the existing trend-gate behavior for SHORT candidates.
+controlled independently for LONG and SHORT so research replays can isolate one
+strategy without changing production defaults.
 """
 import os
 
 VALID_DIRECTIONS = ("LONG", "SHORT")
 
 
+def _enabled(name: str) -> bool:
+    return os.getenv(name, "true").strip().lower() not in {
+        "0", "false", "no", "off"
+    }
+
+
 def get_candidate_directions(trend_direction: str, require_trend_gate: bool):
     """Return directions downstream validation is allowed to evaluate.
 
-    When LONG_SIGNALS_ENABLED=false, LONG is removed before downstream checks.
-    Otherwise, preserve the normal policy:
-      Gate enabled: LONG -> [LONG], SHORT -> [SHORT], NONE -> []
-      Gate disabled: any trend state -> [LONG, SHORT]
+    Defaults remain unchanged: both directions are enabled when the trend gate
+    is disabled. Research replays can set BACKTEST_DIRECTION indirectly through
+    LONG_SIGNALS_ENABLED / SHORT_SIGNALS_ENABLED to isolate one side.
     """
     if not require_trend_gate:
         directions = list(VALID_DIRECTIONS)
@@ -25,9 +29,8 @@ def get_candidate_directions(trend_direction: str, require_trend_gate: bool):
     else:
         directions = []
 
-    long_enabled = os.getenv("LONG_SIGNALS_ENABLED", "true").strip().lower() not in {
-        "0", "false", "no", "off"
-    }
-    if not long_enabled:
-        directions = [direction for direction in directions if direction != "LONG"]
+    if not _enabled("LONG_SIGNALS_ENABLED"):
+        directions = [d for d in directions if d != "LONG"]
+    if not _enabled("SHORT_SIGNALS_ENABLED"):
+        directions = [d for d in directions if d != "SHORT"]
     return directions
