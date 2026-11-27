@@ -39,6 +39,7 @@ permissions:
 
 jobs:
   replay:
+    if: ${{ github.event_name == 'push' || github.head_ref == 'research/short-gate-clean' || github.head_ref == 'research/enable-30d-offset60-workflow' }}
     name: 10-day chunk (window ${{ matrix.window }}d / offset ${{ matrix.offset_days }}d)
     runs-on: ubuntu-latest
     timeout-minutes: 360
