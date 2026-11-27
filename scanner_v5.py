@@ -55,6 +55,7 @@ from ai.confidence_engine        import ConfidenceEngine
 from config                      import CONFIG
 from engines.direction_policy    import get_candidate_directions
 from engines.short_gate           import short_rsi_4h_check, validate_short_gate_config
+from engines.long_gate            import evaluate_long_setup
 
 validate_short_gate_config(CONFIG)
 
@@ -1025,10 +1026,42 @@ def main():
                         _record_fate(symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK", blocker="mtf")
                     continue
 
-                # Research SHORT setup gate (direction-specific; LONG untouched).
-                # 1H RSI band + 15M not-bearish + closed-candle 4H RSI floor.
-                # ADX/ATR/EMA20 hard thresholds were removed as unstable across
-                # replay windows; they remain telemetry only.
+                # Research LONG setup gate. This is intentionally asymmetric
+                # with SHORT: bullish 4H/1H structure, 1H pullback/reclaim,
+                # improving momentum, and explicit 15m bullish confirmation.
+                if direction == "LONG" and CONFIG.get("long_setup_enabled", False):
+                    long_setup = evaluate_long_setup(
+                        df_1h=df_1h,
+                        df_4h=df_4h,
+                        df_15m=df_rrce_15m,
+                        live_price=price,
+                        rsi_floor=float(CONFIG.get("long_rsi_floor", 45.0)),
+                        rsi_ceiling=float(CONFIG.get("long_rsi_ceiling", 65.0)),
+                        rsi_4h_ceiling=float(CONFIG.get("long_rsi_4h_ceiling", 68.0)),
+                        max_atr_distance=float(CONFIG.get("long_max_atr_distance", 1.25)),
+                    )
+                    if not long_setup.get("valid"):
+                        skip["long_setup"] = skip.get("long_setup", 0) + 1
+                        _trace(
+                            symbol,
+                            "long_setup_block",
+                            direction=direction,
+                            setup=long_setup.get("setup"),
+                            reason=long_setup.get("reason"),
+                            checks=long_setup.get("checks"),
+                            metrics=long_setup.get("metrics"),
+                        )
+                        if rrce_execution_stage4 is not None:
+                            _record_fate(
+                                symbol, direction, "RRCE_STAGE4_POST_LIVE_BLOCK",
+                                blocker="long_setup",
+                                setup=long_setup.get("setup"),
+                                reason=long_setup.get("reason"),
+                            )
+                        continue
+
+                # Research SHORT setup remains independent and unchanged.
+                # It uses the SHORT-specific RSI/15m/4H contract below.
                 if direction == "SHORT":
                     short_rsi_floor = float(CONFIG.get("short_rsi_floor", 0.0))
                     short_rsi_ceiling = float(CONFIG.get("short_rsi_ceiling", 100.0))
