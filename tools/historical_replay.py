@@ -44,6 +44,7 @@ if str(ROOT) not in os.sys.path:
     os.sys.path.insert(0, str(ROOT))
 
 from config import CONFIG
+from tools.replay_opportunity import deduplicate_long_opportunities
 RESULTS = ROOT / "backtest_results.json"
 SYMBOLS = [
     "ETH/USDT:USDT",
@@ -863,6 +864,7 @@ def run():
 
             def capture(**sig):
                 sig["_replay_time"] = replay_time.isoformat()
+                sig["_replay_timestamp"] = replay_time
                 captured.append(sig)
 
             scanner.save_signal = capture
@@ -882,6 +884,19 @@ def run():
             os.environ.pop("SHORT_SIGNALS_ENABLED", None)
         else:
             os.environ["SHORT_SIGNALS_ENABLED"] = original_short_signals_enabled
+
+    raw_captured_count = len(captured)
+    if REPLAY_DIRECTION == "LONG":
+        captured, opportunity_stats = deduplicate_long_opportunities(captured)
+    else:
+        opportunity_stats = {
+            "policy": "disabled_for_SHORT",
+            "timeframe_basis": None,
+            "min_separation_minutes": None,
+            "raw_signals": raw_captured_count,
+            "independent_signals": raw_captured_count,
+            "suppressed_duplicate_signals": 0,
+        }
 
     results = []
     for sig in captured:
@@ -909,6 +924,7 @@ def run():
         results.append(
             {
                 "replay_time": sig["_replay_time"],
+                "research_opportunity_id": sig.get("_research_opportunity_id"),
                 "symbol": symbol,
                 "direction": sig["direction"],
                 # Signal-time values from the same completed 1H indicator row
@@ -1016,8 +1032,16 @@ def run():
             "archive_lag_buffer_hours": ARCHIVE_LAG_HOURS,
             "outcome_candle_interval": "5m",
             "incomplete_outcome_policy": "INCOMPLETE_DATA unless all 864 expected 5m candles from the signal timestamp through the 72h expiry are contiguous or TP/SL is reached before a gap",
+            "opportunity_policy": opportunity_stats,
+            "raw_captured_signals": raw_captured_count,
+            "independent_signals": len(captured),
         },
-        "summary": summarize(results),
+        "summary": {
+            **summarize(results),
+            "raw_captured_signals": raw_captured_count,
+            "independent_signals": len(results),
+            "suppressed_duplicate_signals": opportunity_stats["suppressed_duplicate_signals"],
+        },
         "results": results,
     }
     RESULTS.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
