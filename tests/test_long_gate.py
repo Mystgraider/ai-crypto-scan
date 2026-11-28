@@ -51,7 +51,7 @@ def test_long_rejects_weak_1h_trend():
 def test_long_rejects_weak_15m_trend():
     h1,h4,m15=_base()
     m15.loc[m15.index[-2],"adx"]=18
-    assert evaluate_long_setup(h1,h4,m15,101.0)["valid"] is False
+    assert evaluate_long_setup(h1,h4,m15,101.0,rrce_stage1=_rrce_stage1_pass())["valid"] is False
 
 def test_long_rejects_chase():
     h1,h4,m15=_base()
