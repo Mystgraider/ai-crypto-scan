@@ -7,6 +7,8 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from tools.replay_opportunity import deduplicate_long_opportunities
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -99,6 +101,7 @@ def main() -> None:
         "same_candle_conflict_policy", "outcome_expiry_hours",
         "outcome_candle_interval", "incomplete_outcome_policy",
         "scan_cadence", "forming_candle_policy",
+        "replay_direction_policy",
     )
     reference_metadata = chunks[0]["metadata"]
     for offset, chunk in zip(required_offsets[1:], chunks[1:]):
@@ -147,6 +150,26 @@ def main() -> None:
     if duplicates > sum(len(chunk["results"]) for chunk in chunks) * 0.01:
         raise RuntimeError(f"unexpected_duplicate_rate:{duplicates}")
 
+    replay_policy = reference_metadata.get("replay_direction_policy") or []
+    raw_captured_signals = sum(
+        int(chunk.get("metadata", {}).get("raw_captured_signals", len(chunk["results"])))
+        for chunk in chunks
+    )
+    if replay_policy == ["LONG"]:
+        rows, opportunity_stats = deduplicate_long_opportunities(rows)
+    else:
+        opportunity_stats = {
+            "policy": "disabled_for_SHORT",
+            "timeframe_basis": None,
+            "min_separation_minutes": None,
+            "raw_signals": raw_captured_signals,
+            "independent_signals": len(rows),
+            "suppressed_duplicate_signals": 0,
+        }
+
+    if not rows:
+        raise RuntimeError("merged_replay_has_zero_independent_signals")
+
     metadata = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "start": ranges[0]["start"],
@@ -166,6 +189,10 @@ def main() -> None:
         "incomplete_outcome_policy": reference_metadata.get("incomplete_outcome_policy"),
         "scan_cadence": reference_metadata.get("scan_cadence"),
         "forming_candle_policy": reference_metadata.get("forming_candle_policy"),
+        "replay_direction_policy": replay_policy,
+        "opportunity_policy": opportunity_stats,
+        "raw_captured_signals": raw_captured_signals,
+        "independent_signals": len(rows),
         "production_code_modified": False,
         "harness_mode": "scanner_v5.main historical injection; 3-way chronological chunk merge",
     }
@@ -174,6 +201,9 @@ def main() -> None:
         "summary": {
             "signals": len(rows),
             "outcomes": counts(rows),
+            "raw_captured_signals": raw_captured_signals,
+            "independent_signals": len(rows),
+            "suppressed_duplicate_signals": opportunity_stats["suppressed_duplicate_signals"],
             "chunk_ranges": ranges,
         },
         "results": rows,
@@ -183,6 +213,9 @@ def main() -> None:
         "output": str(args.output),
         "rows": len(rows),
         "duplicate_boundary_rows_removed": duplicates,
+        "raw_captured_signals": raw_captured_signals,
+        "independent_signals": len(rows),
+        "suppressed_duplicate_signals": opportunity_stats["suppressed_duplicate_signals"],
         "range": f"{ranges[0]['start']} -> {ranges[-1]['end']}",
         "summary": payload["summary"]["outcomes"],
     }, indent=2))
