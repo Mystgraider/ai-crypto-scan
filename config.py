@@ -28,6 +28,7 @@ CONFIG = {
     "long_min_adx_1h": 30.0,
     "long_min_adx_15m": 25.0,
     "long_max_atr_distance": 1.25,
+    "long_require_rrce_stage1": True,
 
     # Research SHORT setup.
     # Keep only the evidence-backed 1H RSI band plus the independently
