@@ -12,6 +12,8 @@ on:
       - "scanner_v5.py"
       - "config.py"
       - "tests/test_long_gate.py"
+      - "tools/replay_opportunity.py"
+      - "tests/test_replay_opportunity.py"
       - "tests/test_historical_replay_data_integrity.py"
       - "tests/test_production_risk_contract.py"
       - "engines/**"
@@ -65,7 +67,11 @@ jobs:
 
       - name: Run LONG contract and replay integrity tests
         run: |
-          python -m pytest -q             tests/test_long_gate.py             tests/test_historical_replay_data_integrity.py             tests/test_production_risk_contract.py
+          python -m pytest -q \
+            tests/test_long_gate.py \
+            tests/test_replay_opportunity.py \
+            tests/test_historical_replay_data_integrity.py \
+            tests/test_production_risk_contract.py
 
       - name: Run fixed 10-day LONG replay chunk
         env:
@@ -97,9 +103,14 @@ jobs:
               raise SystemExit("SHORT must be disabled")
           if meta.get("replay_direction_policy") != ["LONG"]:
               raise SystemExit(f"unexpected direction policy: {meta.get('replay_direction_policy')}")
+          opportunity = meta.get("opportunity_policy", {})
+          if opportunity.get("min_separation_minutes") != 60:
+              raise SystemExit(f"unexpected LONG opportunity separation: {opportunity}")
           rows = data.get("results", [])
           if any(r.get("direction") != "LONG" for r in rows):
               raise SystemExit("non-LONG row found in LONG replay")
+          if len({r.get("research_opportunity_id") for r in rows}) != len(rows):
+              raise SystemExit("duplicate LONG opportunity ids found within chunk")
           print(json.dumps({
               "start": meta.get("start"),
               "end": meta.get("end"),
@@ -162,10 +173,17 @@ jobs:
           rows = [r for r in payload["results"] if r.get("direction") == "LONG"]
 
           if not rows:
-              raise SystemExit("LONG replay produced zero signals across the 30-day holdout")
+              raise SystemExit("LONG replay produced zero independent signals across the 30-day holdout")
 
           if any(r.get("direction") != "LONG" for r in payload["results"]):
               raise SystemExit("merged replay contains a non-LONG row")
+
+          if len({r.get("research_opportunity_id") for r in rows}) != len(rows):
+              raise SystemExit("merged LONG replay contains duplicate opportunity ids")
+
+          opportunity = meta.get("opportunity_policy", {})
+          if opportunity.get("min_separation_minutes") != 60:
+              raise SystemExit(f"unexpected merged LONG opportunity policy: {opportunity}")
 
           outcomes = Counter(r.get("outcome", "UNKNOWN") for r in rows)
           resolved = outcomes["TP1_HIT"] + outcomes["TP2_HIT"] + outcomes["TP3_HIT"] + outcomes["SL_HIT"]
@@ -204,6 +222,9 @@ jobs:
               "resolved": resolved,
               "tp3": tp3,
               "tp_rate_pct": tp_rate,
+              "raw_captured_signals": meta.get("raw_captured_signals"),
+              "independent_signals": meta.get("independent_signals"),
+              "suppressed_duplicate_signals": meta.get("opportunity_policy", {}).get("suppressed_duplicate_signals"),
               "rrce_status": dict(rrce),
               "grades": dict(grades),
               "by_symbol": {k: dict(v) for k, v in sorted(by_symbol.items())},
