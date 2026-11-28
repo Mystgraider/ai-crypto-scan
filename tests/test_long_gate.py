@@ -24,26 +24,29 @@ def _base():
     ])
     return h1,h4,m15
 
+def _rrce_stage1_pass():
+    return {"passed": True, "position_pct": 45.0}
+
 def test_long_pullback_reclaim_passes():
     h1,h4,m15=_base()
-    r=evaluate_long_setup(h1,h4,m15,101.0)
+    r=evaluate_long_setup(h1,h4,m15,101.0,rrce_stage1=_rrce_stage1_pass())
     assert r["valid"] is True
     assert r["setup"]=="LONG_PULLBACK_RECLAIM"
 
 def test_long_rejects_overextended_rsi():
     h1,h4,m15=_base()
     h1.loc[h1.index[-2],"rsi"]=72
-    assert evaluate_long_setup(h1,h4,m15,101.0)["valid"] is False
+    assert evaluate_long_setup(h1,h4,m15,101.0,rrce_stage1=_rrce_stage1_pass())["valid"] is False
 
 def test_long_requires_bullish_15m():
     h1,h4,m15=_base()
     m15.loc[m15.index[-2],["ema_20","ema_50","close","macd_hist"]]=[101.0,102.0,99.0,-0.3]
-    assert evaluate_long_setup(h1,h4,m15,101.0)["valid"] is False
+    assert evaluate_long_setup(h1,h4,m15,101.0,rrce_stage1=_rrce_stage1_pass())["valid"] is False
 
 def test_long_rejects_weak_1h_trend():
     h1,h4,m15=_base()
     h1.loc[h1.index[-2],"adx"]=24
-    assert evaluate_long_setup(h1,h4,m15,101.0)["valid"] is False
+    assert evaluate_long_setup(h1,h4,m15,101.0,rrce_stage1=_rrce_stage1_pass())["valid"] is False
 
 def test_long_rejects_weak_15m_trend():
     h1,h4,m15=_base()
@@ -52,4 +55,17 @@ def test_long_rejects_weak_15m_trend():
 
 def test_long_rejects_chase():
     h1,h4,m15=_base()
-    assert evaluate_long_setup(h1,h4,m15,104.0)["valid"] is False
+    assert evaluate_long_setup(h1,h4,m15,104.0,rrce_stage1=_rrce_stage1_pass())["valid"] is False
+
+def test_long_requires_rrce_stage1_alignment():
+    h1,h4,m15=_base()
+    failed={"passed":False,"position_pct":78.0}
+    r=evaluate_long_setup(h1,h4,m15,101.0,rrce_stage1=failed)
+    assert r["valid"] is False
+    assert r["checks"]["rrce_stage1_alignment"] is False
+
+def test_long_records_rrce_stage1_position():
+    h1,h4,m15=_base()
+    r=evaluate_long_setup(h1,h4,m15,101.0,rrce_stage1=_rrce_stage1_pass())
+    assert r["metrics"]["rrce_stage1_passed"] is True
+    assert r["metrics"]["rrce_stage1_position_pct"] == 45.0
