@@ -1041,6 +1041,8 @@ def main():
                         min_adx_1h=float(CONFIG.get("long_min_adx_1h", 30.0)),
                         min_adx_15m=float(CONFIG.get("long_min_adx_15m", 25.0)),
                         max_atr_distance=float(CONFIG.get("long_max_atr_distance", 1.25)),
+                        rrce_stage1=(rrce_result or {}).get("stage1") if isinstance(rrce_result, dict) else None,
+                        require_rrce_stage1=bool(CONFIG.get("long_require_rrce_stage1", True)),
                     )
                     if not long_setup.get("valid"):
                         skip["long_setup"] = skip.get("long_setup", 0) + 1
