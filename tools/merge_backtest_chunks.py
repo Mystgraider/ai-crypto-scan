@@ -7,7 +7,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from tools.replay_opportunity import deduplicate_long_opportunities
+from replay_opportunity import deduplicate_long_opportunities
 
 
 def parse_args() -> argparse.Namespace:
