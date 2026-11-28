@@ -22,6 +22,8 @@ def evaluate_long_setup(
     min_adx_1h: float = 30.0,
     min_adx_15m: float = 25.0,
     max_atr_distance: float = 1.25,
+    rrce_stage1: dict[str, Any] | None = None,
+    require_rrce_stage1: bool = True,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {"valid": False, "setup": "LONG_PULLBACK_RECLAIM", "reason": None}
     if df_1h is None or len(df_1h) < 4:
@@ -55,7 +57,17 @@ def evaluate_long_setup(
     mc, me20, me50, mmacd, madx = [_f(m15,k) for k in keys["m15"]]
     mpc, mpema20 = [_f(m15p,k) for k in keys["m15p"]]
 
+    rrce_stage1_passed = bool(
+        isinstance(rrce_stage1, dict) and rrce_stage1.get("passed") is True
+    )
+    rrce_stage1_position = _f(
+        pd.Series({"value": rrce_stage1.get("position_pct")})
+        if isinstance(rrce_stage1, dict) else pd.Series(dtype=float),
+        "value",
+    )
+
     checks = {
+        "rrce_stage1_alignment": (rrce_stage1_passed if require_rrce_stage1 else True),
         "4h_bullish_structure": h4ema20 >= h4ema50 and h4close >= h4ema50,
         "4h_not_overbought": h4rsi <= rsi_4h_ceiling,
         "1h_bullish_structure": he20 > he50 and hc >= he50,
@@ -80,6 +92,8 @@ def evaluate_long_setup(
             "ema20_1h": he20, "ema50_1h": he50,
             "macd_hist_1h": hmacd, "macd_hist_15m": mmacd,
             "live_price": float(live_price),
+            "rrce_stage1_passed": rrce_stage1_passed,
+            "rrce_stage1_position_pct": rrce_stage1_position,
         },
     })
     return result
